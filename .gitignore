@@ -1,0 +1,24 @@
+# Diretórios de build gerados pelo Maven
+target/
+
+# Arquivos compilados
+*.class
+
+# Dados gerados pela aplicação (cache de leituras e saídas)
+data/cache/
+data/output/
+
+# Diretórios e arquivos de IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
