@@ -1,8 +1,13 @@
 package com.shinji2324.furigana;
 
+import com.shinji2324.furigana.cli.CliCommand;
+import com.shinji2324.furigana.cli.CliParser;
+import com.shinji2324.furigana.cli.CliUsageException;
 import com.shinji2324.furigana.furigana.FuriganaDocument;
 import com.shinji2324.furigana.japanese.JapaneseTokenizer;
 import com.shinji2324.furigana.japanese.KuromojiTokenizer;
+import com.shinji2324.furigana.mpv.MpvIntegration;
+import com.shinji2324.furigana.mpv.MpvPaths;
 import com.shinji2324.furigana.output.AssGenerator;
 import com.shinji2324.furigana.output.JsonWriter;
 import com.shinji2324.furigana.pipeline.FuriganaPipeline;
@@ -16,19 +21,24 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
 
 /**
  * Ponto de entrada da aplicação (CLI).
  *
- * <p>Uso:
+ * <p>Formas de uso:
  * <pre>
- * java ... furigana-parser.jar &lt;entrada.srt&gt; &lt;saida.json|saida.ass&gt;
+ * furigana-parser &lt;entrada.srt&gt; &lt;saida.json|saida.ass&gt;
+ * furigana-parser --mpv &lt;entrada.srt&gt; &lt;video&gt;
+ * furigana-parser --help
  * </pre>
  *
  * <p>O formato de saída é escolhido pela extensão do arquivo de saída:
  * {@code .json} gera o modelo intermediário e {@code .ass} gera a legenda com o
  * furigana posicionado.
+ *
+ * <p>No modo {@code --mpv}, a legenda é gerada ao lado da SRT (sufixo
+ * {@code .furigana.ass}) e o vídeo é aberto no MPV com
+ * {@code --sub-file}. Veja as limitações em {@code docs/mpv.md}.
  *
  * <p>Lê a legenda SRT em UTF-8 e executa o pipeline. As leituras vêm do
  * tokenizador morfológico ({@link KuromojiTokenizer}); quando ele não conhece um
@@ -41,76 +51,135 @@ import java.util.Locale;
  */
 public class Application {
 
-    /** Código de saída para erro de argumentos. */
-    private static final int EXIT_USAGE = 2;
+    /** Código de saída para sucesso. */
+    static final int EXIT_OK = 0;
 
     /** Código de saída para erro de processamento. */
-    private static final int EXIT_ERROR = 1;
+    static final int EXIT_ERROR = 1;
+
+    /** Código de saída para erro de argumentos. */
+    static final int EXIT_USAGE = 2;
 
     /** Local padrão do cache de leituras, relativo ao diretório de execução. */
     private static final Path DEFAULT_CACHE_FILE = Path.of("data", "cache", "readings.json");
 
+    private final CliParser cliParser = new CliParser();
+    private final MpvIntegration mpvIntegration = new MpvIntegration();
+
     /**
      * Ponto de entrada da CLI.
      *
-     * @param args espera dois argumentos: caminho da legenda SRT e caminho de saída
+     * @param args argumentos da linha de comando
      */
     public static void main(String[] args) {
-        if (args.length < 2) {
-            System.err.println("Uso: furigana-parser <entrada.srt> <saida.json|saida.ass>");
-            System.exit(EXIT_USAGE);
-            return;
-        }
-
-        Path input = Path.of(args[0]);
-        Path output = Path.of(args[1]);
-        String format = extensionOf(output);
-
-        if (!format.equals("json") && !format.equals("ass")) {
-            System.err.println("Formato de saída não suportado: use .json ou .ass");
-            System.exit(EXIT_USAGE);
-            return;
-        }
-
-        try {
-            String srtContent = Files.readString(input, StandardCharsets.UTF_8);
-
-            JapaneseTokenizer tokenizer = new KuromojiTokenizer();
-            ReadingProvider provider = new CachingReadingProvider(
-                    new JishoReadingProvider(),
-                    new FileReadingCache(DEFAULT_CACHE_FILE));
-            FuriganaPipeline pipeline = new FuriganaPipeline(tokenizer, provider);
-
-            FuriganaDocument document = pipeline.process(srtContent);
-            String rendered = format.equals("ass")
-                    ? new AssGenerator().generate(document)
-                    : new JsonWriter().write(document);
-            writeText(output, rendered);
-
-            System.out.println("Furigana gerado (" + format + "): " + output.toAbsolutePath());
-        } catch (SubtitleParseException e) {
-            System.err.println("Legenda inválida: " + e.getMessage());
-            System.exit(EXIT_ERROR);
-        } catch (IllegalArgumentException e) {
-            System.err.println("Saída inválida: " + e.getMessage());
-            System.exit(EXIT_ERROR);
-        } catch (IOException e) {
-            // JsonProcessingException é subclasse de IOException, portanto é coberta aqui.
-            System.err.println("Erro ao processar legenda: " + e.getMessage());
-            System.exit(EXIT_ERROR);
+        int exitCode = new Application().run(args);
+        if (exitCode != EXIT_OK) {
+            System.exit(exitCode);
         }
     }
 
     /**
-     * Retorna a extensão do caminho em minúsculas (sem o ponto), ou string vazia.
+     * Executa a aplicação e retorna o código de saída.
+     *
+     * <p>Separado de {@link #main(String[])} para não encerrar a JVM ao ser usado
+     * em testes.
+     *
+     * @param args argumentos da linha de comando
+     * @return código de saída
      */
-    private static String extensionOf(Path path) {
-        String name = path.getFileName().toString();
-        int dot = name.lastIndexOf('.');
-        if (dot < 0 || dot == name.length() - 1) {
-            return "";
+    public int run(String[] args) {
+        CliCommand command;
+        try {
+            command = cliParser.parse(args);
+        } catch (CliUsageException e) {
+            System.err.println(e.getMessage());
+            return EXIT_USAGE;
         }
-        return name.substring(dot + 1).toLowerCase(Locale.ROOT);
+
+        try {
+            return execute(command);
+        } catch (SubtitleParseException e) {
+            System.err.println("Legenda inválida: " + e.getMessage());
+            return EXIT_ERROR;
+        } catch (IllegalArgumentException e) {
+            System.err.println("Saída inválida: " + e.getMessage());
+            return EXIT_ERROR;
+        } catch (IOException e) {
+            // JsonProcessingException é subclasse de IOException, portanto é coberta aqui.
+            System.err.println("Erro ao processar legenda: " + e.getMessage());
+            return EXIT_ERROR;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("Execução interrompida: " + e.getMessage());
+            return EXIT_ERROR;
+        }
+    }
+
+    /**
+     * Despacha o comando interpretado.
+     */
+    private int execute(CliCommand command) throws IOException, InterruptedException {
+        return switch (command.mode()) {
+            case HELP -> {
+                System.out.println(CliParser.USAGE);
+                yield EXIT_OK;
+            }
+            case GENERATE_JSON -> generate(command.input(), command.output(), false);
+            case GENERATE_ASS -> generate(command.input(), command.output(), true);
+            case PLAY -> play(command.input(), command.output());
+        };
+    }
+
+    /**
+     * Gera a saída solicitada (JSON ou ASS) para o arquivo informado.
+     */
+    private int generate(Path input, Path output, boolean ass) throws IOException {
+        FuriganaDocument document = process(input);
+        String rendered = ass
+                ? new AssGenerator().generate(document)
+                : new JsonWriter().write(document);
+        writeText(output, rendered);
+        System.out.println("Furigana gerado (" + (ass ? "ass" : "json") + "): " + output.toAbsolutePath());
+        return EXIT_OK;
+    }
+
+    /**
+     * Gera o ASS ao lado da SRT e abre o vídeo no MPV.
+     */
+    private int play(Path subtitle, Path video) throws IOException, InterruptedException {
+        Path ass = MpvPaths.furiganaSubtitle(subtitle);
+        FuriganaDocument document = process(subtitle);
+        writeText(ass, new AssGenerator().generate(document));
+        System.out.println("Legenda gerada: " + ass.toAbsolutePath());
+        System.out.println("Abrindo MPV: " + video.toAbsolutePath());
+
+        try {
+            int exitCode = mpvIntegration.open(video, ass);
+            if (exitCode != 0) {
+                System.err.println("MPV encerrou com código " + exitCode);
+                return EXIT_ERROR;
+            }
+            return EXIT_OK;
+        } catch (IOException e) {
+            System.err.println("Falha ao iniciar o MPV (verifique se 'mpv' está instalado e no PATH): "
+                    + e.getMessage());
+            return EXIT_ERROR;
+        }
+    }
+
+    /**
+     * Lê a SRT e executa o pipeline completo de furigana.
+     */
+    private FuriganaDocument process(Path input) throws IOException {
+        String srtContent = Files.readString(input, StandardCharsets.UTF_8);
+
+        JapaneseTokenizer tokenizer = new KuromojiTokenizer();
+        ReadingProvider provider = new CachingReadingProvider(
+                new JishoReadingProvider(),
+                new FileReadingCache(DEFAULT_CACHE_FILE));
+        FuriganaPipeline pipeline = new FuriganaPipeline(tokenizer, provider);
+
+        return pipeline.process(srtContent);
     }
 
     /**

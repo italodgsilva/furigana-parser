@@ -52,10 +52,11 @@ Etapas concluídas:
 5. Tokenização morfológica com Kuromoji (dicionário IPADIC), com leitura em hiragana e separação de kanji/okurigana (`FuriganaSegmenter`).
 6. Leituras externas: `JishoReadingProvider` real, mediado por `CachingReadingProvider` com cache em disco (`data/cache/readings.json`).
 7. Geração de ASS com furigana posicionado (`AssGenerator` + `AssWriter` + `AssLayout`), com estilos em `src/main/resources/ass/default-style.ass`.
+8. Integração com o MPV (`--mpv`): gera o ASS ao lado da SRT e abre o vídeo com `mpv --sub-file=...` (ver `docs/mpv.md`).
 
-Próxima etapa:
+Próximas etapas (fora do escopo atual):
 
-- Integração com MPV.
+- integração dinâmica com o MPV (scripts Lua, atualização em tempo real).
 
 ## Tecnologias
 
@@ -83,7 +84,7 @@ furigana-parser/
 │   │   ├── java/
 │   │   │   └── com/shinji2324/furigana/
 │   │   │       ├── Application.java
-│   │   │       ├── config/
+│   │   │       ├── cli/
 │   │   │       ├── subtitle/
 │   │   │       ├── japanese/
 │   │   │       ├── reading/
@@ -106,7 +107,8 @@ furigana-parser/
 │
 └── docs/
     ├── architecture.md
-    └── ass-format.md
+    ├── ass-format.md
+    └── mpv.md
 ```
 
 ## Desenvolvimento
@@ -142,7 +144,14 @@ intermediário e `.ass` gera a legenda com o furigana posicionado.
 ```
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.json
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --mpv entrada.srt video.mkv
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --help
 ```
+
+No modo `--mpv`, o ASS é gerado ao lado da SRT (`entrada.furigana.ass`) e o vídeo
+é aberto no MPV com `--sub-file`. Requer o MPV instalado no `PATH`. As limitações
+dessa integração (resolução fixa, fonte CJK, faixas de legenda etc.) estão em
+[`docs/mpv.md`](docs/mpv.md).
 
 O JSON gerado tem a seguinte estrutura (cada token é separado em kanji, com
 leitura, e okurigana, sem leitura):

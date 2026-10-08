@@ -175,9 +175,21 @@ AssLayout      — geometria da grade de caracteres usada no `\pos`
 
  ### `mpv`
 
- A integração com o MPV será implementada posteriormente.
+ Responsável por reproduzir o vídeo com a legenda de furigana gerada.
 
- Ela poderá incluir:
+Implementada nesta etapa como um lançador desacoplado do pipeline:
+
+ ```
+MpvPaths        — convenção de nome do ASS gerado (.furigana.ass)
+MpvIntegration  — monta/executa: mpv --sub-file=<ass> <video>
+ProcessRunner   — abstração da execução do processo (testável)
+ ```
+
+ O `MpvIntegration` não conhece SRT, Jisho nem `FuriganaDocument`; ele recebe
+ apenas os caminhos do vídeo e do ASS. A geração do ASS continua no pipeline e
+ na camada `output`, orquestrada pelo `Application` (modo `--mpv`).
+
+ Permanece como escopo futuro:
 
  - scripts Lua;
 - atalhos;
@@ -185,7 +197,7 @@ AssLayout      — geometria da grade de caracteres usada no `\pos`
 - comunicação com a aplicação;
 - atualização dinâmica da legenda.
 
- Essa camada não faz parte da primeira versão.
+ As limitações da integração atual estão em `docs/mpv.md`.
 
  ## Fluxo de dados
 
@@ -287,7 +299,7 @@ FuriganaDocument → Output
 
  - tratamento de palavras com múltiplas leituras;
 - tratamento de nomes próprios;
-- integração final com MPV.
+- integração dinâmica com MPV (scripts Lua / atualização em tempo real).
 
  Decisões já tomadas:
 
@@ -296,7 +308,8 @@ FuriganaDocument → Output
 - cache: JSON em `data/cache/readings.json`, via `CachingReadingProvider`;
 - okurigana: separado dentro do token pelo `FuriganaSegmenter`;
 - verbos conjugados: tokenizados pelo Kuromoji (radical + okurigana);
-- ASS: Estratégia 3 (`\pos` + estilos `Main`/`Furigana`, grade de caracteres).
+- ASS: Estratégia 3 (`\pos` + estilos `Main`/`Furigana`, grade de caracteres);
+- MPV: lançador `mpv --sub-file=<ass>` com `ProcessRunner` injetável.
 
  Essas decisões não devem ser antecipadas sem necessidade.
 

@@ -22,3 +22,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Legendas de furigana geradas ao lado da SRT (modo --mpv)
+*.furigana.ass
