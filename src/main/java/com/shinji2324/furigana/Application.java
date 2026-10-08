@@ -1,9 +1,14 @@
 package com.shinji2324.furigana;
 
 import com.shinji2324.furigana.furigana.FuriganaDocument;
-import com.shinji2324.furigana.japanese.ScriptJapaneseTokenizer;
+import com.shinji2324.furigana.japanese.JapaneseTokenizer;
+import com.shinji2324.furigana.japanese.KuromojiTokenizer;
 import com.shinji2324.furigana.output.JsonWriter;
 import com.shinji2324.furigana.pipeline.FuriganaPipeline;
+import com.shinji2324.furigana.reading.CachingReadingProvider;
+import com.shinji2324.furigana.reading.FileReadingCache;
+import com.shinji2324.furigana.reading.ReadingProvider;
+import com.shinji2324.furigana.reading.jisho.JishoReadingProvider;
 import com.shinji2324.furigana.subtitle.SubtitleParseException;
 
 import java.io.IOException;
@@ -19,10 +24,11 @@ import java.nio.file.Path;
  * java ... furigana-parser.jar &lt;entrada.srt&gt; &lt;saida.json&gt;
  * </pre>
  *
- * <p>Lê a legenda SRT em UTF-8, executa o pipeline de processamento e persiste
- * o JSON intermediário das entradas com furigana. A integração com os providers
- * de leitura será feita na etapa em que o Kuromoji e o Jisho forem conectados;
- * por enquanto o pipeline roda sem provider (leituras nulas).
+ * <p>Lê a legenda SRT em UTF-8, executa o pipeline e persiste o JSON intermediário
+ * das entradas com furigana. As leituras vêm do tokenizador morfológico
+ * ({@link KuromojiTokenizer}); quando o Kuromoji não conhece um termo com kanji,
+ * o fallback consulta o {@link JishoReadingProvider}, sempre mediado pelo
+ * {@link CachingReadingProvider} (cache em {@code data/cache/readings.json}).
  *
  * <p>Esta classe é apenas o ponto de composição: a lógica permanece nas camadas
  * do pipeline. Ela não contém regras de negócio.
@@ -34,6 +40,9 @@ public class Application {
 
     /** Código de saída para erro de processamento. */
     private static final int EXIT_ERROR = 1;
+
+    /** Local padrão do cache de leituras, relativo ao diretório de execução. */
+    private static final Path DEFAULT_CACHE_FILE = Path.of("data", "cache", "readings.json");
 
     /**
      * Ponto de entrada da CLI.
@@ -52,10 +61,16 @@ public class Application {
 
         try {
             String srtContent = Files.readString(input, StandardCharsets.UTF_8);
-            FuriganaPipeline pipeline = new FuriganaPipeline(new ScriptJapaneseTokenizer(), null);
-            FuriganaDocument document = pipeline.process(srtContent);
 
+            JapaneseTokenizer tokenizer = new KuromojiTokenizer();
+            ReadingProvider provider = new CachingReadingProvider(
+                    new JishoReadingProvider(),
+                    new FileReadingCache(DEFAULT_CACHE_FILE));
+            FuriganaPipeline pipeline = new FuriganaPipeline(tokenizer, provider);
+
+            FuriganaDocument document = pipeline.process(srtContent);
             writeJson(output, new JsonWriter().write(document));
+
             System.out.println("Furigana JSON gerado: " + output.toAbsolutePath());
         } catch (SubtitleParseException e) {
             System.err.println("Legenda inválida: " + e.getMessage());

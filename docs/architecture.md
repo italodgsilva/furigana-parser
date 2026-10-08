@@ -82,7 +82,12 @@ SrtParser
 今日 | は | 日本語 | を | 勉強 | します | 。
 ```
 
- A implementação concreta do tokenizador ainda não foi definida.
+ A implementação concreta do tokenizador passou a ser o Kuromoji, com o
+ dicionário IPADIC: além de segmentar, ele identifica a classe gramatical e
+ fornece a leitura de cada token (normalizada para hiragana). O
+ `ScriptJapaneseTokenizer` (segmentação por tipo de escrita) permanece como
+ alternativa leve/offline, sem leituras. Cada `Token` carrega superfície, classe
+ gramatical, leitura e deslocamentos no texto tokenizado.
 
  ### `reading`
 
@@ -96,16 +101,17 @@ interface ReadingProvider {
 }
 ```
 
- A implementação inicial deverá consultar o Jisho.
-
- Possíveis implementações futuras:
+ A leitura tem prioridade vinda do próprio tokenizador (Kuromoji). Quando ele
+ não a conhece, e apenas para tokens que contêm kanji, consulta-se o Jisho como
+ fallback:
 
 ```
 JishoReadingProvider
-LocalDictionaryProvider
+LocalDictionaryProvider (futuro)
 ```
 
- A aplicação não deve depender diretamente de uma implementação específica.
+ A aplicação não deve depender diretamente de uma implementação específica: o
+ provider escolhido é decorado por um `CachingReadingProvider`.
 
  ### `reading.cache`
 
@@ -132,6 +138,11 @@ Cache
 
  O cache deverá evitar consultas repetidas para o mesmo termo.
 
+ Implementação atual: `CachingReadingProvider` (decorador) + `FileReadingCache`,
+ com um arquivo JSON que mapeia superfície → leitura (padrão:
+ `data/cache/readings.json`). O cache é best-effort — falhas de leitura/escrita
+ não interrompem o processamento — e não persiste termos não encontrados.
+
  ### `furigana`
 
  Contém o modelo intermediário utilizado pelo restante da aplicação.
@@ -139,6 +150,10 @@ Cache
  A camada deve representar a relação entre texto original e leitura sem assumir como o resultado será renderizado.
 
  Isso é importante porque furigana pode posteriormente ser convertido para diferentes formatos.
+
+ Também concentra a segmentação de um token em kanji (com leitura) e okurigana
+ (sem leitura), via `FuriganaSegmenter`, alinhando a superfície à leitura em
+ hiragana.
 
  ### `output`
 
@@ -265,16 +280,18 @@ FuriganaDocument → Output
 
  As seguintes decisões serão tomadas durante a implementação:
 
- - biblioteca utilizada para tokenização japonesa;
-- estratégia definitiva de consulta ao Jisho;
-- formato do cache;
-- representação final do `FuriganaDocument`;
-- tratamento de palavras com múltiplas leituras;
-- tratamento de okurigana;
-- tratamento de verbos conjugados;
+ - tratamento de palavras com múltiplas leituras;
 - tratamento de nomes próprios;
 - estratégia de posicionamento do furigana em ASS;
 - integração final com MPV.
+
+ Decisões já tomadas:
+
+ - tokenização: Kuromoji (IPADIC);
+- leituras: prioridade para o tokenizador, com fallback no Jisho;
+- cache: JSON em `data/cache/readings.json`, via `CachingReadingProvider`;
+- okurigana: separado dentro do token pelo `FuriganaSegmenter`;
+- verbos conjugados: tokenizados pelo Kuromoji (radical + okurigana).
 
  Essas decisões não devem ser antecipadas sem necessidade.
 

@@ -44,6 +44,19 @@ class JapaneseTokenizerTest {
     }
 
     @Test
+    @DisplayName("Preserva os deslocamentos de cada token no texto original")
+    void keepsOffsets() {
+        List<Token> tokens = tokenizer.tokenize("今日は日本語");
+
+        assertEquals(0, tokens.get(0).getStart());
+        assertEquals(2, tokens.get(0).getEnd());
+        assertEquals(2, tokens.get(1).getStart());
+        assertEquals(3, tokens.get(1).getEnd());
+        assertEquals(3, tokens.get(2).getStart());
+        assertEquals(6, tokens.get(2).getEnd());
+    }
+
+    @Test
     @DisplayName("Preserva caracteres não reconhecidos como tokens UNKNOWN")
     void preservesUnknownCharacters() {
         List<Token> tokens = tokenizer.tokenize("ＡＢＣ"); // letras latinas de largura total

@@ -48,12 +48,12 @@ Etapas concluídas:
 1. Parser de SRT (fail-fast em blocos malformados, índices opcionais, timestamps preservados como string crua).
 2. Modelo interno do furigana — `FuriganaDocument` → `FuriganaEntry` (id, start, end, texto, segmentos) → `FuriganaSegment` (texto + leitura).
 3. Tokenização de texto japonês — interface `JapaneseTokenizer`, com a implementação provisória `ScriptJapaneseTokenizer` (por tipo de escrita).
-4. Pipeline SRT → JSON intermediário, orquestrado por `FuriganaPipeline` e executável pela CLI (`Application`). Leituras são opcionais: sem provider, ficam `null`.
+4. Pipeline SRT → JSON intermediário, orquestrado por `FuriganaPipeline` e executável pela CLI (`Application`).
+5. Tokenização morfológica com Kuromoji (dicionário IPADIC), com leitura em hiragana e separação de kanji/okurigana (`FuriganaSegmenter`).
+6. Leituras externas: `JishoReadingProvider` real, mediado por `CachingReadingProvider` com cache em disco (`data/cache/readings.json`).
 
 Próximas etapas:
 
-- Tokenização morfológica com Kuromoji (kanji + okurigana dentro de um mesmo token).
-- Integração do Jisho como `ReadingProvider` real, com cache em disco.
 - Geração de ASS com furigana posicionado (estratégia `\pos` do docs/ass-format.md).
 - Integração com MPV.
 
@@ -63,10 +63,11 @@ Próximas etapas:
 - Maven
 - JUnit 5
 - Jackson
+- Kuromoji (tokenização morfológica, dicionário IPADIC)
 - Formato SRT
 - Formato ASS/SSA
 - MPV
-- Jisho, inicialmente como fonte de dados para leituras
+- Jisho, como fonte de fallback para leituras
 
 ## Estrutura do projeto
 
@@ -139,7 +140,8 @@ mvn package
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.json
 ```
 
- O JSON gerado tem a seguinte estrutura (um segmento por token da entrada):
+ O JSON gerado tem a seguinte estrutura (cada token é separado em kanji, com
+ leitura, e okurigana, sem leitura):
 
 ```json
 {
@@ -150,18 +152,24 @@ java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.json
       "end": "00:00:04,500",
       "text": "今日は日本語を勉強します。",
       "segments": [
-        { "text": "今日", "reading": null },
-        { "text": "は", "reading": null }
+        { "text": "今日", "reading": "きょう" },
+        { "text": "は", "reading": null },
+        { "text": "日本語", "reading": "にほんご" },
+        { "text": "を", "reading": null },
+        { "text": "勉強", "reading": "べんきょう" },
+        { "text": "し", "reading": null },
+        { "text": "ます", "reading": null },
+        { "text": "。", "reading": null }
       ]
     }
   ]
 }
 ```
 
- `id`, `start` e `end` preservam a sincronização original da SRT. `reading` fica
- `null` enquanto os providers de leitura (Kuromoji/Jisho — etapa posterior) não
- forem integrados. Entradas sem kanji não são descartadas, para não quebrar a
- sincronização da legenda.
+ `id`, `start` e `end` preservam a sincronização original da SRT. As leituras vêm
+ do Kuromoji e, quando ele não conhece um termo com kanji, do Jisho (mediado por
+ cache em `data/cache/readings.json`). Entradas sem kanji não são descartadas,
+ para não quebrar a sincronização da legenda.
 
  ## Princípios do projeto
 
@@ -200,6 +208,11 @@ FuriganaDocument
 - dependência de disponibilidade do serviço;
 - possibilidade de repetir consultas desnecessariamente.
 
+ O cache de leituras é gravado em `data/cache/readings.json` (um objeto JSON de
+ superfície → leitura). Termos não encontrados não são persistidos, para poderem
+ ser consultados novamente em execuções futuras. O processamento funciona offline:
+ se o Jisho estiver indisponível, as leituras ausentes ficam `null`.
+
  ## Exemplo conceitual
 
  Uma legenda como:
@@ -216,7 +229,8 @@ FuriganaDocument
 日本語     にほんご
 を
 勉強       べんきょう
-します
+し
+ます
 。
 ```
 

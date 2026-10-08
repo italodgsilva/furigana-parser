@@ -3,6 +3,8 @@ package com.shinji2324.furigana.pipeline;
 import com.shinji2324.furigana.furigana.FuriganaDocument;
 import com.shinji2324.furigana.furigana.FuriganaEntry;
 import com.shinji2324.furigana.furigana.FuriganaSegment;
+import com.shinji2324.furigana.furigana.FuriganaSegmenter;
+import com.shinji2324.furigana.japanese.JapaneseScript;
 import com.shinji2324.furigana.japanese.JapaneseTokenizer;
 import com.shinji2324.furigana.japanese.Token;
 import com.shinji2324.furigana.reading.Reading;
@@ -32,15 +34,16 @@ import java.util.Optional;
  * <p>Para cada entrada SRT, o pipeline:
  * <ol>
  *   <li>tokeniza o texto original;</li>
- *   <li>consulta o {@link ReadingProvider} quando um está configurado
- *       (o provider é opcional — sem ele, as leituras ficam {@code null});</li>
- *   <li>produz um {@link FuriganaEntry} preservando id e timestamps, com um
- *       {@link FuriganaSegment} por token e o texto original integral.</li>
+ *   <li>resolve a leitura de cada token: a leitura do próprio tokenizador tem
+ *       prioridade (Kuromoji) e, quando ausente, consulta o {@link ReadingProvider}
+ *       — apenas para tokens que contêm kanji;</li>
+ *   <li>separa cada token em kanji (com furigana) e okurigana (sem furigana) com
+ *       o {@link FuriganaSegmenter}, preservando id e timestamps.</li>
  * </ol>
  *
  * <p>Entradas sem kanji (apenas kana/pontuação/espaços) não são descartadas: elas
- * continuam presentes no documento, com segmentos e leituras nulas. Isso evita que
- * a sincronização da legenda seja corrompida na saída.
+ * continuam presentes no documento, com segmentos sem leitura. Isso evita que a
+ * sincronização da legenda seja corrompida na saída.
  *
  * <p>A camada {@code pipeline} não depende de nenhum formato de saída específico
  * (JSON, ASS etc.).
@@ -50,6 +53,7 @@ public class FuriganaPipeline {
     private final SubtitleParser subtitleParser;
     private final JapaneseTokenizer tokenizer;
     private final ReadingProvider readingProvider;
+    private final FuriganaSegmenter segmenter;
 
     /**
      * Cria o pipeline com o {@link SrtParser} padrão.
@@ -74,6 +78,7 @@ public class FuriganaPipeline {
         this.subtitleParser = subtitleParser;
         this.tokenizer = tokenizer;
         this.readingProvider = readingProvider;
+        this.segmenter = new FuriganaSegmenter();
     }
 
     /**
@@ -109,30 +114,34 @@ public class FuriganaPipeline {
     }
 
     /**
-     * Tokeniza o texto de uma entrada e associa as leituras aos tokens.
-     *
-     * <p>Na etapa atual, cada token corresponde a um segmento e a leitura vem
-     * diretamente do provider quando disponível. A segmentação de kanji +
-     * okurigana dentro de um token (ex.: 勉強し → 勉強/し) será feita quando o
-     * tokenizador morfológico (Kuromoji) for integrado.
+     * Tokeniza o texto de uma entrada, resolve as leituras e gera os segmentos.
      */
     private FuriganaEntry toFuriganaEntry(SubtitleEntry entry) {
         List<FuriganaSegment> segments = new ArrayList<>();
         for (Token token : tokenizer.tokenize(entry.getText())) {
-            String reading = findReading(token).map(Reading::getReading).orElse(null);
-            segments.add(new FuriganaSegment(token.getSurface(), reading));
+            segments.addAll(segmenter.segment(token.getSurface(), resolveReading(token)));
         }
         return new FuriganaEntry(entry.getId(), entry.getStart(), entry.getEnd(), entry.getText(), segments);
     }
 
     /**
-     * Consulta a leitura de um token, retornando vazio quando não há provider
-     * configurado ou quando ele não encontra uma leitura.
+     * Determina a leitura de um token.
+     *
+     * <p>A leitura fornecida pelo tokenizador (Kuromoji) tem prioridade. Sem ela,
+     * consulta o provider apenas quando o token contém kanji — kana, pontuação e
+     * latim não precisam de furigana e não devem gerar consultas externas.
+     *
+     * @param token token a resolver
+     * @return leitura em hiragana, ou {@code null} quando não há
      */
-    private Optional<Reading> findReading(Token token) {
-        if (readingProvider == null) {
-            return Optional.empty();
+    private String resolveReading(Token token) {
+        if (token.hasReading()) {
+            return token.getReading();
         }
-        return readingProvider.findReading(token);
+        if (readingProvider == null || !JapaneseScript.containsKanji(token.getSurface())) {
+            return null;
+        }
+        Optional<Reading> reading = readingProvider.findReading(token);
+        return reading.map(Reading::getReading).orElse(null);
     }
 }

@@ -3,6 +3,8 @@ package com.shinji2324.furigana.pipeline;
 import com.shinji2324.furigana.furigana.FuriganaDocument;
 import com.shinji2324.furigana.furigana.FuriganaEntry;
 import com.shinji2324.furigana.furigana.FuriganaSegment;
+import com.shinji2324.furigana.japanese.JapaneseTokenizer;
+import com.shinji2324.furigana.japanese.KuromojiTokenizer;
 import com.shinji2324.furigana.japanese.ScriptJapaneseTokenizer;
 import com.shinji2324.furigana.japanese.Token;
 import com.shinji2324.furigana.reading.Reading;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -110,6 +113,61 @@ class FuriganaPipelineTest {
         assertTrue(pipeline.process((String) null).getEntries().isEmpty());
         assertTrue(pipeline.process("").getEntries().isEmpty());
         assertTrue(pipeline.process("   \n  ").getEntries().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Integra o Kuromoji: separa kanji e okurigana com leituras reais")
+    void integratesKuromojiAndSplitsOkurigana() {
+        List<FuriganaSegment> segments = new FuriganaPipeline(new KuromojiTokenizer(), null)
+                .process("1\n00:00:01,000 --> 00:00:02,000\n日本語を勉強します。")
+                .getEntries().get(0).segments();
+
+        assertTrue(segments.contains(new FuriganaSegment("日本語", "にほんご")), segments.toString());
+        assertTrue(segments.contains(new FuriganaSegment("勉強", "べんきょう")), segments.toString());
+        assertTrue(segments.contains(new FuriganaSegment("し", null)), segments.toString());
+    }
+
+    @Test
+    @DisplayName("Separa a leitura do provider em kanji e okurigana")
+    void splitsProviderReadingIntoKanjiAndOkurigana() {
+        JapaneseTokenizer tokenizer = text -> List.of(new Token("食べる", "動詞"));
+        ReadingProvider provider = token -> Optional.of(new Reading("食べる", "たべる", "teste"));
+
+        List<FuriganaSegment> segments = new FuriganaPipeline(tokenizer, provider)
+                .process("1\n00:00:01,000 --> 00:00:02,000\n食べる")
+                .getEntries().get(0).segments();
+
+        assertEquals(List.of(new FuriganaSegment("食", "た"), new FuriganaSegment("べる", null)), segments);
+    }
+
+    @Test
+    @DisplayName("Não consulta o provider para tokens sem kanji")
+    void doesNotQueryProviderForKanaTokens() {
+        AtomicInteger calls = new AtomicInteger();
+        ReadingProvider provider = token -> {
+            calls.incrementAndGet();
+            return Optional.empty();
+        };
+
+        new FuriganaPipeline(new ScriptJapaneseTokenizer(), provider)
+                .process("1\n00:00:01,000 --> 00:00:02,000\nありがとう。");
+
+        assertEquals(0, calls.get());
+    }
+
+    @Test
+    @DisplayName("Consulta o provider apenas para tokens com kanji")
+    void queriesProviderOnlyForKanjiTokens() {
+        AtomicInteger calls = new AtomicInteger();
+        ReadingProvider provider = token -> {
+            calls.incrementAndGet();
+            return Optional.empty();
+        };
+
+        new FuriganaPipeline(new ScriptJapaneseTokenizer(), provider)
+                .process("1\n00:00:01,000 --> 00:00:02,000\n日本語は。");
+
+        assertEquals(1, calls.get());
     }
 
     // ------------------------------------------------------------------

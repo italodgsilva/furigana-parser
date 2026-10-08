@@ -4,6 +4,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,5 +68,17 @@ class FileReadingCacheTest {
         // Gravar com caminho nulo apenas atualiza a memória, sem falhar.
         cache.put("presente", new Reading("presente", "リーディング"));
         assertEquals("リーディング", cache.get("presente").getReading());
+    }
+
+    @Test
+    @DisplayName("Persiste o cache como um objeto JSON de superfície para leitura")
+    void persistsAsJsonObject() throws Exception {
+        Path file = tempDir.resolve("readings.json");
+        new FileReadingCache(file).put("日本語", new Reading("日本語", "にほんご", "jisho"));
+
+        JsonNode root = new ObjectMapper().readTree(Files.readString(file, StandardCharsets.UTF_8));
+
+        assertTrue(root.isObject());
+        assertEquals("にほんご", root.get("日本語").asText());
     }
 }

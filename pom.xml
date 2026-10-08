@@ -23,6 +23,7 @@
 
         <junit.version>5.13.4</junit.version>
         <jackson.version>2.20.0</jackson.version>
+        <kuromoji.version>0.9.0</kuromoji.version>
     </properties>
 
     <dependencies>
@@ -32,6 +33,13 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- Tokenização morfológica do japonês (dicionário IPADIC embutido) -->
+        <dependency>
+            <groupId>com.atilika.kuromoji</groupId>
+            <artifactId>kuromoji-ipadic</artifactId>
+            <version>${kuromoji.version}</version>
         </dependency>
 
         <!-- Testes -->
