@@ -159,12 +159,17 @@ Cache
 
  Responsável pela geração dos formatos de saída.
 
- Inicialmente:
+```
+JsonWriter     — FuriganaDocument → JSON
+AssGenerator   — FuriganaDocument → eventos ASS (posicionamento do furigana)
+AssWriter      — monta o arquivo final (template + eventos, timestamps)
+AssTemplate    — cabeçalho/estilos carregados de /ass/default-style.ass
+AssLayout      — geometria da grade de caracteres usada no `\pos`
+```
 
-```
-JsonWriter
-AssWriter
-```
+ O `AssGenerator` gera a composição (Estratégia 3 do docs/ass-format.md):
+ um evento `Main` por linha visual e um evento `Furigana` por leitura, ambos
+ posicionados com `{\an5\pos(x,y)}`. Ele não conhece SRT nem Jisho.
 
  Novos formatos poderão ser adicionados sem alterar as camadas anteriores.
 
@@ -209,7 +214,7 @@ FuriganaDocument
       │
       ├──→ JsonWriter
       │
-      └──→ AssWriter
+      └──→ AssGenerator
 ```
 
  ## Modelo conceitual
@@ -282,7 +287,6 @@ FuriganaDocument → Output
 
  - tratamento de palavras com múltiplas leituras;
 - tratamento de nomes próprios;
-- estratégia de posicionamento do furigana em ASS;
 - integração final com MPV.
 
  Decisões já tomadas:
@@ -291,7 +295,8 @@ FuriganaDocument → Output
 - leituras: prioridade para o tokenizador, com fallback no Jisho;
 - cache: JSON em `data/cache/readings.json`, via `CachingReadingProvider`;
 - okurigana: separado dentro do token pelo `FuriganaSegmenter`;
-- verbos conjugados: tokenizados pelo Kuromoji (radical + okurigana).
+- verbos conjugados: tokenizados pelo Kuromoji (radical + okurigana);
+- ASS: Estratégia 3 (`\pos` + estilos `Main`/`Furigana`, grade de caracteres).
 
  Essas decisões não devem ser antecipadas sem necessidade.
 

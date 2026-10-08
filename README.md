@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/shinji2324/furigana-parser/actions/workflows/ci.yml/badge.svg)](https://github.com/shinji2324/furigana-parser/actions/workflows/ci.yml)
 
-Ferramenta para processamento de legendas japonesas, com o objetivo de adicionar leituras em furigana aos kanji e posteriormente gerar legendas compatíveis com players como o MPV.
+Ferramenta para processamento de legendas japonesas, com o objetivo de adicionar leituras em furigana aos kanji e gerar legendas compatíveis com players como o MPV.
 
 O projeto está sendo desenvolvido de forma incremental, mantendo o processamento das legendas separado da renderização e da integração com o player.
 
@@ -10,7 +10,7 @@ O projeto está sendo desenvolvido de forma incremental, mantendo o processament
 
 O objetivo principal é transformar uma legenda japonesa comum em uma representação estruturada contendo as leituras dos termos japoneses.
 
-Fluxo planejado:
+Fluxo:
 
 ```
 SRT
@@ -24,9 +24,9 @@ Japanese Tokenizer
  ▼
 Reading Provider
  │
- ├── Jisho
+ ├── Kuromoji (principal)
  │
- └── futuramente outras fontes
+ └── Jisho (fallback)
  │
  ▼
 FuriganaDocument
@@ -51,10 +51,10 @@ Etapas concluídas:
 4. Pipeline SRT → JSON intermediário, orquestrado por `FuriganaPipeline` e executável pela CLI (`Application`).
 5. Tokenização morfológica com Kuromoji (dicionário IPADIC), com leitura em hiragana e separação de kanji/okurigana (`FuriganaSegmenter`).
 6. Leituras externas: `JishoReadingProvider` real, mediado por `CachingReadingProvider` com cache em disco (`data/cache/readings.json`).
+7. Geração de ASS com furigana posicionado (`AssGenerator` + `AssWriter` + `AssLayout`), com estilos em `src/main/resources/ass/default-style.ass`.
 
-Próximas etapas:
+Próxima etapa:
 
-- Geração de ASS com furigana posicionado (estratégia `\pos` do docs/ass-format.md).
 - Integração com MPV.
 
 ## Tecnologias
@@ -93,6 +93,8 @@ furigana-parser/
 │   │   │       └── mpv/
 │   │   │
 │   │   └── resources/
+│   │       └── ass/
+│   │           └── default-style.ass
 │   │
 │   └── test/
 │       ├── java/
@@ -107,41 +109,43 @@ furigana-parser/
     └── ass-format.md
 ```
 
- ## Desenvolvimento
+## Desenvolvimento
 
- Requisitos:
+Requisitos:
 
- - JDK 21 ou superior
+- JDK 21 ou superior
 - Maven 3.9 ou superior
 
- Compilar:
+Compilar:
 
 ```
 mvn clean compile
 ```
 
- Executar os testes:
+Executar os testes:
 
 ```
 mvn test
 ```
 
- Gerar o JAR (com as dependências embutidas, ex.: Jackson):
+Gerar o JAR (com as dependências embutidas, ex.: Jackson e Kuromoji):
 
 ```
 mvn package
 ```
 
- ### Linha de comando
+### Linha de comando
 
- Processar uma legenda SRT e gerar o JSON intermediário:
+O formato de saída é escolhido pela extensão do arquivo: `.json` gera o modelo
+intermediário e `.ass` gera a legenda com o furigana posicionado.
 
 ```
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.json
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.ass
 ```
 
- O JSON gerado tem a seguinte estrutura (cada token é separado em kanji, com
- leitura, e okurigana, sem leitura):
+O JSON gerado tem a seguinte estrutura (cada token é separado em kanji, com
+leitura, e okurigana, sem leitura):
 
 ```json
 {
@@ -166,28 +170,45 @@ java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.json
 }
 ```
 
- `id`, `start` e `end` preservam a sincronização original da SRT. As leituras vêm
- do Kuromoji e, quando ele não conhece um termo com kanji, do Jisho (mediado por
- cache em `data/cache/readings.json`). Entradas sem kanji não são descartadas,
- para não quebrar a sincronização da legenda.
+`id`, `start` e `end` preservam a sincronização original da SRT. As leituras vêm
+do Kuromoji e, quando ele não conhece um termo com kanji, do Jisho (mediado por
+cache em `data/cache/readings.json`). Entradas sem kanji não são descartadas,
+para não quebrar a sincronização da legenda.
 
- ## Princípios do projeto
+O ASS gerado (estratégia `\pos` descrita em `docs/ass-format.md`) usa dois
+estilos — `Main` para o texto e `Furigana` para as leituras — e posiciona cada
+leitura sobre o kanji correspondente:
 
- ### Separação de responsabilidades
+```text
+[Script Info]
+...
+[V4+ Styles]
+Style: Main,...
+Style: Furigana,...
+[Events]
+Dialogue: 0,0:00:01.00,0:00:04.50,Main,,0,0,0,,{\an5\pos(960,988)}今日は日本語を勉強します。
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(608,928)}きょう
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(832,928)}にほんご
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(1056,928)}べんきょう
+```
 
- O parser de legendas não deve conhecer o Jisho.
+## Princípios do projeto
 
- O `ReadingProvider` não deve conhecer o formato SRT.
+### Separação de responsabilidades
 
- O gerador de ASS não deve depender diretamente do Jisho.
+O parser de legendas não deve conhecer o Jisho.
 
- Cada etapa deve trabalhar com modelos internos bem definidos.
+O `ReadingProvider` não deve conhecer o formato SRT.
 
- ### Formato intermediário
+O gerador de ASS não deve depender diretamente do Jisho.
 
- O projeto utilizará uma representação intermediária entre a obtenção das leituras e a geração da saída.
+Cada etapa deve trabalhar com modelos internos bem definidos.
 
- Isso permitirá gerar diferentes formatos a partir dos mesmos dados:
+### Formato intermediário
+
+O projeto utiliza uma representação intermediária entre a obtenção das leituras e a geração da saída.
+
+Isso permite gerar diferentes formatos a partir dos mesmos dados:
 
 ```
 FuriganaDocument
@@ -197,31 +218,31 @@ FuriganaDocument
     └── futuramente outros formatos
 ```
 
- ### Cache
+### Cache
 
- Consultas externas devem ser armazenadas em cache sempre que possível.
+Consultas externas devem ser armazenadas em cache sempre que possível.
 
- Isso reduz:
+Isso reduz:
 
- - número de requisições;
+- número de requisições;
 - tempo de processamento;
 - dependência de disponibilidade do serviço;
 - possibilidade de repetir consultas desnecessariamente.
 
- O cache de leituras é gravado em `data/cache/readings.json` (um objeto JSON de
- superfície → leitura). Termos não encontrados não são persistidos, para poderem
- ser consultados novamente em execuções futuras. O processamento funciona offline:
- se o Jisho estiver indisponível, as leituras ausentes ficam `null`.
+O cache de leituras é gravado em `data/cache/readings.json` (um objeto JSON de
+superfície → leitura). Termos não encontrados não são persistidos, para poderem
+ser consultados novamente em execuções futuras. O processamento funciona offline:
+se o Jisho estiver indisponível, as leituras ausentes ficam `null`.
 
- ## Exemplo conceitual
+## Exemplo conceitual
 
- Uma legenda como:
+Uma legenda como:
 
 ```
 今日は日本語を勉強します。
 ```
 
- deve eventualmente ser representada internamente de forma semelhante a:
+é representada internamente de forma semelhante a:
 
 ```
 今日       きょう
@@ -234,8 +255,6 @@ FuriganaDocument
 。
 ```
 
- A forma exata do modelo ainda poderá mudar durante o desenvolvimento.
-
- ## Licença
+## Licença
 
 Este projeto é distribuído sob a [MIT License](LICENSE).
