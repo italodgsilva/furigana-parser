@@ -1,0 +1,47 @@
+# Integração contínua: compila o projeto e executa a suíte de testes
+# a cada push na main, a cada pull request e manualmente.
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Cancela execuções antigas da mesma branch para economizar minutos de CI.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Permissões mínimas necessárias (somente leitura do repositório).
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build e testes (Java 21)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v7
+
+      - name: Configurar JDK 21 (Temurin)
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # `verify` executa os testes e empacota o JAR.
+      - name: Compilar e executar os testes
+        run: mvn --batch-mode --no-transfer-progress clean verify
+
+      - name: Publicar relatórios de teste (em caso de falha)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          if-no-files-found: ignore
