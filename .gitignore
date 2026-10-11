@@ -8,6 +8,9 @@ target/
 data/cache/
 data/output/
 
+# Dados de teste local (não fazem parte do repositório)
+japanese-testes/
+
 # Diretórios e arquivos de IDEs
 .idea/
 *.iml
