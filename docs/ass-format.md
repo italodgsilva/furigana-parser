@@ -248,10 +248,17 @@ Saída ASS real (trecho):
 
 ```text
 Dialogue: 0,0:00:01.00,0:00:04.50,Main,,0,0,0,,{\an5\pos(960,988)}今日は日本語を勉強します。
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(717,949)}きょう
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(872,949)}にほんご
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(1026,949)}べんきょう
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(717,957)}きょう
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(872,957)}にほんご
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(1026,957)}べんきょう
 ```
+
+## Fonte embutida
+
+O ASS pode carregar a própria fonte na seção `[Fonts]`, dispensando instalá-la na
+máquina que exibe a legenda. A opção `--embed-font` da CLI faz essa embedação
+localizando a fonte do estilo pelo nome de família e gravando os bytes antes da
+seção `[Events]`. Veja [`font-embedding.md`](font-embedding.md).
 
 ## Relação com MPV
 

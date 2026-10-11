@@ -3,6 +3,8 @@ package com.shinji2324.furigana.output;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Cabeçalho estático de um arquivo ASS (Script Info, estilos e formato de eventos).
@@ -55,5 +57,35 @@ public final class AssTemplate {
      */
     public String content() {
         return content;
+    }
+
+    /**
+     * Retorna os nomes de família distintos declarados nos estilos
+     * ({@code Fontname}), na ordem em que aparecem.
+     *
+     * <p>Usado pela embedação de fontes para saber qual fonte localizar e
+     * embutir. Um estilo é uma linha {@code Style: Nome,Fontname,...} — ou seja,
+     * o segundo campo.
+     *
+     * @return nomes de família distintos (lista vazia se o cabeçalho não tiver
+     *         estilos)
+     */
+    public List<String> fontFamilies() {
+        List<String> families = new ArrayList<>();
+        for (String line : content.split("\n")) {
+            String trimmed = line.strip();
+            if (!trimmed.startsWith("Style:")) {
+                continue;
+            }
+            String[] fields = trimmed.substring("Style:".length()).split(",", -1);
+            if (fields.length < 2) {
+                continue;
+            }
+            String family = fields[1].strip();
+            if (!family.isEmpty() && !families.contains(family)) {
+                families.add(family);
+            }
+        }
+        return families;
     }
 }

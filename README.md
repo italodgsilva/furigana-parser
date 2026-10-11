@@ -53,6 +53,7 @@ Etapas concluídas:
 6. Leituras externas: `JishoReadingProvider` real, mediado por `CachingReadingProvider` com cache em disco (`data/cache/readings.json`).
 7. Geração de ASS com furigana posicionado (`AssGenerator` + `AssWriter` + `AssLayout`), com estilos em `src/main/resources/ass/default-style.ass`.
 8. Integração com o MPV (`--mpv`): gera o ASS ao lado da SRT e abre o vídeo com `mpv --sub-file=...` (ver `docs/mpv.md`).
+9. Embutição da fonte no próprio ASS (`--embed-font`): localiza a fonte do estilo pelo nome de família, recorta a face de coleções `.ttc` e escreve a seção `[Fonts]`, tudo em Java e sem depender de ferramentas externas (ver `docs/font-embedding.md`).
 
 Próximas etapas (fora do escopo atual):
 
@@ -91,6 +92,7 @@ furigana-parser/
 │   │   │       ├── furigana/
 │   │   │       ├── pipeline/
 │   │   │       ├── output/
+│   │   │       ├── font/
 │   │   │       └── mpv/
 │   │   │
 │   │   └── resources/
@@ -108,6 +110,7 @@ furigana-parser/
 └── docs/
     ├── architecture.md
     ├── ass-format.md
+    ├── font-embedding.md
     └── mpv.md
 ```
 
@@ -144,9 +147,18 @@ intermediário e `.ass` gera a legenda com o furigana posicionado.
 ```
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.json
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font entrada.srt saida.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font=fonte.otf entrada.srt saida.ass
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --mpv entrada.srt video.mkv
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --help
 ```
+
+Com `--embed-font`, o ASS passa a carregar a própria fonte na seção `[Fonts]`,
+dispensando instalar a fonte na máquina de quem assiste. A opção funciona também
+no modo `--mpv`. Sem argumento, a fonte é localizada pelo nome de família do
+estilo (`Noto Sans CJK JP`); com `--embed-font=<arquivo>`, o arquivo informado é
+usado. Como o arquivo inteiro é embutido, o ASS cresce bastante (ver
+[`docs/font-embedding.md`](docs/font-embedding.md)).
 
 No modo `--mpv`, o ASS é gerado ao lado da SRT (`entrada.furigana.ass`) e o vídeo
 é aberto no MPV com `--sub-file`. Requer o MPV instalado no `PATH`. As limitações
@@ -196,9 +208,9 @@ Style: Main,...
 Style: Furigana,...
 [Events]
 Dialogue: 0,0:00:01.00,0:00:04.50,Main,,0,0,0,,{\an5\pos(960,988)}今日は日本語を勉強します。
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(717,949)}きょう
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(872,949)}にほんご
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(1026,949)}べんきょう
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(717,957)}きょう
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(872,957)}にほんご
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(1026,957)}べんきょう
 ```
 
 ## Princípios do projeto

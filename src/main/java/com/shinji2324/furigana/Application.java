@@ -3,12 +3,16 @@ package com.shinji2324.furigana;
 import com.shinji2324.furigana.cli.CliCommand;
 import com.shinji2324.furigana.cli.CliParser;
 import com.shinji2324.furigana.cli.CliUsageException;
+import com.shinji2324.furigana.font.FontFile;
+import com.shinji2324.furigana.font.FontLocator;
 import com.shinji2324.furigana.furigana.FuriganaDocument;
 import com.shinji2324.furigana.japanese.JapaneseTokenizer;
 import com.shinji2324.furigana.japanese.KuromojiTokenizer;
 import com.shinji2324.furigana.mpv.MpvIntegration;
 import com.shinji2324.furigana.mpv.MpvPaths;
+import com.shinji2324.furigana.output.AssFontEmbedder;
 import com.shinji2324.furigana.output.AssGenerator;
+import com.shinji2324.furigana.output.AssTemplate;
 import com.shinji2324.furigana.output.JsonWriter;
 import com.shinji2324.furigana.pipeline.FuriganaPipeline;
 import com.shinji2324.furigana.reading.CachingReadingProvider;
@@ -21,6 +25,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Ponto de entrada da aplicação (CLI).
@@ -124,32 +131,38 @@ public class Application {
                 System.out.println(CliParser.USAGE);
                 yield EXIT_OK;
             }
-            case GENERATE_JSON -> generate(command.input(), command.output(), false);
-            case GENERATE_ASS -> generate(command.input(), command.output(), true);
-            case PLAY -> play(command.input(), command.output());
+            case GENERATE_JSON -> generate(command, false);
+            case GENERATE_ASS -> generate(command, true);
+            case PLAY -> play(command);
         };
     }
 
     /**
      * Gera a saída solicitada (JSON ou ASS) para o arquivo informado.
      */
-    private int generate(Path input, Path output, boolean ass) throws IOException {
-        FuriganaDocument document = process(input);
-        String rendered = ass
-                ? new AssGenerator().generate(document)
-                : new JsonWriter().write(document);
-        writeText(output, rendered);
-        System.out.println("Furigana gerado (" + (ass ? "ass" : "json") + "): " + output.toAbsolutePath());
+    private int generate(CliCommand command, boolean ass) throws IOException {
+        FuriganaDocument document = process(command.input());
+        String rendered;
+        if (ass) {
+            rendered = renderAss(document, command);
+        } else {
+            rendered = new JsonWriter().write(document);
+        }
+        writeText(command.output(), rendered);
+        System.out.println("Furigana gerado (" + (ass ? "ass" : "json") + "): "
+                + command.output().toAbsolutePath());
         return EXIT_OK;
     }
 
     /**
      * Gera o ASS ao lado da SRT e abre o vídeo no MPV.
      */
-    private int play(Path subtitle, Path video) throws IOException, InterruptedException {
+    private int play(CliCommand command) throws IOException, InterruptedException {
+        Path subtitle = command.input();
+        Path video = command.output();
         Path ass = MpvPaths.furiganaSubtitle(subtitle);
         FuriganaDocument document = process(subtitle);
-        writeText(ass, new AssGenerator().generate(document));
+        writeText(ass, renderAss(document, command));
         System.out.println("Legenda gerada: " + ass.toAbsolutePath());
         System.out.println("Abrindo MPV: " + video.toAbsolutePath());
 
@@ -165,6 +178,52 @@ public class Application {
                     + e.getMessage());
             return EXIT_ERROR;
         }
+    }
+
+    /**
+     * Monta o ASS com o furigana posicionado e, quando pedido, com a fonte
+     * embutida.
+     */
+    private String renderAss(FuriganaDocument document, CliCommand command) throws IOException {
+        String ass = new AssGenerator().generate(document);
+        if (!command.embedFont()) {
+            return ass;
+        }
+        return new AssFontEmbedder().embed(ass, resolveFonts(command.fontPath()));
+    }
+
+    /**
+     * Resolve os arquivos das fontes declaradas no template ASS.
+     *
+     * <p>Com {@code fontPath} informado, embute esse arquivo; caso contrário,
+     * localiza cada família no sistema.
+     */
+    private List<FontFile> resolveFonts(Path fontPath) throws IOException {
+        List<String> families = AssTemplate.defaultTemplate().fontFamilies();
+        if (families.isEmpty()) {
+            throw new IOException("O template ASS não declara estilos com fonte para embutir.");
+        }
+        if (fontPath != null) {
+            FontLocator locator = new FontLocator();
+            return List.of(locator.read(fontPath, families.get(0)));
+        }
+
+        FontLocator locator = new FontLocator();
+        List<FontFile> fonts = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
+        for (String family : families) {
+            Optional<FontFile> font = locator.find(family);
+            if (font.isPresent()) {
+                fonts.add(font.get());
+            } else {
+                missing.add(family);
+            }
+        }
+        if (!missing.isEmpty()) {
+            throw new IOException("Fonte não encontrada no sistema: " + String.join(", ", missing)
+                    + ". Informe o arquivo com --embed-font=<arquivo>.");
+        }
+        return fonts;
     }
 
     /**

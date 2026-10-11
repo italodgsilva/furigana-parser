@@ -6,8 +6,10 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Testes do {@link CliParser}.
@@ -73,5 +75,45 @@ class CliParserTest {
                 () -> parser.parse(new String[] {"a", "b", "c"}));
         assertThrows(CliUsageException.class,
                 () -> parser.parse(new String[] {"--mpv", "legenda.srt"}));
+    }
+
+    @Test
+    @DisplayName("Interpreta a embedação de fonte na geração de ASS")
+    void parsesEmbedFont() {
+        CliCommand auto = parser.parse(new String[] {"--embed-font", "entrada.srt", "saida.ass"});
+        assertEquals(CliCommand.Mode.GENERATE_ASS, auto.mode());
+        assertTrue(auto.embedFont());
+        assertNull(auto.fontPath());
+
+        CliCommand explicit = parser.parse(new String[] {
+                "--embed-font=/tmp/fonte.otf", "entrada.srt", "saida.ass"});
+        assertTrue(explicit.embedFont());
+        assertEquals(Path.of("/tmp/fonte.otf"), explicit.fontPath());
+    }
+
+    @Test
+    @DisplayName("A embedação de fonte também vale para o modo --mpv")
+    void parsesEmbedFontInPlayMode() {
+        CliCommand command = parser.parse(new String[] {
+                "--embed-font", "--mpv", "legenda.srt", "video.mkv"});
+
+        assertEquals(CliCommand.Mode.PLAY, command.mode());
+        assertTrue(command.embedFont());
+    }
+
+    @Test
+    @DisplayName("Ignora a embedação de fonte na geração de JSON")
+    void ignoresEmbedFontForJson() {
+        CliCommand command = parser.parse(new String[] {"--embed-font", "entrada.srt", "saida.json"});
+
+        assertEquals(CliCommand.Mode.GENERATE_JSON, command.mode());
+        assertFalse(command.embedFont());
+    }
+
+    @Test
+    @DisplayName("Rejeita --embed-font= sem arquivo")
+    void rejectsEmptyEmbedFontPath() {
+        assertThrows(CliUsageException.class,
+                () -> parser.parse(new String[] {"--embed-font=", "entrada.srt", "saida.ass"}));
     }
 }

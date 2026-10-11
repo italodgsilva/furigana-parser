@@ -1,6 +1,8 @@
 package com.shinji2324.furigana.cli;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -10,19 +12,25 @@ import java.util.Locale;
  * <pre>
  * furigana-parser &lt;entrada.srt&gt; &lt;saida.json|saida.ass&gt;
  * furigana-parser --mpv &lt;entrada.srt&gt; &lt;video&gt;   (alias: play)
+ * furigana-parser [--embed-font[=&lt;arquivo&gt;]] &lt;entrada.srt&gt; &lt;saida.ass&gt;
  * furigana-parser --help
  * </pre>
  *
  * <p>No modo de geração, o formato de saída é decidido pela extensão do arquivo
- * ({@code .json} ou {@code .ass}).
+ * ({@code .json} ou {@code .ass}). A opção {@code --embed-font} embute a fonte da
+ * legenda no próprio ASS (veja {@code docs/font-embedding.md}).
  */
 public class CliParser {
+
+    /** Opção que liga a embedação da fonte no ASS. */
+    private static final String EMBED_FONT = "--embed-font";
 
     /** Texto de uso exibido em {@code --help} e em erros de argumentos. */
     public static final String USAGE = String.join("\n",
             "Uso:",
             "  furigana-parser <entrada.srt> <saida.json|saida.ass>",
             "  furigana-parser --mpv <entrada.srt> <video>",
+            "  furigana-parser [--embed-font[=<arquivo>]] <entrada.srt> <saida.ass>",
             "  furigana-parser --help");
 
     private static final String PLAY_ALIAS = "play";
@@ -39,22 +47,46 @@ public class CliParser {
             return CliCommand.help();
         }
 
-        if (isPlay(args[0])) {
-            if (args.length != 3) {
-                throw new CliUsageException("O modo --mpv exige a legenda SRT e o vídeo.\n" + USAGE);
+        boolean embedFont = false;
+        Path fontPath = null;
+        List<String> positional = new ArrayList<>();
+        for (String argument : args) {
+            if (argument.equals(EMBED_FONT)) {
+                embedFont = true;
+            } else if (argument.startsWith(EMBED_FONT + "=")) {
+                embedFont = true;
+                String value = argument.substring(EMBED_FONT.length() + 1);
+                if (value.isBlank()) {
+                    throw new CliUsageException(
+                            "Informe o arquivo de fonte em " + EMBED_FONT + "=<arquivo>.\n" + USAGE);
+                }
+                fontPath = Path.of(value);
+            } else {
+                positional.add(argument);
             }
-            return CliCommand.play(Path.of(args[1]), Path.of(args[2]));
         }
 
-        if (args.length != 2) {
+        if (positional.isEmpty() || isHelp(positional.get(0))) {
+            return CliCommand.help();
+        }
+
+        if (isPlay(positional.get(0))) {
+            if (positional.size() != 3) {
+                throw new CliUsageException("O modo --mpv exige a legenda SRT e o vídeo.\n" + USAGE);
+            }
+            return CliCommand.play(Path.of(positional.get(1)), Path.of(positional.get(2)),
+                    embedFont, fontPath);
+        }
+
+        if (positional.size() != 2) {
             throw new CliUsageException(USAGE);
         }
 
-        Path input = Path.of(args[0]);
-        Path output = Path.of(args[1]);
+        Path input = Path.of(positional.get(0));
+        Path output = Path.of(positional.get(1));
         return switch (extensionOf(output)) {
             case "json" -> CliCommand.generateJson(input, output);
-            case "ass" -> CliCommand.generateAss(input, output);
+            case "ass" -> CliCommand.generateAss(input, output, embedFont, fontPath);
             default -> throw new CliUsageException(
                     "Formato de saída não suportado: use .json ou .ass.\n" + USAGE);
         };
