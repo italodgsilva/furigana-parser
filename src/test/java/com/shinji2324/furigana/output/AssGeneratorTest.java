@@ -54,10 +54,10 @@ class AssGeneratorTest {
         assertTrue(output.contains(
                 "Dialogue: 0,0:00:01.00,0:00:04.50,Main,,0,0,0,,{\\an5\\pos(960,988)}今日は日本語を勉強します。"));
 
-        // Furigana alinhado sobre cada bloco de kanji (13 células, início em 544px).
-        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(608,928)}きょう"));
-        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(832,928)}にほんご"));
-        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(1056,928)}べんきょう"));
+        // Furigana alinhado sobre cada bloco de kanji (13 células, início em 672,7px).
+        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(717,928)}きょう"));
+        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(872,928)}にほんご"));
+        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(1026,928)}べんきょう"));
 
         // Apenas os três blocos com kanji geram furigana.
         assertEquals(3, countOccurrences(output, ",Furigana,"));
@@ -82,10 +82,10 @@ class AssGeneratorTest {
         assertTrue(output.contains("{\\an5\\pos(960,868)}元気ですか？"));
         assertTrue(output.contains("{\\an5\\pos(960,988)}元気です。"));
         // O furigana acompanha a linha: y=808 (topo) e y=928 (base).
-        // Linha 1 (6 células, início em 768px): centro de "元気" em 832.
-        // Linha 2 (5 células, início em 800px): centro de "元気" em 864.
-        assertTrue(output.contains(",Furigana,,0,0,0,,{\\an5\\pos(832,808)}げんき"));
-        assertTrue(output.contains(",Furigana,,0,0,0,,{\\an5\\pos(864,928)}げんき"));
+        // Linha 1 (6 células, início em 827,4px): centro de "元気" em 872.
+        // Linha 2 (5 células, início em 849,5px): centro de "元気" em 894.
+        assertTrue(output.contains(",Furigana,,0,0,0,,{\\an5\\pos(872,808)}げんき"));
+        assertTrue(output.contains(",Furigana,,0,0,0,,{\\an5\\pos(894,928)}げんき"));
         assertEquals(2, countOccurrences(output, ",Main,"));
         assertEquals(2, countOccurrences(output, ",Furigana,"));
     }

@@ -142,11 +142,20 @@ O `AssGenerator`:
   correspondente.
 
 Como o ASS não possui rubi nativo, a coordenada horizontal do furigana é
-calculada a partir de uma **grade de caracteres** (`AssLayout`): assume-se que
-cada caractere de largura total (kanji, kana, pontuação japonesa) ocupa um
-quadrado igual ao tamanho da fonte, e que caracteres ASCII ocupam meio quadrado.
-Isso mantém o alinhamento preciso para textos japoneses; para trechos em latim
-misturados, é uma aproximação.
+calculada a partir de uma **grade de caracteres** (`AssLayout`): cada caractere de
+largura total (kanji, kana, pontuação japonesa) ocupa um "em", o katakana
+half-width ocupa meio "em", e os caracteres ASCII usam o **avanço real** da fonte
+do template (`ASCII_ADVANCES`, extraído de `hmtx`). O latim de fonte CJK é
+proporcional — o espaço mede `0,224` em, o `(` mede `0,338` em —, bem distante de
+uma largura fixa de meio "em", e ignorar isso desloca o furigana de forma
+cumulativa ao longo da linha.
+
+O "em" **não** é o tamanho de fonte declarado no ASS: o libass (usado pelo MPV)
+interpreta o `Fontsize` como a altura da linha da fonte (`hhea`), então o avanço
+real de um caractere de largura total é `Fontsize * EM_PER_FONT_SIZE`. Para a
+fonte do template (`Noto Sans CJK JP`), `EM_PER_FONT_SIZE = 1000/1448 ≈ 0,6906`.
+As coordenadas verticais continuam usando o tamanho de fonte, pois a caixa de
+linha do libass tem exatamente essa altura.
 
 O texto e a sincronização originais são sempre preservados. A associação entre
 segmentos e linhas visuais é feita por deslocamento de caractere no texto
@@ -154,8 +163,9 @@ original, o que funciona tanto com tokenizadores que preservam quebras de linha
 como tokens (Kuromoji) quanto com os que as descartam
 (`ScriptJapaneseTokenizer`).
 
-As constantes geométricas (`AssLayout`) pressupõem a resolução 1920x1080 do
-template padrão; alterar o `PlayRes` do template exige ajustar essas constantes.
+As constantes geométricas (`AssLayout`) pressupõem a resolução 1920x1080 e a
+fonte do template padrão; alterar o `PlayRes` ou a fonte exige ajustar essas
+constantes (em particular `EM_PER_FONT_SIZE` e a tabela `ASCII_ADVANCES`).
 
 ## Estilos
 
@@ -204,9 +214,10 @@ A codificação de saída é UTF-8.
 
 Pontos que ainda podem exigir refinamento:
 
-- caracteres com largura muito variável (ex.: trechos longos em latim);
+- caracteres fora de ASCII e CJK (ex.: letras latinas acentuadas, outros
+  alfabetos) ainda usam um "em" por padrão, sem medição real;
+- kerning entre pares de glifos não é considerado;
 - colisão entre linhas com furigana em textos com muitas linhas;
-- fontes japonesas específicas e métricas reais de glifos;
 - textos muito longos (quebra automática).
 
 ## Exemplo conceitual de transformação
@@ -233,9 +244,9 @@ Saída ASS real (trecho):
 
 ```text
 Dialogue: 0,0:00:01.00,0:00:04.50,Main,,0,0,0,,{\an5\pos(960,988)}今日は日本語を勉強します。
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(608,928)}きょう
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(832,928)}にほんご
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(1056,928)}べんきょう
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(717,928)}きょう
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(872,928)}にほんご
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(1026,928)}べんきょう
 ```
 
 ## Relação com MPV
