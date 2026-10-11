@@ -100,3 +100,10 @@ mesmo sem a fonte instalada no sistema.
 O `AssGenerator` continua sem conhecer fontes: a embedação é um pós-processamento
 do texto ASS, acionado pela CLI (`Application`). Assim, a geração do ASS segue
 independente dos detalhes de onde a fonte está instalada.
+
+## Melhorias futuras
+
+Reduzir o tamanho do ASS embutido por meio de subsetting da fonte (gravar apenas
+os glifos usados na legenda). Hoje o arquivo inteiro é embutido para não depender
+de ferramentas externas; o subsetting de fontes CFF/CID, como a `Noto Sans CJK
+JP`, exigiria uma biblioteca especializada.

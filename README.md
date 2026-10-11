@@ -58,6 +58,8 @@ Etapas concluídas:
 Próximas etapas (fora do escopo atual):
 
 - integração dinâmica com o MPV (scripts Lua, atualização em tempo real).
+- redução do tamanho do ASS com fonte embutida (subsetting da fonte): hoje o
+  arquivo inteiro é gravado, o que gera um ASS pesado (ver `docs/font-embedding.md`).
 
 ## Tecnologias
 
