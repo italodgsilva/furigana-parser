@@ -55,9 +55,9 @@ class AssGeneratorTest {
                 "Dialogue: 0,0:00:01.00,0:00:04.50,Main,,0,0,0,,{\\an5\\pos(960,988)}今日は日本語を勉強します。"));
 
         // Furigana alinhado sobre cada bloco de kanji (13 células, início em 672,7px).
-        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(717,928)}きょう"));
-        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(872,928)}にほんご"));
-        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(1026,928)}べんきょう"));
+        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(717,957)}きょう"));
+        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(872,957)}にほんご"));
+        assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(1026,957)}べんきょう"));
 
         // Apenas os três blocos com kanji geram furigana.
         assertEquals(3, countOccurrences(output, ",Furigana,"));
@@ -81,11 +81,11 @@ class AssGeneratorTest {
         // Duas linhas principais: a de cima em 868 e a de baixo em 988.
         assertTrue(output.contains("{\\an5\\pos(960,868)}元気ですか？"));
         assertTrue(output.contains("{\\an5\\pos(960,988)}元気です。"));
-        // O furigana acompanha a linha: y=808 (topo) e y=928 (base).
+        // O furigana acompanha a linha: y=837 (topo) e y=957 (base).
         // Linha 1 (6 células, início em 827,4px): centro de "元気" em 872.
         // Linha 2 (5 células, início em 849,5px): centro de "元気" em 894.
-        assertTrue(output.contains(",Furigana,,0,0,0,,{\\an5\\pos(872,808)}げんき"));
-        assertTrue(output.contains(",Furigana,,0,0,0,,{\\an5\\pos(894,928)}げんき"));
+        assertTrue(output.contains(",Furigana,,0,0,0,,{\\an5\\pos(872,837)}げんき"));
+        assertTrue(output.contains(",Furigana,,0,0,0,,{\\an5\\pos(894,957)}げんき"));
         assertEquals(2, countOccurrences(output, ",Main,"));
         assertEquals(2, countOccurrences(output, ",Furigana,"));
     }

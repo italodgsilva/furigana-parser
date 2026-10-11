@@ -18,8 +18,10 @@ package com.shinji2324.furigana.output;
  * caractere de largura total é {@code Fontsize * EM_PER_FONT_SIZE}, com
  * {@code EM_PER_FONT_SIZE} dependente da fonte. Ignorar esse fator desloca
  * todas as leituras horizontalmente (o erro cresce com o comprimento da linha).
- * As coordenadas verticais, em contrapartida, continuam usando o tamanho de
- * fonte, porque a caixa de linha do libass tem exatamente essa altura.
+ * <p>As coordenadas verticais do texto principal usam a caixa de linha (o libass
+ * a dimensiona exatamente para o {@code Fontsize}); já o furigana é posicionado
+ * pelos "em" (as caixas de glifo), porque a caixa de linha desta fonte tem um
+ * "leading" interno grande que deixaria a leitura distante do kanji.
  *
  * <p>As constantes pressupõem a resolução 1920x1080 e a fonte
  * {@code Noto Sans CJK JP}, ambos declarados no {@code /ass/default-style.ass}.
@@ -40,8 +42,8 @@ public final class AssLayout {
     /** Tamanho da fonte do furigana (deve casar com o estilo Furigana). */
     public static final int FURIGANA_FONT_SIZE = 32;
 
-    /** Distância entre a base do texto principal e a base do furigana, em pixels. */
-    public static final int FURIGANA_GAP = 12;
+    /** Folga vertical entre o "em" do texto principal e o "em" do furigana, em pixels. */
+    public static final int FURIGANA_GAP = -2;
 
     /** Distância vertical entre linhas consecutivas do texto principal. */
     public static final int LINE_HEIGHT = 120;
@@ -124,7 +126,12 @@ public final class AssLayout {
      * @return centro vertical do furigana em pixels
      */
     public static double furiganaCenterY(int indexFromBottom) {
-        double offset = MAIN_FONT_SIZE / 2.0 + FURIGANA_GAP + FURIGANA_FONT_SIZE / 2.0;
+        // Os glifos CJK vivem no "em", não na caixa de linha: esta fonte tem
+        // altura de linha de 1,448 "em" e um "leading" interno grande. Posicionar
+        // as caixas de linha deixa o furigana longe da palavra; posicionar os
+        // "em" (CELL_WIDTH para o Main, FURIGANA_FONT_SIZE * EM_PER_FONT_SIZE para
+        // o Furigana) com uma folga pequena o mantém próximo do kanji.
+        double offset = CELL_WIDTH / 2.0 + FURIGANA_GAP + FURIGANA_FONT_SIZE * EM_PER_FONT_SIZE / 2.0;
         return mainCenterY(indexFromBottom) - offset;
     }
 

@@ -65,7 +65,10 @@ class AssLayoutTest {
     void stacksLinesFromBottom() {
         assertEquals(988.0, AssLayout.mainCenterY(0));
         assertEquals(868.0, AssLayout.mainCenterY(1));
-        assertEquals(928.0, AssLayout.furiganaCenterY(0));
-        assertEquals(808.0, AssLayout.furiganaCenterY(1));
+        double em = AssLayout.EM_PER_FONT_SIZE;
+        double offset = AssLayout.CELL_WIDTH / 2.0 + AssLayout.FURIGANA_GAP
+                + AssLayout.FURIGANA_FONT_SIZE * em / 2.0;
+        assertEquals(988.0 - offset, AssLayout.furiganaCenterY(0), 1e-9);
+        assertEquals(868.0 - offset, AssLayout.furiganaCenterY(1), 1e-9);
     }
 }

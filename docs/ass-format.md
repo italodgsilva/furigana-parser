@@ -154,8 +154,12 @@ O "em" **não** é o tamanho de fonte declarado no ASS: o libass (usado pelo MPV
 interpreta o `Fontsize` como a altura da linha da fonte (`hhea`), então o avanço
 real de um caractere de largura total é `Fontsize * EM_PER_FONT_SIZE`. Para a
 fonte do template (`Noto Sans CJK JP`), `EM_PER_FONT_SIZE = 1000/1448 ≈ 0,6906`.
-As coordenadas verticais continuam usando o tamanho de fonte, pois a caixa de
-linha do libass tem exatamente essa altura.
+As coordenadas verticais do texto principal usam a caixa de linha do libass
+(que tem exatamente a altura do `Fontsize`); o furigana é posicionado pelos
+"em" (as caixas de glifo, `CELL_WIDTH` e `FURIGANA_FONT_SIZE * EM_PER_FONT_SIZE`),
+com uma folga pequena (`FURIGANA_GAP`) — a caixa de linha desta fonte tem um
+"leading" interno grande, que afastaria a leitura do kanji se fosse usada como
+referência.
 
 O texto e a sincronização originais são sempre preservados. A associação entre
 segmentos e linhas visuais é feita por deslocamento de caractere no texto
@@ -177,7 +181,7 @@ Estilos atuais:
 
 ```text
 Main       — texto principal (branco, 64px)
-Furigana   — leitura (dourado, 32px), exibida acima do texto principal
+Furigana   — leitura (branco, 32px), exibida acima do texto principal
 ```
 
 Isso permite alterar fonte, tamanho, cor, margem e estilo sem modificar a lógica
@@ -244,9 +248,9 @@ Saída ASS real (trecho):
 
 ```text
 Dialogue: 0,0:00:01.00,0:00:04.50,Main,,0,0,0,,{\an5\pos(960,988)}今日は日本語を勉強します。
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(717,928)}きょう
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(872,928)}にほんご
-Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(1026,928)}べんきょう
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(717,949)}きょう
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(872,949)}にほんご
+Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(1026,949)}べんきょう
 ```
 
 ## Relação com MPV
