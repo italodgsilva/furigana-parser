@@ -165,7 +165,8 @@ com a `Noto Sans CJK JP`).
 Com `--subset-font` (que exige `--embed-font`), apenas os glifos usados na
 legenda são gravados, o que reduz drasticamente o arquivo (um episódio inteiro
 fica em torno de 300 KB). A redução usa o HarfBuzz (`libharfbuzz-subset`); se a
-biblioteca não estiver disponível, o programa avisa e embute a fonte completa.
+biblioteca não estiver disponível, o programa avisa (com a sugestão de instalação
+para o seu sistema) e embute a fonte completa.
 Veja [`docs/font-embedding.md`](docs/font-embedding.md).
 
 No modo `--mpv`, o ASS é gerado ao lado da SRT (`entrada.furigana.ass`) e o vídeo

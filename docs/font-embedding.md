@@ -87,7 +87,10 @@ propriedade `-Dfurigana.harfbuzz.subset=<arquivo>`.
 
 Se a biblioteca não for encontrada — ou se a redução de uma fonte falhar — o
 programa avisa em `stderr` e embute a fonte completa. O ASS nunca é gerado sem os
-glifos necessários.
+glifos necessários. Quando a biblioteca está ausente, o aviso já traz o comando de
+instalação para o sistema em uso (por exemplo, `sudo apt install libharfbuzz-subset0`
+no Debian/Ubuntu ou `brew install harfbuzz` no macOS) e a lembrança da variável
+`FURIGANA_HARFBUZZ_SUBSET`, usada para apontar um arquivo explicitamente.
 
 ## Uso
 

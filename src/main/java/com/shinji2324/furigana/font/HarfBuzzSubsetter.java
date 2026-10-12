@@ -4,6 +4,9 @@ import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -41,6 +44,35 @@ public final class HarfBuzzSubsetter implements FontSubsetter {
      */
     public static Optional<HarfBuzzSubsetter> create() {
         return HarfBuzzSubsetLibrary.load().map(HarfBuzzSubsetter::new);
+    }
+
+    /**
+     * Sugestão exibida quando a biblioteca nativa não é encontrada.
+     *
+     * <p>Explica por que o ASS sairá maior, como instalar o HarfBuzz no sistema
+     * operacional em uso e como apontar um arquivo explicitamente.
+     *
+     * @return mensagem pronta para exibição
+     */
+    public static String installationHint() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        List<String> lines = new ArrayList<>();
+        lines.add("Aviso: a biblioteca nativa do HarfBuzz (libharfbuzz-subset) não foi "
+                + "encontrada; a fonte será embutida sem redução de tamanho.");
+        if (os.contains("win")) {
+            lines.add("Para reduzir o ASS, instale o HarfBuzz "
+                    + "(ex.: via MSYS2, pacote mingw-w64-ucrt-x86_64-harfbuzz).");
+        } else if (os.contains("mac") || os.contains("darwin")) {
+            lines.add("Para reduzir o ASS, instale o HarfBuzz: brew install harfbuzz.");
+        } else {
+            lines.add("Para reduzir o ASS, instale o HarfBuzz:");
+            lines.add("  - Debian/Ubuntu: sudo apt install libharfbuzz-subset0");
+            lines.add("  - Fedora: sudo dnf install harfbuzz");
+            lines.add("  - Arch: sudo pacman -S harfbuzz");
+        }
+        lines.add("Ou aponte o arquivo com " + HarfBuzzSubsetLibrary.OVERRIDE_ENV
+                + "=<arquivo> ou -D" + HarfBuzzSubsetLibrary.OVERRIDE_PROPERTY + "=<arquivo>.");
+        return String.join(System.lineSeparator(), lines);
     }
 
     @Override

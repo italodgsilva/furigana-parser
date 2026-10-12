@@ -86,6 +86,19 @@ class HarfBuzzSubsetterTest {
     }
 
     @Test
+    @DisplayName("O aviso de instalação explica o motivo e como resolver")
+    void installationHintIsHelpful() {
+        String hint = HarfBuzzSubsetter.installationHint();
+
+        assertFalse(hint.isBlank());
+        assertTrue(hint.contains("libharfbuzz-subset"), "deve citar a biblioteca ausente");
+        assertTrue(hint.contains("sem redução de tamanho"), "deve explicar o efeito");
+        assertTrue(hint.contains("HarfBuzz"), "deve sugerir instalar o HarfBuzz");
+        assertTrue(hint.contains(HarfBuzzSubsetLibrary.OVERRIDE_ENV),
+                "deve lembrar da variável de ambiente");
+    }
+
+    @Test
     @DisplayName("Reduz uma fonte real quando a biblioteca e a fonte estão disponíveis")
     void subsetsRealFontWhenAvailable() throws IOException {
         Optional<HarfBuzzSubsetLibrary.HarfBuzz> library = HarfBuzzSubsetLibrary.load();

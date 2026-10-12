@@ -210,8 +210,7 @@ public class Application {
     private List<FontFile> subsetFonts(List<FontFile> fonts, FuriganaDocument document) {
         Optional<HarfBuzzSubsetter> subsetter = HarfBuzzSubsetter.create();
         if (subsetter.isEmpty()) {
-            System.err.println("Aviso: libharfbuzz-subset não encontrada; "
-                    + "a fonte será embutida sem redução de tamanho.");
+            System.err.println(HarfBuzzSubsetter.installationHint());
             return fonts;
         }
         Set<Integer> codePoints = UsedCodePoints.from(document);
