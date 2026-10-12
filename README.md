@@ -1,6 +1,7 @@
 # Furigana Parser
 
 [![CI](https://github.com/shinji2324/furigana-parser/actions/workflows/ci.yml/badge.svg)](https://github.com/shinji2324/furigana-parser/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/shinji2324/furigana-parser)](https://github.com/shinji2324/furigana-parser/releases)
 
 Ferramenta para processamento de legendas japonesas, com o objetivo de adicionar leituras em furigana aos kanji e gerar legendas compatíveis com players como o MPV.
 
