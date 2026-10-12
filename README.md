@@ -128,6 +128,45 @@ furigana-parser/
     └── native-image.md
 ```
 
+## Download e uso
+
+Cada versão publicada deixa o JAR e os binários prontos na página de
+[Releases](https://github.com/shinji2324/furigana-parser/releases). Baixe o
+arquivo da sua plataforma:
+
+| Plataforma | Arquivo |
+| --- | --- |
+| Linux x86-64 | `furigana-parser-<versão>-linux-x86_64` |
+| Linux arm64 | `furigana-parser-<versão>-linux-aarch64` |
+| macOS Apple Silicon | `furigana-parser-<versão>-macos-aarch64` |
+| macOS Intel | `furigana-parser-<versão>-macos-x86_64` |
+| Windows x86-64 | `furigana-parser-<versão>-windows-x86_64.exe` |
+| Qualquer sistema (requer Java 21+) | `furigana-parser-<versão>.jar` |
+
+Os binários nativos não precisam de nada instalado além do próprio arquivo; o
+JAR precisa de um Java 21 ou superior.
+
+No Linux e no macOS, marque o binário como executável antes de rodar:
+
+```
+chmod +x furigana-parser-0.1.0-linux-x86_64
+./furigana-parser-0.1.0-linux-x86_64 entrada.srt saida.ass
+```
+
+No Windows, basta executar o `.exe` (na primeira vez, o SmartScreen pode pedir
+confirmação). No macOS, se o Gatekeeper bloquear o binário não assinado, libere-o
+com `xattr -d com.apple.quarantine <arquivo>` ou em Ajustes → Privacidade e
+Segurança.
+
+Cada Release inclui um `SHA256SUMS.txt` para conferir a integridade dos
+downloads:
+
+```
+sha256sum -c SHA256SUMS.txt
+```
+
+A lista completa de opções está em [Linha de comando](#linha-de-comando).
+
 ## Desenvolvimento
 
 Requisitos:
@@ -188,6 +227,10 @@ etc.
 
 O formato de saída é escolhido pela extensão do arquivo: `.json` gera o modelo
 intermediário e `.ass` gera a legenda com o furigana posicionado.
+
+Nos exemplos abaixo, troque `java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar`
+pelo caminho do JAR baixado (ex.: `java -jar furigana-parser-0.1.0.jar`) ou pelo
+binário nativo (ex.: `./furigana-parser-0.1.0-linux-x86_64`).
 
 ```
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.json
