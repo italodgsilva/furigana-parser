@@ -7,34 +7,34 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Embute arquivos de fonte em um ASS por meio da seção {@code [Fonts]}.
+ * Embeds font files into an ASS through the {@code [Fonts]} section.
  *
- * <p>A seção é o mecanismo de fontes embutidas do próprio formato ASS: cada
- * bloco começa com {@code fontname: <arquivo>} seguido dos bytes da fonte
- * codificados. Quando o player encontra a seção, ele registra essas fontes no
- * provedor do sistema, o que dispensa instalar a fonte na máquina.
+ * <p>The section is the ASS format's own font-embedding mechanism: each block
+ * starts with {@code fontname: <file>} followed by the encoded bytes of the
+ * font. When the player encounters the section, it registers these fonts in the
+ * system provider, which avoids installing the font on the machine.
  *
- * <p>A codificação é a mesma implementada pelo libass: cada 3 bytes viram 4
- * caracteres, com 6 bits por caractere somados a 33 ({@code '!'}). As quebras de
- * linha são ignoradas na leitura, então a codificação é distribuída em linhas de
- * tamanho fixo. O total de caracteres nunca deixa resto 1 na divisão por 4 — o
- * libass rejeita esse caso.
+ * <p>The encoding is the same one implemented by libass: every 3 bytes become 4
+ * characters, with 6 bits per character plus 33 ({@code '!'}). Line breaks are
+ * ignored on reading, so the encoding is distributed across lines of fixed
+ * length. The total number of characters never leaves a remainder of 1 when
+ * divided by 4 — libass rejects that case.
  */
 public final class AssFontEmbedder {
 
-    /** Quantidade de caracteres codificados por linha (as quebras são ignoradas). */
+    /** Number of encoded characters per line (line breaks are ignored). */
     private static final int LINE_LENGTH = 80;
 
-    /** Cabeçalho da seção de eventos, onde a seção {@code [Fonts]} é inserida. */
+    /** Header of the events section, where the {@code [Fonts]} section is inserted. */
     private static final Pattern EVENTS_SECTION = Pattern.compile("(?m)^\\[Events\\][ \\t]*\\R?");
 
     /**
-     * Insere as fontes informadas no ASS, antes da seção {@code [Events]}.
+     * Inserts the given fonts into the ASS, before the {@code [Events]} section.
      *
-     * @param ass   conteúdo ASS já montado
-     * @param fonts fontes a embutir
-     * @return o ASS com a seção {@code [Fonts]} (ou o próprio ASS, se não houver
-     *         fontes)
+     * @param ass   already assembled ASS content
+     * @param fonts fonts to embed
+     * @return the ASS with the {@code [Fonts]} section (or the ASS itself, if
+     *         there are no fonts)
      */
     public String embed(String ass, List<FontFile> fonts) {
         if (ass == null || fonts == null || fonts.isEmpty()) {
@@ -49,10 +49,10 @@ public final class AssFontEmbedder {
     }
 
     /**
-     * Monta a seção {@code [Fonts]} com todas as fontes informadas.
+     * Builds the {@code [Fonts]} section with all the given fonts.
      *
-     * @param fonts fontes a codificar
-     * @return texto da seção, terminado em nova linha
+     * @param fonts fonts to encode
+     * @return section text, ending in a newline
      */
     public static String section(List<FontFile> fonts) {
         StringBuilder builder = new StringBuilder("[Fonts]\n");
@@ -64,11 +64,11 @@ public final class AssFontEmbedder {
     }
 
     /**
-     * Codifica bytes no formato de fontes do ASS (uuencode do libass).
+     * Encodes bytes in the ASS font format (libass uuencode).
      *
-     * @param data       bytes a codificar
-     * @param lineLength quantidade de caracteres por linha (ignorada na leitura)
-     * @return texto codificado, terminado em nova linha
+     * @param data       bytes to encode
+     * @param lineLength number of characters per line (ignored on reading)
+     * @return encoded text, ending in a newline
      */
     static String uuencode(byte[] data, int lineLength) {
         StringBuilder builder = new StringBuilder(data.length / 3 * 4 + data.length / lineLength + 2);

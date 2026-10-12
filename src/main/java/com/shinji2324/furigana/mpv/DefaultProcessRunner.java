@@ -4,11 +4,11 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * {@link ProcessRunner} padrão, baseado em {@link ProcessBuilder}.
+ * Default {@link ProcessRunner}, based on {@link ProcessBuilder}.
  *
- * <p>A entrada e a saída do processo são herdadas do processo atual
- * ({@link ProcessBuilder#inheritIO()}), de modo que a interface de terminal do
- * MPV funcione normalmente.
+ * <p>The process's input and output are inherited from the current process
+ * ({@link ProcessBuilder#inheritIO()}), so that MPV's terminal interface works
+ * normally.
  */
 public class DefaultProcessRunner implements ProcessRunner {
 

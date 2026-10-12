@@ -4,15 +4,16 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Reúne os code points Unicode que aparecem na legenda processada.
+ * Gathers the Unicode code points that appear in the processed subtitle.
  *
- * <p>É a entrada do subsetting: a fonte embutida precisa apenas dos glifos que a
- * legenda realmente desenha. São considerados o texto principal de cada entrada
- * (o mesmo usado nos eventos do estilo {@code Main}) e as leituras dos segmentos
- * (o texto dos eventos do estilo {@code Furigana}). Os override tags
- * ({@code \pos} etc.) não são glifos e por isso não entram.
+ * <p>It is the input to subsetting: the embedded font needs only the glyphs
+ * that the subtitle actually draws. The main text of each entry (the same used
+ * in the events of the {@code Main} style) and the readings of the segments
+ * (the text of the events of the {@code Furigana} style) are considered. The
+ * override tags ({@code \pos} etc.) are not glyphs and therefore are not
+ * included.
  *
- * <p>O conjunto é ordenado para que o resultado não dependa da ordem de iteração.
+ * <p>The set is ordered so that the result does not depend on iteration order.
  */
 public final class UsedCodePoints {
 
@@ -20,10 +21,10 @@ public final class UsedCodePoints {
     }
 
     /**
-     * Coleta os code points usados pelo documento.
+     * Collects the code points used by the document.
      *
-     * @param document documento processado (pode ser {@code null})
-     * @return conjunto ordenado de code points
+     * @param document processed document (may be {@code null})
+     * @return ordered set of code points
      */
     public static Set<Integer> from(FuriganaDocument document) {
         Set<Integer> codePoints = new TreeSet<>();

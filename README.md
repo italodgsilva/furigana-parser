@@ -3,15 +3,18 @@
 [![CI](https://github.com/shinji2324/furigana-parser/actions/workflows/ci.yml/badge.svg)](https://github.com/shinji2324/furigana-parser/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/shinji2324/furigana-parser)](https://github.com/shinji2324/furigana-parser/releases)
 
-Ferramenta para processamento de legendas japonesas, com o objetivo de adicionar leituras em furigana aos kanji e gerar legendas compatíveis com players como o MPV.
+Tool for processing Japanese subtitles, with the goal of adding furigana readings
+to the kanji and generating subtitles compatible with players such as MPV.
 
-O projeto está sendo desenvolvido de forma incremental, mantendo o processamento das legendas separado da renderização e da integração com o player.
+The project is being developed incrementally, keeping subtitle processing separate
+from rendering and player integration.
 
-## Objetivos
+## Goals
 
-O objetivo principal é transformar uma legenda japonesa comum em uma representação estruturada contendo as leituras dos termos japoneses.
+The main goal is to turn an ordinary Japanese subtitle into a structured
+representation containing the readings of the Japanese terms.
 
-Fluxo:
+Flow:
 
 ```
 SRT
@@ -25,7 +28,7 @@ Japanese Tokenizer
  ▼
 Reading Provider
  │
- ├── Kuromoji (principal)
+ ├── Kuromoji (primary)
  │
  └── Jisho (fallback)
  │
@@ -40,44 +43,45 @@ FuriganaDocument
 MPV
 ```
 
-## Estado atual
+## Current state
 
-O projeto está em desenvolvimento incremental, com saída verificável ao final de cada etapa.
+The project is under incremental development, with verifiable output at the end of
+each step.
 
-Etapas concluídas:
+Completed steps:
 
-1. Parser de SRT (fail-fast em blocos malformados, índices opcionais, timestamps preservados como string crua).
-2. Modelo interno do furigana — `FuriganaDocument` → `FuriganaEntry` (id, start, end, texto, segmentos) → `FuriganaSegment` (texto + leitura).
-3. Tokenização de texto japonês — interface `JapaneseTokenizer`, com a implementação provisória `ScriptJapaneseTokenizer` (por tipo de escrita).
-4. Pipeline SRT → JSON intermediário, orquestrado por `FuriganaPipeline` e executável pela CLI (`Application`).
-5. Tokenização morfológica com Kuromoji (dicionário IPADIC), com leitura em hiragana e separação de kanji/okurigana (`FuriganaSegmenter`).
-6. Leituras externas: `JishoReadingProvider` real, mediado por `CachingReadingProvider` com cache em disco (`data/cache/readings.json`).
-7. Geração de ASS com furigana posicionado (`AssGenerator` + `AssWriter` + `AssLayout`), com estilos em `src/main/resources/ass/default-style.ass`.
-8. Integração com o MPV (`--mpv`): gera o ASS ao lado da SRT e abre o vídeo com `mpv --sub-file=...` (ver `docs/mpv.md`).
-9. Embutição da fonte no próprio ASS (`--embed-font`): localiza a fonte do estilo pelo nome de família, recorta a face de coleções `.ttc` e escreve a seção `[Fonts]`, tudo em Java. Com `--subset-font`, reduz a fonte embutida aos glifos usados na legenda, por meio do HarfBuzz (ver `docs/font-embedding.md`).
-10. Limpeza de texto (`--strip-parentheses`): remove os trechos entre parênteses redondos (full-width e half-width) antes da tokenização, descartando entradas que ficam vazias.
-11. Build nativo com o GraalVM (`mvn -Pnative package`): gera um executável sem JVM, com as configurações de reflexão/recursos/JNI em `src/main/resources/META-INF/native-image/` (ver `docs/native-image.md`).
-12. Publicação automática de versões: uma tag `v*` dispara o workflow de release, que gera o JAR e os binários nativos de cada plataforma e os anexa a um GitHub Release (ver a seção "Publicar uma versão").
+1. SRT parser (fail-fast on malformed blocks, optional indices, timestamps preserved as a raw string).
+2. Internal furigana model — `FuriganaDocument` → `FuriganaEntry` (id, start, end, text, segments) → `FuriganaSegment` (text + reading).
+3. Japanese text tokenization — `JapaneseTokenizer` interface, with the provisional `ScriptJapaneseTokenizer` implementation (by script type).
+4. SRT → intermediate JSON pipeline, orchestrated by `FuriganaPipeline` and runnable from the CLI (`Application`).
+5. Morphological tokenization with Kuromoji (IPADIC dictionary), with readings in hiragana and kanji/okurigana separation (`FuriganaSegmenter`).
+6. External readings: a real `JishoReadingProvider`, mediated by `CachingReadingProvider` with an on-disk cache (`data/cache/readings.json`).
+7. ASS generation with positioned furigana (`AssGenerator` + `AssWriter` + `AssLayout`), with styles in `src/main/resources/ass/default-style.ass`.
+8. MPV integration (`--mpv`): generates the ASS next to the SRT and opens the video with `mpv --sub-file=...` (see `docs/mpv.md`).
+9. Font embedding into the ASS itself (`--embed-font`): locates the style's font by family name, extracts the face from `.ttc` collections and writes the `[Fonts]` section, all in Java. With `--subset-font`, it subsets the embedded font to the glyphs used in the subtitle, using HarfBuzz (see `docs/font-embedding.md`).
+10. Text cleanup (`--strip-parentheses`): removes the passages between round parentheses (full-width and half-width) before tokenization, discarding entries that become empty.
+11. Native build with GraalVM (`mvn -Pnative package`): generates an executable without a JVM, with the reflection/resource/JNI configurations in `src/main/resources/META-INF/native-image/` (see `docs/native-image.md`).
+12. Automatic release publishing: a `v*` tag triggers the release workflow, which builds the JAR and the native binaries for each platform and attaches them to a GitHub Release (see the "Publishing a release" section).
 
-Próximas etapas (fora do escopo atual):
+Next steps (outside the current scope):
 
-- integração dinâmica com o MPV (scripts Lua, atualização em tempo real).
+- dynamic MPV integration (Lua scripts, real-time updates).
 
-## Tecnologias
+## Technologies
 
 - Java 21
 - Maven
 - JUnit 5
 - Jackson
-- Kuromoji (tokenização morfológica, dicionário IPADIC)
-- JNA (acesso à biblioteca nativa do HarfBuzz, para o subsetting opcional da fonte)
-- GraalVM Native Image (build nativo opcional)
-- Formato SRT
-- Formato ASS/SSA
+- Kuromoji (morphological tokenization, IPADIC dictionary)
+- JNA (access to the native HarfBuzz library, for optional font subsetting)
+- GraalVM Native Image (optional native build)
+- SRT format
+- ASS/SSA format
 - MPV
-- Jisho, como fonte de fallback para leituras
+- Jisho, as a fallback source for readings
 
-## Estrutura do projeto
+## Project structure
 
 ```text
 furigana-parser/
@@ -129,152 +133,152 @@ furigana-parser/
     └── native-image.md
 ```
 
-## Download e uso
+## Download and usage
 
-Cada versão publicada deixa o JAR e os binários prontos na página de
-[Releases](https://github.com/shinji2324/furigana-parser/releases). Baixe o
-arquivo da sua plataforma:
+Each published version leaves the JAR and the ready-made binaries on the
+[Releases](https://github.com/shinji2324/furigana-parser/releases) page. Download
+the file for your platform:
 
-| Plataforma | Arquivo |
+| Platform | File |
 | --- | --- |
-| Linux x86-64 | `furigana-parser-<versão>-linux-x86_64` |
-| Linux arm64 | `furigana-parser-<versão>-linux-aarch64` |
-| macOS Apple Silicon | `furigana-parser-<versão>-macos-aarch64` |
-| macOS Intel | `furigana-parser-<versão>-macos-x86_64` |
-| Windows x86-64 | `furigana-parser-<versão>-windows-x86_64.exe` |
-| Qualquer sistema (requer Java 21+) | `furigana-parser-<versão>.jar` |
+| Linux x86-64 | `furigana-parser-<version>-linux-x86_64` |
+| Linux arm64 | `furigana-parser-<version>-linux-aarch64` |
+| macOS Apple Silicon | `furigana-parser-<version>-macos-aarch64` |
+| macOS Intel | `furigana-parser-<version>-macos-x86_64` |
+| Windows x86-64 | `furigana-parser-<version>-windows-x86_64.exe` |
+| Any system (requires Java 21+) | `furigana-parser-<version>.jar` |
 
-Os binários nativos não precisam de nada instalado além do próprio arquivo; o
-JAR precisa de um Java 21 ou superior.
+The native binaries need nothing installed besides the file itself; the JAR needs
+Java 21 or higher.
 
-No Linux e no macOS, marque o binário como executável antes de rodar:
+On Linux and macOS, mark the binary as executable before running:
 
 ```
 chmod +x furigana-parser-0.1.0-linux-x86_64
-./furigana-parser-0.1.0-linux-x86_64 entrada.srt saida.ass
+./furigana-parser-0.1.0-linux-x86_64 input.srt output.ass
 ```
 
-No Windows, basta executar o `.exe` (na primeira vez, o SmartScreen pode pedir
-confirmação). No macOS, se o Gatekeeper bloquear o binário não assinado, libere-o
-com `xattr -d com.apple.quarantine <arquivo>` ou em Ajustes → Privacidade e
-Segurança.
+On Windows, just run the `.exe` (the first time, SmartScreen may ask for
+confirmation). On macOS, if Gatekeeper blocks the unsigned binary, allow it with
+`xattr -d com.apple.quarantine <file>` or under System Settings → Privacy &
+Security.
 
-Cada Release inclui um `SHA256SUMS.txt` para conferir a integridade dos
-downloads:
+Each Release includes a `SHA256SUMS.txt` to verify the integrity of the downloads:
 
 ```
 sha256sum -c SHA256SUMS.txt
 ```
 
-A lista completa de opções está em [Linha de comando](#linha-de-comando).
+The full list of options is in [Command line](#command-line).
 
-## Desenvolvimento
+## Development
 
-Requisitos:
+Requirements:
 
-- JDK 21 ou superior
-- Maven 3.9 ou superior
+- JDK 21 or higher
+- Maven 3.9 or higher
 
-Compilar:
+Compile:
 
 ```
 mvn clean compile
 ```
 
-Executar os testes:
+Run the tests:
 
 ```
 mvn test
 ```
 
-Gerar o JAR (com as dependências embutidas, ex.: Jackson e Kuromoji):
+Build the JAR (with the dependencies bundled in, e.g. Jackson and Kuromoji):
 
 ```
 mvn package
 ```
 
-Gerar o executável nativo com o GraalVM (opcional; requer GraalVM e um toolchain
-C — veja [`docs/native-image.md`](docs/native-image.md)):
+Build the native executable with GraalVM (optional; requires GraalVM and a C
+toolchain — see [`docs/native-image.md`](docs/native-image.md)):
 
 ```
 mvn -Pnative package
 ```
 
-A saída é `target/furigana-parser`.
+The output is `target/furigana-parser`.
 
-### Publicar uma versão
+### Publishing a release
 
-As versões são publicadas automaticamente pelo workflow
-[`release.yml`](.github/workflows/release.yml): basta criar e enviar uma tag
-`v*`.
+Versions are published automatically by the
+[`release.yml`](.github/workflows/release.yml) workflow: just create and push a
+`v*` tag.
 
 ```
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-O workflow compila o JAR (executando os testes) e os binários nativos de Linux
-(x86-64 e aarch64), macOS (x86-64 e arm64) e Windows, e anexa tudo a um GitHub
-Release com o nome da tag, além de um `SHA256SUMS.txt`. Também funciona criando a
-Release pela interface do GitHub: a tag criada dispara o workflow, que anexa os
-arquivos à Release existente.
+The workflow builds the JAR (running the tests) and the native binaries for Linux
+(x86-64 and aarch64), macOS (x86-64 and arm64) and Windows, and attaches
+everything to a GitHub Release named after the tag, along with a
+`SHA256SUMS.txt`. It also works when you create the Release through the GitHub
+interface: the created tag triggers the workflow, which attaches the files to the
+existing Release.
 
-O número da versão nos nomes dos arquivos vem da tag (sem o `v`), de modo que
-`v0.1.0` gera `furigana-parser-0.1.0.jar`,
+The version number in the file names comes from the tag (without the `v`), so
+`v0.1.0` produces `furigana-parser-0.1.0.jar`,
 `furigana-parser-0.1.0-linux-x86_64`, `furigana-parser-0.1.0-windows-x86_64.exe`
-etc.
+and so on.
 
-### Linha de comando
+### Command line
 
-O formato de saída é escolhido pela extensão do arquivo: `.json` gera o modelo
-intermediário e `.ass` gera a legenda com o furigana posicionado.
+The output format is chosen by the file extension: `.json` produces the
+intermediate model and `.ass` produces the subtitle with positioned furigana.
 
-Nos exemplos abaixo, troque `java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar`
-pelo caminho do JAR baixado (ex.: `java -jar furigana-parser-0.1.0.jar`) ou pelo
-binário nativo (ex.: `./furigana-parser-0.1.0-linux-x86_64`).
+In the examples below, replace `java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar`
+with the path to the downloaded JAR (e.g. `java -jar furigana-parser-0.1.0.jar`) or
+to the native binary (e.g. `./furigana-parser-0.1.0-linux-x86_64`).
 
 ```
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.json
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font entrada.srt saida.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font=fonte.otf entrada.srt saida.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font --subset-font entrada.srt saida.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --strip-parentheses entrada.srt saida.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --mpv entrada.srt video.mkv
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar input.srt output.json
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar input.srt output.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font input.srt output.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font=font.otf input.srt output.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font --subset-font input.srt output.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --strip-parentheses input.srt output.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --mpv input.srt video.mkv
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --help
 ```
 
-Os mesmos comandos valem para o binário nativo: troque
-`java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar` por `./target/furigana-parser`.
+The same commands work for the native binary: replace
+`java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar` with `./target/furigana-parser`.
 
-Com `--embed-font`, o ASS passa a carregar a própria fonte na seção `[Fonts]`,
-dispensando instalar a fonte na máquina de quem assiste. A opção funciona também
-no modo `--mpv`. Sem argumento, a fonte é localizada pelo nome de família do
-estilo (`Noto Sans CJK JP`); com `--embed-font=<arquivo>`, o arquivo informado é
-usado. Como o arquivo inteiro é embutido, o ASS cresce bastante (cerca de 22 MB
-com a `Noto Sans CJK JP`).
+With `--embed-font`, the ASS starts carrying the font itself in the `[Fonts]`
+section, so there is no need to install the font on the viewer's machine. The
+option also works in `--mpv` mode. Without an argument, the font is located by the
+style's family name (`Noto Sans CJK JP`); with `--embed-font=<file>`, the given
+file is used. Because the whole file is embedded, the ASS grows considerably
+(around 22 MB with `Noto Sans CJK JP`).
 
-Com `--subset-font` (que exige `--embed-font`), apenas os glifos usados na
-legenda são gravados, o que reduz drasticamente o arquivo (um episódio inteiro
-fica em torno de 300 KB). A redução usa o HarfBuzz (`libharfbuzz-subset`); se a
-biblioteca não estiver disponível, o programa avisa (com a sugestão de instalação
-para o seu sistema) e embute a fonte completa.
-Veja [`docs/font-embedding.md`](docs/font-embedding.md).
+With `--subset-font` (which requires `--embed-font`), only the glyphs used in the
+subtitle are written, which shrinks the file drastically (a whole episode comes to
+around 300 KB). The subsetting uses HarfBuzz (`libharfbuzz-subset`); if the
+library is not available, the program warns (with the installation suggestion for
+your system) and embeds the full font.
+See [`docs/font-embedding.md`](docs/font-embedding.md).
 
-Com `--strip-parentheses`, os trechos entre parênteses redondos — em largura total
-(`（…）`) ou meia-largura (`(…)`) — são removidos do texto antes da tokenização.
-Isso evita gerar furigana (e consultar leituras) para nomes de personagens,
-reações e indicações de cena (ex.: `（笑）`, `(Taro)`). Se uma entrada ficar
-inteiramente vazia, como uma linha que era só `（笑）`, ela é descartada. A opção
-vale para JSON, ASS e `--mpv`.
+With `--strip-parentheses`, the passages between round parentheses — full-width
+(`（…）`) or half-width (`(…)`) — are removed from the text before tokenization.
+This avoids generating furigana (and looking up readings) for character names,
+reactions and scene directions (e.g. `（笑）`, `(Taro)`). If an entry becomes
+entirely empty, such as a line that was only `（笑）`, it is discarded. The option
+applies to JSON, ASS and `--mpv`.
 
-No modo `--mpv`, o ASS é gerado ao lado da SRT (`entrada.furigana.ass`) e o vídeo
-é aberto no MPV com `--sub-file`. Requer o MPV instalado no `PATH`. As limitações
-dessa integração (resolução fixa, fonte CJK, faixas de legenda etc.) estão em
-[`docs/mpv.md`](docs/mpv.md).
+In `--mpv` mode, the ASS is generated next to the SRT (`input.furigana.ass`) and
+the video is opened in MPV with `--sub-file`. It requires MPV installed on the
+`PATH`. The limitations of this integration (fixed resolution, CJK font, subtitle
+tracks etc.) are in [`docs/mpv.md`](docs/mpv.md).
 
-O JSON gerado tem a seguinte estrutura (cada token é separado em kanji, com
-leitura, e okurigana, sem leitura):
+The generated JSON has the following structure (each token is split into kanji,
+with a reading, and okurigana, without a reading):
 
 ```json
 {
@@ -299,15 +303,16 @@ leitura, e okurigana, sem leitura):
 }
 ```
 
-`id`, `start` e `end` preservam a sincronização original da SRT. As leituras vêm
-do Kuromoji e, quando ele não conhece um termo com kanji, do Jisho (mediado por
-cache em `data/cache/readings.json`). Entradas sem kanji não são descartadas,
-para não quebrar a sincronização da legenda. Quando nenhuma fonte conhece um
-termo com kanji, ele fica sem furigana e um aviso é emitido em `stderr`.
+`id`, `start` and `end` preserve the original SRT synchronization. The readings
+come from Kuromoji and, when it does not know a term with kanji, from Jisho
+(mediated by a cache at `data/cache/readings.json`). Entries without kanji are not
+discarded, so as not to break the subtitle synchronization. When no source knows a
+term with kanji, it is left without furigana and a `Warning:` message is emitted on
+`stderr`.
 
-O ASS gerado (estratégia `\pos` descrita em `docs/ass-format.md`) usa dois
-estilos — `Main` para o texto e `Furigana` para as leituras — e posiciona cada
-leitura sobre o kanji correspondente:
+The generated ASS (the `\pos` strategy described in `docs/ass-format.md`) uses two
+styles — `Main` for the text and `Furigana` for the readings — and positions each
+reading above the corresponding kanji:
 
 ```text
 [Script Info]
@@ -322,57 +327,58 @@ Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(872,951)}にほん�
 Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(1026,951)}べんきょう
 ```
 
-## Princípios do projeto
+## Project principles
 
-### Separação de responsabilidades
+### Separation of responsibilities
 
-O parser de legendas não deve conhecer o Jisho.
+The subtitle parser must not know about Jisho.
 
-O `ReadingProvider` não deve conhecer o formato SRT.
+The `ReadingProvider` must not know about the SRT format.
 
-O gerador de ASS não deve depender diretamente do Jisho.
+The ASS generator must not depend directly on Jisho.
 
-Cada etapa deve trabalhar com modelos internos bem definidos.
+Each step must work with well-defined internal models.
 
-### Formato intermediário
+### Intermediate format
 
-O projeto utiliza uma representação intermediária entre a obtenção das leituras e a geração da saída.
+The project uses an intermediate representation between obtaining the readings and
+generating the output.
 
-Isso permite gerar diferentes formatos a partir dos mesmos dados:
+This makes it possible to generate different formats from the same data:
 
 ```
 FuriganaDocument
     │
     ├── JSON
     ├── ASS
-    └── futuramente outros formatos
+    └── other formats in the future
 ```
 
 ### Cache
 
-Consultas externas devem ser armazenadas em cache sempre que possível.
+External queries should be cached whenever possible.
 
-Isso reduz:
+This reduces:
 
-- número de requisições;
-- tempo de processamento;
-- dependência de disponibilidade do serviço;
-- possibilidade de repetir consultas desnecessariamente.
+- the number of requests;
+- processing time;
+- dependence on the service's availability;
+- the chance of repeating unnecessary queries.
 
-O cache de leituras é gravado em `data/cache/readings.json` (um objeto JSON de
-superfície → leitura). Termos não encontrados não são persistidos, para poderem
-ser consultados novamente em execuções futuras. O processamento funciona offline:
-se o Jisho estiver indisponível, as leituras ausentes ficam `null`.
+The reading cache is written to `data/cache/readings.json` (a JSON object mapping
+surface → reading). Terms that are not found are not persisted, so they can be
+queried again in future runs. Processing works offline: if Jisho is unavailable,
+the missing readings stay `null`.
 
-## Exemplo conceitual
+## Conceptual example
 
-Uma legenda como:
+A subtitle such as:
 
 ```
 今日は日本語を勉強します。
 ```
 
-é representada internamente de forma semelhante a:
+is represented internally in a form similar to:
 
 ```
 今日       きょう
@@ -385,6 +391,6 @@ Uma legenda como:
 。
 ```
 
-## Licença
+## License
 
-Este projeto é distribuído sob a [MIT License](LICENSE).
+This project is distributed under the [MIT License](LICENSE).

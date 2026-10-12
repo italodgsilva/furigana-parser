@@ -6,33 +6,35 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Separa a superfície de um token em segmentos de furigana.
+ * Splits a token's surface into furigana segments.
  *
- * <p>Um token morfológico pode misturar kanji e okurigana (ex.: {@code 勉強し} com
- * leitura {@code べんきょうし}). Apenas o trecho de kanji deve receber furigana;
- * o okurigana é preservado como texto sem leitura. Esta classe alinha a leitura
- * (em hiragana) à superfície e produz a sequência de {@link FuriganaSegment}s.
+ * <p>A morphological token can mix kanji and okurigana (e.g. {@code 勉強し} with
+ * reading {@code べんきょうし}). Only the kanji portion should receive furigana;
+ * the okurigana is preserved as text without a reading. This class aligns the
+ * reading (in hiragana) with the surface and produces the sequence of
+ * {@link FuriganaSegment}s.
  *
- * <p>Regras:
+ * <p>Rules:
  * <ul>
- *   <li>sem kanji na superfície ou sem leitura → um único segmento sem furigana;</li>
- *   <li>bloco de kanji seguido de okurigana → a leitura vai até onde o okurigana
- *       começa na leitura (ex.: {@code 食べる}/{@code たべる} → {@code 食=た}, {@code べる=∅});</li>
- *   <li>kanji isolado ou no fim do token → recebe o restante da leitura
- *       (ex.: {@code 日本語}/{@code にほんご} → {@code 日本語=にほんご}).</li>
+ *   <li>no kanji in the surface or no reading → a single segment without furigana;</li>
+ *   <li>kanji block followed by okurigana → the reading goes up to where the
+ *       okurigana starts in the reading (e.g. {@code 食べる}/{@code たべる} →
+ *       {@code 食=た}, {@code べる=∅});</li>
+ *   <li>isolated kanji or kanji at the end of the token → receives the rest of
+ *       the reading (e.g. {@code 日本語}/{@code にほんご} → {@code 日本語=にほんご}).</li>
  * </ul>
  *
- * <p>Quando a leitura não pode ser alinhada (leitura irregular), o restante da
- * leitura é atribuído ao bloco de kanji, evitando perder texto.
+ * <p>When the reading cannot be aligned (irregular reading), the rest of the
+ * reading is assigned to the kanji block, avoiding losing text.
  */
 public final class FuriganaSegmenter {
 
     /**
-     * Segmenta um token em trechos com e sem furigana.
+     * Segments a token into excerpts with and without furigana.
      *
-     * @param surface superfície do token (texto original)
-     * @param reading leitura em hiragana, ou {@code null}
-     * @return segmentos na ordem em que aparecem; nunca {@code null}
+     * @param surface surface of the token (original text)
+     * @param reading reading in hiragana, or {@code null}
+     * @return segments in the order they appear; never {@code null}
      */
     public List<FuriganaSegment> segment(String surface, String reading) {
         List<FuriganaSegment> segments = new ArrayList<>();
@@ -103,21 +105,22 @@ public final class FuriganaSegmenter {
     }
 
     /**
-     * Determina onde o okurigana começa na leitura.
+     * Determines where the okurigana starts in the reading.
      *
-     * <p>Quando o okurigana encerra o token, ele deve coincidir com o <em>fim</em>
-     * da leitura — o último trecho do texto corresponde ao último trecho da
-     * leitura. Isso evita confundir o kana do okurigana com um kana igual dentro
-     * da leitura do kanji: em {@code 大嫌い}/{@code だいきらい}, o {@code い} final
-     * não pode casar com o {@code い} de {@code だい}.
+     * <p>When the okurigana ends the token, it must match the <em>end</em> of the
+     * reading — the last excerpt of the text corresponds to the last excerpt of
+     * the reading. This avoids confusing the kana of the okurigana with an equal
+     * kana inside the kanji reading: in {@code 大嫌い}/{@code だいきらい}, the
+     * final {@code い} cannot match the {@code い} of {@code だい}.
      *
-     * <p>Nos demais casos, procura a primeira ocorrência a partir de {@code from}.
+     * <p>In the other cases, it looks for the first occurrence starting at
+     * {@code from}.
      *
-     * @param reading   leitura em hiragana
-     * @param okurigana trecho de kana que segue o bloco de kanji
-     * @param from      posição a partir da qual procurar
-     * @param trailing  se o okurigana encerra o token
-     * @return índice inicial do okurigana na leitura, ou {@code -1}
+     * @param reading   reading in hiragana
+     * @param okurigana kana excerpt that follows the kanji block
+     * @param from      position from which to search
+     * @param trailing  whether the okurigana ends the token
+     * @return starting index of the okurigana in the reading, or {@code -1}
      */
     private static int okuriganaPosition(String reading, String okurigana, int from, boolean trailing) {
         if (trailing) {
@@ -130,10 +133,10 @@ public final class FuriganaSegmenter {
     }
 
     /**
-     * Procura a primeira posição a partir de {@code from} em que {@code target}
-     * ocorre na leitura, comparando kana com equivalência hiragana/katakana.
+     * Looks for the first position starting at {@code from} where {@code target}
+     * occurs in the reading, comparing kana with hiragana/katakana equivalence.
      *
-     * @return índice inicial da ocorrência, ou {@code -1}
+     * @return starting index of the occurrence, or {@code -1}
      */
     private static int indexOfEquivalent(String reading, String target, int from) {
         int lastStart = reading.length() - target.length();
@@ -155,7 +158,7 @@ public final class FuriganaSegmenter {
     }
 
     /**
-     * Compara dois caracteres tratando katakana e hiragana como equivalentes.
+     * Compares two characters treating katakana and hiragana as equivalent.
      */
     private static boolean equivalent(char first, char second) {
         if (first == second) {

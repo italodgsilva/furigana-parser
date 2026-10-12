@@ -6,24 +6,24 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Testes do {@link AssLayout} (grade de caracteres e coordenadas).
+ * Tests for {@link AssLayout} (character grid and coordinates).
  */
 class AssLayoutTest {
 
     @Test
-    @DisplayName("Mede a largura de caracteres conforme a grade CJK")
+    @DisplayName("Measures character widths according to the CJK grid")
     void measuresCharacterWidths() {
         assertEquals(1.0, AssLayout.cellWidth('日'));
         assertEquals(1.0, AssLayout.cellWidth('あ'));
-        assertEquals(1.0, AssLayout.cellWidth('　')); // espaço ideográfico
+        assertEquals(1.0, AssLayout.cellWidth('　')); // ideographic space
         assertEquals(0.5, AssLayout.cellWidth('ｶ')); // katakana half-width
-        assertEquals(0.0, AssLayout.cellWidth('\r')); // controle não desloca
+        assertEquals(0.0, AssLayout.cellWidth('\r')); // a control character does not shift
     }
 
     @Test
-    @DisplayName("Usa o avanço real da fonte para caracteres ASCII")
+    @DisplayName("Uses the font's real advance for ASCII characters")
     void measuresAsciiAdvances() {
-        // Avanços reais de "Noto Sans CJK JP" (hmtx / unitsPerEm).
+        // Real advances of "Noto Sans CJK JP" (hmtx / unitsPerEm).
         assertEquals(0.224, AssLayout.cellWidth(' '));
         assertEquals(0.338, AssLayout.cellWidth('('));
         assertEquals(0.338, AssLayout.cellWidth(')'));
@@ -34,7 +34,7 @@ class AssLayoutTest {
     }
 
     @Test
-    @DisplayName("Soma a largura de um texto em células")
+    @DisplayName("Sums the width of a text in cells")
     void sumsTextCells() {
         assertEquals(3.0, AssLayout.cells("日本語"), 1e-9);
         assertEquals(1.691, AssLayout.cells("abc"), 1e-9);
@@ -45,23 +45,23 @@ class AssLayoutTest {
     }
 
     @Test
-    @DisplayName("Centraliza a linha na tela")
+    @DisplayName("Centers the line on screen")
     void centersTheLine() {
-        // Uma linha de 3 células começa em (1920 - 3 * CELL_WIDTH) / 2; o centro é 960.
+        // A 3-cell line starts at (1920 - 3 * CELL_WIDTH) / 2; the center is 960.
         assertEquals(960.0, AssLayout.xForCenterCell(1.5, 3.0));
     }
 
     @Test
-    @DisplayName("Usa o 'em' real do libass como largura de célula")
+    @DisplayName("Uses libass's real 'em' as the cell width")
     void usesLibassEmAsCellWidth() {
-        // libass interpreta Fontsize como a altura da linha (hhea), não como o "em":
-        // para Noto Sans CJK JP, em = Fontsize * 1000 / (1160 + 288).
+        // libass interprets Fontsize as the line height (hhea), not as the "em":
+        // for Noto Sans CJK JP, em = Fontsize * 1000 / (1160 + 288).
         assertEquals(1000.0 / 1448.0, AssLayout.EM_PER_FONT_SIZE);
         assertEquals(AssLayout.MAIN_FONT_SIZE * AssLayout.EM_PER_FONT_SIZE, AssLayout.CELL_WIDTH);
     }
 
     @Test
-    @DisplayName("Empilha as linhas de baixo para cima")
+    @DisplayName("Stacks the lines from bottom to top")
     void stacksLinesFromBottom() {
         assertEquals(988.0, AssLayout.mainCenterY(0));
         assertEquals(904.0, AssLayout.mainCenterY(1));

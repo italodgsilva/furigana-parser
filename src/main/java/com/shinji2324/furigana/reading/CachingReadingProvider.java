@@ -7,21 +7,20 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Decorador de {@link ReadingProvider} que evita consultas repetidas.
+ * Decorator of {@link ReadingProvider} that avoids repeated lookups.
  *
- * <p>Fluxo para cada token:
+ * <p>Flow for each token:
  * <ol>
- *   <li>se a superfície já está no {@link FileReadingCache}, devolve a leitura em cache
- *       sem consultar o provider delegado;</li>
- *   <li>caso contrário, consulta o delegado e, em caso de sucesso, grava o resultado
- *       no cache;</li>
- *   <li>termos não encontrados ficam registrados apenas em memória durante a execução
- *       atual — falhas (incluindo indisponibilidade do serviço) não são persistidas,
- *       para que possam ser tentadas novamente em execuções futuras.</li>
+ *   <li>if the surface is already in the {@link FileReadingCache}, returns the cached reading
+ *       without consulting the delegate provider;</li>
+ *   <li>otherwise, consults the delegate and, on success, stores the result in the cache;</li>
+ *   <li>terms not found are recorded only in memory during the current run — failures
+ *       (including service unavailability) are not persisted, so that they can be retried
+ *       in future runs.</li>
  * </ol>
  *
- * <p>O cache é consultado pela superfície do token, que é a chave estável entre
- * execuções e independente da posição na legenda.
+ * <p>The cache is looked up by the token surface, which is the stable key across
+ * runs and independent of the position in the subtitle.
  */
 public class CachingReadingProvider implements ReadingProvider {
 
@@ -30,10 +29,10 @@ public class CachingReadingProvider implements ReadingProvider {
     private final Set<String> misses = new HashSet<>();
 
     /**
-     * Cria o decorador.
+     * Creates the decorator.
      *
-     * @param delegate provider consultado em caso de ausência no cache
-     * @param cache    cache em disco/in-memória
+     * @param delegate provider consulted in case of a cache miss
+     * @param cache    on-disk/in-memory cache
      */
     public CachingReadingProvider(ReadingProvider delegate, FileReadingCache cache) {
         this.delegate = delegate;

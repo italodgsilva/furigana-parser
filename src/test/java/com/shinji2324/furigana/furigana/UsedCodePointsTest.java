@@ -11,12 +11,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link UsedCodePoints}: coleta do texto principal e das leituras.
+ * Tests for {@link UsedCodePoints}: collection of the main text and the readings.
  */
 class UsedCodePointsTest {
 
     @Test
-    @DisplayName("Coleta os code points do texto principal e das leituras")
+    @DisplayName("Collects the code points of the main text and the readings")
     void collectsTextAndReadings() {
         FuriganaEntry entry = new FuriganaEntry("1", "00:00:01,000", "00:00:02,000",
                 "日本語",
@@ -36,7 +36,7 @@ class UsedCodePointsTest {
     }
 
     @Test
-    @DisplayName("Preserva quebras de linha e ignora leituras ausentes")
+    @DisplayName("Preserves line breaks and ignores missing readings")
     void handlesMissingReadings() {
         FuriganaEntry entry = new FuriganaEntry(null, null, null, "あ\nい",
                 List.of(new FuriganaSegment("あ", null)));
@@ -48,7 +48,7 @@ class UsedCodePointsTest {
     }
 
     @Test
-    @DisplayName("Documento nulo produz conjunto vazio")
+    @DisplayName("Null document produces an empty set")
     void handlesNullDocument() {
         assertTrue(UsedCodePoints.from(null).isEmpty());
     }

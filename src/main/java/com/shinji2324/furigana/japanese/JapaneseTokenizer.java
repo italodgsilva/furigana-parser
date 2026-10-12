@@ -3,24 +3,24 @@ package com.shinji2324.furigana.japanese;
 import java.util.List;
 
 /**
- * Tokenizador de texto japonês.
+ * Japanese text tokenizer.
  *
- * <p>Responsável por segmentar uma string em {@link Token}s, preservando a ordem
- * original. A camada {@code japanese} não conhece leituras, furigana ou formatos
- * de saída.
+ * <p>Responsible for segmenting a string into {@link Token}s, preserving the
+ * original order. The {@code japanese} layer knows nothing about readings,
+ * furigana, or output formats.
  *
- * <p>Esta é uma interface (a implementação concreta era uma decisão aberta no
- * architecture.md). A implementação atual é a {@link ScriptJapaneseTokenizer}
- * (segmentação por tipo de escrita, provisória); a implementação definitiva
- * utilizará o Kuromoji em uma etapa posterior.
+ * <p>This is an interface (the concrete implementation was an open decision in
+ * architecture.md). The current implementation is {@link ScriptJapaneseTokenizer}
+ * (segmentation by script type, provisional); the definitive implementation
+ * will use Kuromoji in a later stage.
  */
 public interface JapaneseTokenizer {
 
     /**
-     * Segmenta o texto informado em tokens.
+     * Segments the given text into tokens.
      *
-     * @param text texto a ser tokenizado
-     * @return lista de tokens na ordem em que aparecem no texto
+     * @param text text to be tokenized
+     * @return list of tokens in the order they appear in the text
      */
     List<Token> tokenize(String text);
 }

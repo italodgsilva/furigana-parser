@@ -5,28 +5,28 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Serializador de baixo nível do formato ASS.
+ * Low-level serializer for the ASS format.
  *
- * <p>Monta o arquivo final combinando o cabeçalho ({@link AssTemplate}) com a
- * lista de {@link AssEvent}, além de converter timestamps SRT para o formato ASS.
- * Não conhece o {@code FuriganaDocument} nem fontes de leitura — essa é a
- * responsabilidade do {@link AssGenerator}.
+ * <p>Builds the final file by combining the header ({@link AssTemplate}) with the
+ * list of {@link AssEvent}, and also converts SRT timestamps to the ASS format. It
+ * does not know the {@code FuriganaDocument} or reading sources — that is the
+ * responsibility of {@link AssGenerator}.
  */
 public class AssWriter {
 
-    /** Timestamp SRT: {@code H:MM:SS[,.]mmm}, aceitando 1 a 3 dígitos fracionários. */
+    /** SRT timestamp: {@code H:MM:SS[,.]mmm}, accepting 1 to 3 fractional digits. */
     private static final Pattern SRT_TIMESTAMP = Pattern.compile(
             "(\\d{1,2}):(\\d{2}):(\\d{2})[,.](\\d{1,3})");
 
-    /** Separador de linha fixo, independente do sistema operacional. */
+    /** Fixed line separator, independent of the operating system. */
     private static final String LINE_SEPARATOR = "\n";
 
     /**
-     * Monta o arquivo ASS a partir do cabeçalho e dos eventos.
+     * Builds the ASS file from the header and the events.
      *
-     * @param template cabeçalho (Script Info, estilos e formato de eventos)
-     * @param events   eventos de diálogo, na ordem de exibição
-     * @return conteúdo ASS completo, terminado em nova linha
+     * @param template header (Script Info, styles and event format)
+     * @param events   dialogue events, in display order
+     * @return complete ASS content, ending in a newline
      */
     public String write(AssTemplate template, List<AssEvent> events) {
         StringBuilder builder = new StringBuilder(template.content());
@@ -40,10 +40,10 @@ public class AssWriter {
     }
 
     /**
-     * Formata um evento como uma linha {@code Dialogue:}.
+     * Formats an event as a {@code Dialogue:} line.
      *
-     * @param event evento a formatar
-     * @return linha de diálogo do ASS
+     * @param event event to format
+     * @return ASS dialogue line
      */
     public String formatEvent(AssEvent event) {
         return "Dialogue: " + event.layer()
@@ -55,23 +55,23 @@ public class AssWriter {
     }
 
     /**
-     * Converte um timestamp SRT para o formato ASS ({@code H:MM:SS.CC}).
+     * Converts an SRT timestamp to the ASS format ({@code H:MM:SS.CC}).
      *
-     * <p>Exemplos: {@code 00:00:01,000} → {@code 0:00:01.00};
-     * {@code 00:01:12,500} → {@code 0:01:12.50}. Timestamps com 1 ou 3 dígitos
-     * fracionários também são aceitos (arredondados para centésimos).
+     * <p>Examples: {@code 00:00:01,000} → {@code 0:00:01.00};
+     * {@code 00:01:12,500} → {@code 0:01:12.50}. Timestamps with 1 or 3 fractional
+     * digits are also accepted (rounded to centiseconds).
      *
-     * @param srtTimestamp timestamp no formato SRT
-     * @return timestamp no formato ASS
-     * @throws IllegalArgumentException se o timestamp não for reconhecido
+     * @param srtTimestamp timestamp in SRT format
+     * @return timestamp in ASS format
+     * @throws IllegalArgumentException if the timestamp is not recognized
      */
     public static String formatTime(String srtTimestamp) {
         if (srtTimestamp == null) {
-            throw new IllegalArgumentException("Timestamp SRT nulo");
+            throw new IllegalArgumentException("Null SRT timestamp");
         }
         Matcher matcher = SRT_TIMESTAMP.matcher(srtTimestamp.trim());
         if (!matcher.matches()) {
-            throw new IllegalArgumentException("Timestamp SRT inválido: " + srtTimestamp);
+            throw new IllegalArgumentException("Invalid SRT timestamp: " + srtTimestamp);
         }
 
         int hours = Integer.parseInt(matcher.group(1));
@@ -96,7 +96,7 @@ public class AssWriter {
     }
 
     /**
-     * Converte a parte fracionária (1 a 3 dígitos) em centésimos de segundo.
+     * Converts the fractional part (1 to 3 digits) to centiseconds.
      */
     private static int toCentiseconds(String fraction) {
         int value = Integer.parseInt(fraction);

@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link CachingReadingProvider}.
+ * Tests for {@link CachingReadingProvider}.
  */
 class CachingReadingProviderTest {
 
@@ -22,7 +22,7 @@ class CachingReadingProviderTest {
     Path tempDir;
 
     @Test
-    @DisplayName("Consulta o delegado uma vez e reutiliza a leitura do cache")
+    @DisplayName("Queries the delegate once and reuses the cached reading")
     void cachesSuccessfulLookups() {
         AtomicInteger calls = new AtomicInteger();
         ReadingProvider delegate = token -> {
@@ -41,7 +41,7 @@ class CachingReadingProviderTest {
     }
 
     @Test
-    @DisplayName("Usa uma leitura já persistida sem consultar o delegado")
+    @DisplayName("Uses an already persisted reading without querying the delegate")
     void usesPersistedCache() {
         Path file = tempDir.resolve("readings.json");
         new FileReadingCache(file).put("日本語", new Reading("日本語", "にほんご", "jisho"));
@@ -58,7 +58,7 @@ class CachingReadingProviderTest {
     }
 
     @Test
-    @DisplayName("Não repetir consultas malsucedidas na mesma execução (sem persistir)")
+    @DisplayName("Does not repeat failed lookups within the same run (without persisting them)")
     void doesNotRepeatMissesWithinRunAndDoesNotPersistThem() {
         Path file = tempDir.resolve("readings.json");
         AtomicInteger calls = new AtomicInteger();
@@ -72,12 +72,12 @@ class CachingReadingProviderTest {
         assertTrue(provider.findReading(token).isEmpty());
         assertTrue(provider.findReading(token).isEmpty());
 
-        assertEquals(1, calls.get(), "a falha deve ser lembrada apenas em memória");
-        assertFalse(new FileReadingCache(file).contains("難読"), "falhas não devem ser persistidas");
+        assertEquals(1, calls.get(), "the miss should be remembered in memory only");
+        assertFalse(new FileReadingCache(file).contains("難読"), "misses must not be persisted");
     }
 
     @Test
-    @DisplayName("Não consulta o delegado para token nulo ou em branco")
+    @DisplayName("Does not query the delegate for a null or blank token")
     void skipsInvalidTokens() {
         AtomicInteger calls = new AtomicInteger();
         ReadingProvider delegate = token -> {

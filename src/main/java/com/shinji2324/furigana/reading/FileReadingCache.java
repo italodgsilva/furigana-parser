@@ -12,9 +12,9 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Cache em disco das leituras obtidas de fontes externas.
+ * On-disk cache of the readings obtained from external sources.
  *
- * <p>O arquivo é um objeto JSON que mapeia a superfície do termo à sua leitura:
+ * <p>The file is a JSON object that maps the surface of the term to its reading:
  *
  * <pre>
  * {
@@ -23,12 +23,12 @@ import java.util.TreeMap;
  * }
  * </pre>
  *
- * <p>Ao ser carregada do arquivo, uma leitura é marcada com a fonte {@code cache}
- * (a origem original — Jisho, por exemplo — não é preservada). O cache é
- * <em>best-effort</em>: falhas de leitura ou escrita são ignoradas para não
- * interromper o processamento da legenda.
+ * <p>When loaded from the file, a reading is marked with the source {@code cache}
+ * (the original origin — Jisho, for example — is not preserved). The cache is
+ * <em>best-effort</em>: read or write failures are ignored so as not to interrupt
+ * subtitle processing.
  *
- * <p>O mapa é ordenado por chave, produzindo um arquivo estável entre execuções.
+ * <p>The map is ordered by key, producing a stable file across runs.
  */
 public class FileReadingCache {
 
@@ -41,19 +41,19 @@ public class FileReadingCache {
     private final Map<String, Reading> entries;
 
     /**
-     * Carrega o cache do arquivo informado (ou começa vazio, se ele não existir).
+     * Loads the cache from the given file (or starts empty, if it does not exist).
      *
-     * @param cacheFile caminho do arquivo de cache, ou {@code null} para um cache apenas em memória
+     * @param cacheFile path to the cache file, or {@code null} for an in-memory-only cache
      */
     public FileReadingCache(Path cacheFile) {
         this(cacheFile, new ObjectMapper());
     }
 
     /**
-     * Carrega o cache usando um {@link ObjectMapper} informado.
+     * Loads the cache using a given {@link ObjectMapper}.
      *
-     * @param cacheFile    caminho do arquivo, ou {@code null}
-     * @param objectMapper mapper usado para ler/gravar o JSON
+     * @param cacheFile    path to the file, or {@code null}
+     * @param objectMapper mapper used to read/write the JSON
      */
     public FileReadingCache(Path cacheFile, ObjectMapper objectMapper) {
         this.cacheFile = cacheFile;
@@ -64,20 +64,20 @@ public class FileReadingCache {
     }
 
     /**
-     * Retorna a leitura armazenada para uma chave.
+     * Returns the reading stored for a key.
      *
-     * @param key superfície do termo
-     * @return a leitura, ou {@code null} se ausente
+     * @param key surface of the term
+     * @return the reading, or {@code null} if absent
      */
     public Reading get(String key) {
         return entries.get(key);
     }
 
     /**
-     * Armazena uma leitura e persiste o cache.
+     * Stores a reading and persists the cache.
      *
-     * @param key     superfície do termo
-     * @param reading leitura a armazenar
+     * @param key     surface of the term
+     * @param reading reading to store
      */
     public void put(String key, Reading reading) {
         entries.put(key, reading);
@@ -85,19 +85,19 @@ public class FileReadingCache {
     }
 
     /**
-     * Informa se a chave está presente no cache.
+     * Tells whether the key is present in the cache.
      *
-     * @param key superfície do termo
-     * @return {@code true} se houver leitura armazenada
+     * @param key surface of the term
+     * @return {@code true} if there is a stored reading
      */
     public boolean contains(String key) {
         return entries.containsKey(key);
     }
 
     /**
-     * Retorna a quantidade de leituras armazenadas.
+     * Returns the number of stored readings.
      *
-     * @return número de entradas
+     * @return number of entries
      */
     public int size() {
         return entries.size();
@@ -120,7 +120,7 @@ public class FileReadingCache {
                 }
             });
         } catch (IOException ignored) {
-            // Cache é best-effort: um arquivo corrompido não deve impedir o processamento.
+            // Cache is best-effort: a corrupted file must not prevent processing.
         }
     }
 
@@ -137,7 +137,7 @@ public class FileReadingCache {
             entries.forEach((key, reading) -> stored.put(key, reading.getReading()));
             Files.writeString(cacheFile, writer.writeValueAsString(stored), StandardCharsets.UTF_8);
         } catch (IOException ignored) {
-            // Cache é best-effort: falha de escrita não deve interromper o processamento.
+            // Cache is best-effort: a write failure must not interrupt processing.
         }
     }
 }

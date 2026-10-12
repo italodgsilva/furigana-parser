@@ -3,34 +3,34 @@ package com.shinji2324.furigana.mpv;
 import java.nio.file.Path;
 
 /**
- * Convenções de nomes de arquivo usadas na integração com o MPV.
+ * File naming conventions used in the MPV integration.
  *
- * <p>A legenda de furigana é gerada ao lado da SRT de origem, com o sufixo
- * {@code .furigana.ass}. Exemplos:
+ * <p>The furigana subtitle is generated next to the source SRT, with the suffix
+ * {@code .furigana.ass}. Examples:
  *
  * <pre>
- * episodio.srt     → episodio.furigana.ass
- * episodio.ja.srt  → episodio.ja.furigana.ass
- * sem-extensao     → sem-extensao.furigana.ass
+ * episode.srt     → episode.furigana.ass
+ * episode.ja.srt  → episode.ja.furigana.ass
+ * no-extension    → no-extension.furigana.ass
  * </pre>
  */
 public final class MpvPaths {
 
-    /** Sufixo e extensão do arquivo ASS gerado. */
+    /** Suffix and extension of the generated ASS file. */
     public static final String FURIGANA_SUFFIX = ".furigana.ass";
 
     private MpvPaths() {
-        // Classe utilitária: não deve ser instanciada.
+        // Utility class: must not be instantiated.
     }
 
     /**
-     * Deriva o caminho da legenda de furigana a partir da SRT de origem.
+     * Derives the furigana subtitle path from the source SRT.
      *
-     * <p>Remove a extensão do nome do arquivo e acrescenta
-     * {@value #FURIGANA_SUFFIX}, mantendo o mesmo diretório.
+     * <p>Removes the extension from the file name and appends
+     * {@value #FURIGANA_SUFFIX}, keeping the same directory.
      *
-     * @param srt caminho da legenda SRT
-     * @return caminho do ASS a ser gerado
+     * @param srt path of the SRT subtitle
+     * @return path of the ASS to be generated
      */
     public static Path furiganaSubtitle(Path srt) {
         String name = srt.getFileName().toString();

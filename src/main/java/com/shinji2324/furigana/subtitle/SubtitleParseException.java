@@ -1,28 +1,28 @@
 package com.shinji2324.furigana.subtitle;
 
 /**
- * Exceção lançada quando um conteúdo no formato SRT não pode ser interpretado.
+ * Exception thrown when content in SRT format cannot be interpreted.
  *
- * <p>É utilizado para sinalizar erros de estrutura (timestamp ausente ou inválido),
- * permitindo que o chamador decida como tratar o problema em vez de uma entrada
- * ser silenciosamente descartada.
+ * <p>It is used to signal structural errors (missing or invalid timestamp),
+ * allowing the caller to decide how to handle the problem instead of an entry
+ * being silently discarded.
  */
 public class SubtitleParseException extends RuntimeException {
 
     /**
-     * Cria uma exceção com a mensagem de detalhe informada.
+     * Creates an exception with the given detail message.
      *
-     * @param message descrição do erro
+     * @param message error description
      */
     public SubtitleParseException(String message) {
         super(message);
     }
 
     /**
-     * Cria uma exceção com mensagem e causa raiz.
+     * Creates an exception with a message and root cause.
      *
-     * @param message descrição do erro
-     * @param cause   causa do erro
+     * @param message error description
+     * @param cause   error cause
      */
     public SubtitleParseException(String message, Throwable cause) {
         super(message, cause);

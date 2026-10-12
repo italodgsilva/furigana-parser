@@ -1,119 +1,119 @@
-# Executável nativo (GraalVM)
+# Native Executable (GraalVM)
 
-## Objetivo
+## Goal
 
-Gerar um binário autônomo a partir do projeto, sem depender da JVM em tempo de
-execução. O binário não exige um Java instalado na máquina de destino, inicia
-mais rápido e ocupa menos memória do que a execução via `java -jar`.
+Generate a standalone binary from the project, without depending on the JVM at
+runtime. The binary does not require a Java installed on the target machine, starts
+faster and uses less memory than running via `java -jar`.
 
-## Requisitos
+## Requirements
 
-- **GraalVM** (Community ou Oracle) com o `native-image`, como `JAVA_HOME` (ou no
-  `PATH`). O projeto usa Java 21, então um GraalVM para JDK 21 é o par natural.
-- **Toolchain C**: um compilador `gcc` e os cabeçalhos/biblioteca da zlib.
+- **GraalVM** (Community or Oracle) with `native-image`, as `JAVA_HOME` (or on the
+  `PATH`). The project uses Java 21, so a GraalVM for JDK 21 is the natural match.
+- **C toolchain**: a `gcc` compiler and the zlib headers/library.
   - Debian/Ubuntu: `sudo apt install build-essential zlib1g-dev`
   - Fedora: `sudo dnf install gcc zlib-devel`
   - macOS: `xcode-select --install`
 
-## Uso
+## Usage
 
 ```
 mvn -Pnative package
 ```
 
-A saída é `target/furigana-parser`, um executável comum. A linha de comando é a
-mesma da versão em JAR:
+The output is `target/furigana-parser`, an ordinary executable. The command line is
+the same as the JAR version:
 
 ```
-./target/furigana-parser entrada.srt saida.json
-./target/furigana-parser entrada.srt saida.ass
-./target/furigana-parser --embed-font --subset-font entrada.srt saida.ass
+./target/furigana-parser input.srt output.json
+./target/furigana-parser input.srt output.ass
+./target/furigana-parser --embed-font --subset-font input.srt output.ass
 ./target/furigana-parser --help
 ```
 
-O profile `native` faz duas coisas:
+The `native` profile does two things:
 
-1. **Desativa o `maven-shade-plugin`.** O uber jar seria entregue ao
-   `native-image` *além* dos jars de dependência, duplicando classes e, o que
-   pesa de verdade, os recursos — o dicionário do Kuromoji (~33 MB) entraria duas
-   vezes, inflando o binário em cerca de 35 MB. No build nativo, o
-   `native-image` lê `target/classes` + as dependências. Como consequência, esse
-   profile gera apenas o jar "fino" (não o uber jar).
-2. **Executa o `native-maven-plugin`** (`native:compile-no-fork`) na fase
-   `package`.
+1. **Disables the `maven-shade-plugin`.** The uber jar would be handed to
+   `native-image` *in addition* to the dependency jars, duplicating classes and,
+   what really weighs, the resources — the Kuromoji dictionary (~33 MB) would be
+   included twice, inflating the binary by about 35 MB. In the native build,
+   `native-image` reads `target/classes` + the dependencies. As a consequence, this
+   profile generates only the "thin" jar (not the uber jar).
+2. **Runs the `native-maven-plugin`** (`native:compile-no-fork`) in the `package`
+   phase.
 
-## Configuração do native-image
+## native-image configuration
 
-As configurações ficam em
-`src/main/resources/META-INF/native-image/com.shinji2324/furigana-parser/` e são
-descobertas automaticamente (tanto pelo Maven quanto por um `native-image -jar`
-manual, já que também ficam dentro do jar):
+The configurations live in
+`src/main/resources/META-INF/native-image/com.shinji2324/furigana-parser/` and are
+discovered automatically (both by Maven and by a manual `native-image -jar`, since
+they are also inside the jar):
 
-| Arquivo | Para quê |
+| File | What for |
 | --- | --- |
-| `reflect-config.json` | Reflexão: o modelo `FuriganaDocument` / `FuriganaEntry` / `FuriganaSegment` (serializado pelo Jackson), classes do JNA e do provedor TLS/HTTP do Jisho. |
-| `resource-config.json` | Recursos lidos em runtime: os `.bin` do dicionário Kuromoji, `ass/default-style.ass` e a `libjnidispatch` do JNA. |
-| `jni-config.json` | Acesso JNI usado pelo JNA. |
-| `proxy-config.json` | Proxy dinâmico da interface JNA `HarfBuzzSubsetLibrary$HarfBuzz`. |
-| `native-image.properties` | Argumentos fixos, hoje `--no-fallback`. |
+| `reflect-config.json` | Reflection: the `FuriganaDocument` / `FuriganaEntry` / `FuriganaSegment` model (serialized by Jackson), JNA classes and Jisho's TLS/HTTP provider. |
+| `resource-config.json` | Resources read at runtime: the Kuromoji dictionary `.bin` files, `ass/default-style.ass` and JNA's `libjnidispatch`. |
+| `jni-config.json` | JNI access used by JNA. |
+| `proxy-config.json` | Dynamic proxy of the `HarfBuzzSubsetLibrary$HarfBuzz` JNA interface. |
+| `native-image.properties` | Fixed arguments, today `--no-fallback`. |
 
-Por que cada um é necessário:
+Why each one is needed:
 
-- o **Kuromoji** carrega o dicionário IPADIC como recurso do classpath;
-- o **Jackson** serializa os records por reflexão (`JsonWriter`);
-- o **JNA** carrega a `libharfbuzz-subset` dinamicamente, extrai a
-  `libjnidispatch` do próprio jar em runtime e usa JNI.
+- **Kuromoji** loads the IPADIC dictionary as a classpath resource;
+- **Jackson** serializes the records by reflection (`JsonWriter`);
+- **JNA** loads `libharfbuzz-subset` dynamically, extracts `libjnidispatch` from the
+  jar itself at runtime and uses JNI.
 
-O padrão do recurso `jnidispatch` em `resource-config.json` cobre todas as
-plataformas (`com/sun/jna/.*jnidispatch\.(so|dylib|jnilib|dll)`), para que o
-mesmo arquivo sirva em Linux, macOS e Windows.
+The `jnidispatch` resource pattern in `resource-config.json` covers all platforms
+(`com/sun/jna/.*jnidispatch\.(so|dylib|jnilib|dll)`), so that the same file works on
+Linux, macOS and Windows.
 
-### Regenerar as configurações
+### Regenerating the configurations
 
-Se o modelo ou as dependências mudarem (nova serialização reflexiva, novo recurso
-lido do classpath), regenere com o *tracing agent* do native-image:
+If the model or the dependencies change (new reflective serialization, new resource
+read from the classpath), regenerate with the native-image *tracing agent*:
 
 ```
-GRAALVM=/caminho/do/graalvm
+GRAALVM=/path/to/graalvm
 CFG=src/main/resources/META-INF/native-image/com.shinji2324/furigana-parser
 
-# 1) rota JSON (Jackson) — config-output-dir sobrescreve
+# 1) JSON route (Jackson) — config-output-dir overwrites
 "$GRAALVM/bin/java" -agentlib:native-image-agent=config-output-dir=$CFG \
-  -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.json
+  -jar target/furigana-parser-0.1.0-SNAPSHOT.jar input.srt output.json
 
-# 2) rota ASS + subset (JNA) — config-merge-dir acumula
+# 2) ASS + subset route (JNA) — config-merge-dir accumulates
 "$GRAALVM/bin/java" -agentlib:native-image-agent=config-merge-dir=$CFG \
   -jar target/furigana-parser-0.1.0-SNAPSHOT.jar \
-  --embed-font --subset-font entrada.srt saida.ass
+  --embed-font --subset-font input.srt output.ass
 ```
 
-Use `config-output-dir` na primeira execução e `config-merge-dir` nas seguintes
-(ou diretórios separados, mesclando depois). Ao terminar, confira se o padrão
-multiplataforma do `jnidispatch` continua em `resource-config.json`, pois o agent
-grava o caminho específico da plataforma em que rodou.
+Use `config-output-dir` on the first run and `config-merge-dir` on the following
+ones (or separate directories, merging afterwards). When you finish, check that the
+multiplatform `jnidispatch` pattern is still in `resource-config.json`, because the
+agent writes the specific path of the platform on which it ran.
 
-## Resultados medidos
+## Measured results
 
-No ambiente de desenvolvimento (Linux x86-64, GraalVM CE 21.0.2, entrada de duas
-legendas):
+In the development environment (Linux x86-64, GraalVM CE 21.0.2, two-subtitle
+input):
 
-| | Binário nativo | `java -jar` |
+| | Native binary | `java -jar` |
 | --- | --- | --- |
-| Inicialização | ~0,75 s | ~1,7 s |
-| Memória (RSS) | ~112 MB | ~255 MB |
-| Artefato | ~85 MB | ~18 MB (jar) |
+| Startup | ~0.75 s | ~1.7 s |
+| Memory (RSS) | ~112 MB | ~255 MB |
+| Artifact | ~85 MB | ~18 MB (jar) |
 
-As saídas — JSON, ASS e ASS com `--embed-font --subset-font` — são **idênticas,
-byte a byte**, às da JVM.
+The outputs — JSON, ASS and ASS with `--embed-font --subset-font` — are
+**identical, byte for byte**, to those of the JVM.
 
-## Limites
+## Limits
 
-- O binário depende, em runtime, de bibliotecas de sistema comuns (`libz`,
-  `libc`, `libpthread`).
-- O subsetting (`--subset-font`) continua exigindo a `libharfbuzz-subset`
-  instalada: o binário nativo não a embute. A ausência é tratada como na versão
-  JVM (aviso e embutição da fonte completa). Veja
+- The binary depends, at runtime, on common system libraries (`libz`, `libc`,
+  `libpthread`).
+- Subsetting (`--subset-font`) still requires `libharfbuzz-subset` installed: the
+  native binary does not embed it. Its absence is handled as in the JVM version
+  (warning and embedding the full font). See
   [`font-embedding.md`](font-embedding.md).
-- O build nativo não faz parte da CI de todo push (exigiria GraalVM e um
-  toolchain C em cada execução). Ele é gerado apenas no workflow de release,
-  em runners próprios que já trazem esses componentes.
+- The native build is not part of the CI on every push (it would require GraalVM
+  and a C toolchain on every run). It is generated only in the release workflow, on
+  dedicated runners that already bring these components.

@@ -1,14 +1,14 @@
-# Publica uma versão do programa.
+# Publishes a version of the program.
 #
-# Ao empurrar uma tag `v*`, compila o JAR executável e os binários nativos
-# (profile `native`, via GraalVM) e anexa tudo a um GitHub Release.
+# When a `v*` tag is pushed, it builds the executable JAR and the native
+# binaries (profile `native`, via GraalVM) and attaches everything to a GitHub Release.
 #
-# Uso:
+# Usage:
 #   git tag v0.1.0
 #   git push origin v0.1.0
 #
-# Também funciona quando a Release é criada pela interface do GitHub: a tag
-# criada dispara o workflow, que anexa os arquivos à Release já existente.
+# It also works when the Release is created through the GitHub interface: the
+# created tag triggers the workflow, which attaches the files to the existing Release.
 name: Release
 
 on:
@@ -16,47 +16,47 @@ on:
     tags:
       - 'v*'
 
-# Permissões mínimas: só o job de release precisa escrever no repositório.
+# Minimum permissions: only the release job needs to write to the repository.
 permissions:
   contents: read
 
 jobs:
 
-  # JAR executável (uber jar). É o único job que roda a suíte de testes.
+  # Executable JAR (uber jar). It is the only job that runs the test suite.
   jar:
     name: JAR
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout do código
+      - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Configurar JDK 21 (Temurin)
+      - name: Set up JDK 21 (Temurin)
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
-      - name: Compilar, testar e empacotar
+      - name: Compile, test and package
         run: mvn --batch-mode --no-transfer-progress clean verify
 
-      - name: Renomear o JAR com a versão da tag
+      - name: Rename the JAR with the tag version
         run: |
           version="${GITHUB_REF_NAME#v}"
           cp target/furigana-parser-[0-9]*.jar "furigana-parser-${version}.jar"
 
-      - name: Publicar artefato intermediário
+      - name: Upload intermediate artifact
         uses: actions/upload-artifact@v7
         with:
           name: jar
           path: furigana-parser-*.jar
           if-no-files-found: error
 
-  # Binários nativos, um por plataforma. Se alguma plataforma não interessar,
-  # basta remover a entrada correspondente da matriz.
+  # Native binaries, one per platform. If a platform is not wanted,
+  # just remove the corresponding entry from the matrix.
   native:
-    name: Nativo (${{ matrix.asset }})
+    name: Native (${{ matrix.asset }})
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -75,10 +75,10 @@ jobs:
             asset: windows-x86_64
 
     steps:
-      - name: Checkout do código
+      - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Configurar GraalVM (JDK 21)
+      - name: Set up GraalVM (JDK 21)
         uses: graalvm/setup-graalvm@v1
         with:
           distribution: graalvm
@@ -86,14 +86,14 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache: maven
 
-      - name: Dependências do toolchain C (Linux)
+      - name: C toolchain dependencies (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y zlib1g-dev
 
-      - name: Compilar o binário nativo
+      - name: Compile the native binary
         run: mvn --batch-mode --no-transfer-progress -Pnative -DskipTests clean package
 
-      - name: Renomear o artefato com a versão e a plataforma
+      - name: Rename the artifact with the version and platform
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
@@ -107,37 +107,37 @@ jobs:
           cp "$bin" "$out"
           echo "ASSET=$out" >> "$GITHUB_ENV"
 
-      - name: Publicar artefato intermediário
+      - name: Upload intermediate artifact
         uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.asset }}
           path: ${{ env.ASSET }}
           if-no-files-found: error
 
-  # Agrega os artefatos e cria/atualiza a Release com todos eles.
+  # Aggregates the artifacts and creates/updates the Release with all of them.
   release:
-    name: Publicar Release
+    name: Publish Release
     needs: [ jar, native ]
     runs-on: ubuntu-latest
 
-    # Necessário para criar a Release e enviar os arquivos.
+    # Required to create the Release and upload the files.
     permissions:
       contents: write
 
     steps:
-      - name: Baixar todos os artefatos
+      - name: Download all artifacts
         uses: actions/download-artifact@v7
         with:
           path: dist
           merge-multiple: true
 
-      - name: Gerar checksums (SHA-256)
+      - name: Generate checksums (SHA-256)
         working-directory: dist
         run: |
           find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -printf '%P\n' \
             | sort | xargs sha256sum > SHA256SUMS.txt
 
-      - name: Criar/atualizar a Release e anexar os arquivos
+      - name: Create/update the Release and attach the files
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}

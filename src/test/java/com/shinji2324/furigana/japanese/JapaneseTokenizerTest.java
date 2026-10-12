@@ -9,14 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link ScriptJapaneseTokenizer} (tokenização por escrita).
+ * Tests for {@link ScriptJapaneseTokenizer} (segmentation by script).
  */
 class JapaneseTokenizerTest {
 
     private final JapaneseTokenizer tokenizer = new ScriptJapaneseTokenizer();
 
     @Test
-    @DisplayName("Segmenta uma frase japonesa por sequências de escrita")
+    @DisplayName("Segments a Japanese sentence into script runs")
     void tokenizesSentenceIntoScriptRuns() {
         List<Token> tokens = tokenizer.tokenize("今日は日本語を勉強します。");
 
@@ -25,7 +25,7 @@ class JapaneseTokenizerTest {
     }
 
     @Test
-    @DisplayName("Classifica tokens de kanji, hiragana, katakana e pontuação")
+    @DisplayName("Classifies kanji, hiragana, katakana, and punctuation tokens")
     void detectsScriptKinds() {
         List<Token> tokens = tokenizer.tokenize("今日かなカタ。");
 
@@ -36,7 +36,7 @@ class JapaneseTokenizerTest {
     }
 
     @Test
-    @DisplayName("Ignora espaços em branco")
+    @DisplayName("Ignores whitespace")
     void ignoresWhitespace() {
         List<Token> tokens = tokenizer.tokenize("今日 は\n日本語");
 
@@ -44,7 +44,7 @@ class JapaneseTokenizerTest {
     }
 
     @Test
-    @DisplayName("Preserva os deslocamentos de cada token no texto original")
+    @DisplayName("Preserves the offsets of each token in the original text")
     void keepsOffsets() {
         List<Token> tokens = tokenizer.tokenize("今日は日本語");
 
@@ -57,9 +57,9 @@ class JapaneseTokenizerTest {
     }
 
     @Test
-    @DisplayName("Preserva caracteres não reconhecidos como tokens UNKNOWN")
+    @DisplayName("Preserves unrecognized characters as UNKNOWN tokens")
     void preservesUnknownCharacters() {
-        List<Token> tokens = tokenizer.tokenize("ＡＢＣ"); // letras latinas de largura total
+        List<Token> tokens = tokenizer.tokenize("ＡＢＣ"); // full-width Latin letters
 
         assertEquals(3, tokens.size());
         assertTrue(tokens.stream().allMatch(token -> "UNKNOWN".equals(token.getKind())));
@@ -67,14 +67,14 @@ class JapaneseTokenizerTest {
     }
 
     @Test
-    @DisplayName("Retorna lista vazia para texto nulo ou em branco")
+    @DisplayName("Returns an empty list for null or blank text")
     void returnsEmptyListForNullOrBlank() {
         assertTrue(tokenizer.tokenize(null).isEmpty());
         assertTrue(tokenizer.tokenize("   ").isEmpty());
     }
 
     @Test
-    @DisplayName("Classifica grupos latinos como tokens contínuos")
+    @DisplayName("Classifies Latin groups as single tokens")
     void tokenizesLatinGroupsAsSingleToken() {
         List<Token> tokens = tokenizer.tokenize("DVDを観る");
 

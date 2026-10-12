@@ -3,23 +3,24 @@ package com.shinji2324.furigana.font;
 import java.util.Set;
 
 /**
- * Reduz uma fonte aos glifos necessários para um conjunto de code points.
+ * Reduces a font to the glyphs needed for a set of code points.
  *
- * <p>O subsetting é uma etapa opcional entre localizar a fonte ({@link
- * FontLocator}) e embutí-la no ASS ({@code AssFontEmbedder}). A embedação não
- * precisa conhecer o algoritmo: basta receber os bytes já reduzidos. A
- * implementação disponível usa o HarfBuzz ({@link HarfBuzzSubsetter}) e o
- * pipeline recai para a fonte completa quando ela não está disponível.
+ * <p>Subsetting is an optional step between locating the font ({@link
+ * FontLocator}) and embedding it into the ASS ({@code AssFontEmbedder}).
+ * Embedding does not need to know the algorithm: it only has to receive the
+ * already reduced bytes. The available implementation uses HarfBuzz ({@link
+ * HarfBuzzSubsetter}) and the pipeline falls back to the full font when it is
+ * not available.
  */
 public interface FontSubsetter {
 
     /**
-     * Reduz a fonte informada aos glifos usados pelos code points.
+     * Reduces the given font to the glyphs used by the code points.
      *
-     * @param data       bytes de uma única face sfnt ({@code .ttf}/{@code .otf})
-     * @param codePoints code points Unicode a manter (texto e leituras)
-     * @return os bytes da fonte reduzida, ou {@code null} quando não foi possível
-     *         reduzir — nesse caso a fonte original deve ser usada
+     * @param data       bytes of a single sfnt face ({@code .ttf}/{@code .otf})
+     * @param codePoints Unicode code points to keep (text and readings)
+     * @return the reduced font bytes, or {@code null} when it was not possible
+     *         to reduce — in that case the original font must be used
      */
     byte[] subset(byte[] data, Set<Integer> codePoints);
 }

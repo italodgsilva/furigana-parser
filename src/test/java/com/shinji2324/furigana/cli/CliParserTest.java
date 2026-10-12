@@ -12,14 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link CliParser}.
+ * Tests for {@link CliParser}.
  */
 class CliParserTest {
 
     private final CliParser parser = new CliParser();
 
     @Test
-    @DisplayName("Sem argumentos ou com ajuda retorna o modo HELP")
+    @DisplayName("With no arguments or with help, returns HELP mode")
     void returnsHelpMode() {
         assertEquals(CliCommand.Mode.HELP, parser.parse(new String[] {}).mode());
         assertEquals(CliCommand.Mode.HELP, parser.parse(new String[] {"--help"}).mode());
@@ -29,135 +29,136 @@ class CliParserTest {
     }
 
     @Test
-    @DisplayName("Interpreta a geração de JSON")
+    @DisplayName("Parses JSON generation")
     void parsesJsonGeneration() {
-        CliCommand command = parser.parse(new String[] {"entrada.srt", "saida.json"});
+        CliCommand command = parser.parse(new String[] {"input.srt", "output.json"});
 
         assertEquals(CliCommand.Mode.GENERATE_JSON, command.mode());
-        assertEquals(Path.of("entrada.srt"), command.input());
-        assertEquals(Path.of("saida.json"), command.output());
+        assertEquals(Path.of("input.srt"), command.input());
+        assertEquals(Path.of("output.json"), command.output());
     }
 
     @Test
-    @DisplayName("Interpreta a geração de ASS (extensão sem distinção de maiúsculas)")
+    @DisplayName("Parses ASS generation (case-insensitive extension)")
     void parsesAssGeneration() {
-        CliCommand command = parser.parse(new String[] {"entrada.srt", "SAIDA.ASS"});
+        CliCommand command = parser.parse(new String[] {"input.srt", "OUTPUT.ASS"});
 
         assertEquals(CliCommand.Mode.GENERATE_ASS, command.mode());
-        assertEquals(Path.of("SAIDA.ASS"), command.output());
+        assertEquals(Path.of("OUTPUT.ASS"), command.output());
     }
 
     @Test
-    @DisplayName("Interpreta o modo de reprodução --mpv e o alias play")
+    @DisplayName("Parses the --mpv playback mode and the play alias")
     void parsesPlayMode() {
-        CliCommand command = parser.parse(new String[] {"--mpv", "legenda.srt", "video.mkv"});
+        CliCommand command = parser.parse(new String[] {"--mpv", "subtitle.srt", "video.mkv"});
         assertEquals(CliCommand.Mode.PLAY, command.mode());
-        assertEquals(Path.of("legenda.srt"), command.input());
+        assertEquals(Path.of("subtitle.srt"), command.input());
         assertEquals(Path.of("video.mkv"), command.output());
 
         assertEquals(CliCommand.Mode.PLAY,
-                parser.parse(new String[] {"play", "legenda.srt", "video.mkv"}).mode());
+                parser.parse(new String[] {"play", "subtitle.srt", "video.mkv"}).mode());
     }
 
     @Test
-    @DisplayName("Rejeita extensão de saída não suportada")
+    @DisplayName("Rejects unsupported output extension")
     void rejectsUnsupportedExtension() {
         assertThrows(CliUsageException.class,
-                () -> parser.parse(new String[] {"entrada.srt", "saida.txt"}));
+                () -> parser.parse(new String[] {"input.srt", "output.txt"}));
     }
 
     @Test
-    @DisplayName("Rejeita quantidade de argumentos inválida")
+    @DisplayName("Rejects invalid argument count")
     void rejectsWrongArgumentCount() {
         assertThrows(CliUsageException.class,
-                () -> parser.parse(new String[] {"entrada.srt"}));
+                () -> parser.parse(new String[] {"input.srt"}));
         assertThrows(CliUsageException.class,
                 () -> parser.parse(new String[] {"a", "b", "c"}));
         assertThrows(CliUsageException.class,
-                () -> parser.parse(new String[] {"--mpv", "legenda.srt"}));
+                () -> parser.parse(new String[] {"--mpv", "subtitle.srt"}));
     }
 
     @Test
-    @DisplayName("Interpreta a embedação de fonte na geração de ASS")
+    @DisplayName("Parses font embedding in ASS generation")
     void parsesEmbedFont() {
-        CliCommand auto = parser.parse(new String[] {"--embed-font", "entrada.srt", "saida.ass"});
+        CliCommand auto = parser.parse(new String[] {"--embed-font", "input.srt", "output.ass"});
         assertEquals(CliCommand.Mode.GENERATE_ASS, auto.mode());
         assertTrue(auto.embedFont());
         assertNull(auto.fontPath());
 
         CliCommand explicit = parser.parse(new String[] {
-                "--embed-font=/tmp/fonte.otf", "entrada.srt", "saida.ass"});
+                "--embed-font=/tmp/font.otf", "input.srt", "output.ass"});
         assertTrue(explicit.embedFont());
-        assertEquals(Path.of("/tmp/fonte.otf"), explicit.fontPath());
+        assertEquals(Path.of("/tmp/font.otf"), explicit.fontPath());
     }
 
     @Test
-    @DisplayName("A embedação de fonte também vale para o modo --mpv")
+    @DisplayName("Font embedding also applies to --mpv mode")
     void parsesEmbedFontInPlayMode() {
         CliCommand command = parser.parse(new String[] {
-                "--embed-font", "--mpv", "legenda.srt", "video.mkv"});
+                "--embed-font", "--mpv", "subtitle.srt", "video.mkv"});
 
         assertEquals(CliCommand.Mode.PLAY, command.mode());
         assertTrue(command.embedFont());
     }
 
     @Test
-    @DisplayName("Ignora a embedação de fonte na geração de JSON")
+    @DisplayName("Ignores font embedding in JSON generation")
     void ignoresEmbedFontForJson() {
-        CliCommand command = parser.parse(new String[] {"--embed-font", "entrada.srt", "saida.json"});
+        CliCommand command = parser.parse(new String[] {
+                "--embed-font", "input.srt", "output.json"});
 
         assertEquals(CliCommand.Mode.GENERATE_JSON, command.mode());
         assertFalse(command.embedFont());
     }
 
     @Test
-    @DisplayName("Rejeita --embed-font= sem arquivo")
+    @DisplayName("Rejects --embed-font= without a file")
     void rejectsEmptyEmbedFontPath() {
         assertThrows(CliUsageException.class,
-                () -> parser.parse(new String[] {"--embed-font=", "entrada.srt", "saida.ass"}));
+                () -> parser.parse(new String[] {"--embed-font=", "input.srt", "output.ass"}));
     }
 
     @Test
-    @DisplayName("Interpreta --subset-font junto de --embed-font")
+    @DisplayName("Parses --subset-font together with --embed-font")
     void parsesSubsetFont() {
         CliCommand command = parser.parse(new String[] {
-                "--embed-font", "--subset-font", "entrada.srt", "saida.ass"});
+                "--embed-font", "--subset-font", "input.srt", "output.ass"});
 
         assertEquals(CliCommand.Mode.GENERATE_ASS, command.mode());
         assertTrue(command.embedFont());
         assertTrue(command.subsetFont());
 
-        CliCommand plain = parser.parse(new String[] {"--embed-font", "entrada.srt", "saida.ass"});
+        CliCommand plain = parser.parse(new String[] {"--embed-font", "input.srt", "output.ass"});
         assertFalse(plain.subsetFont());
     }
 
     @Test
-    @DisplayName("--subset-font também vale no modo --mpv")
+    @DisplayName("--subset-font also applies in --mpv mode")
     void parsesSubsetFontInPlayMode() {
         CliCommand command = parser.parse(new String[] {
-                "--embed-font", "--subset-font", "--mpv", "legenda.srt", "video.mkv"});
+                "--embed-font", "--subset-font", "--mpv", "subtitle.srt", "video.mkv"});
 
         assertEquals(CliCommand.Mode.PLAY, command.mode());
         assertTrue(command.subsetFont());
     }
 
     @Test
-    @DisplayName("Rejeita --subset-font sem --embed-font")
+    @DisplayName("Rejects --subset-font without --embed-font")
     void rejectsSubsetFontWithoutEmbed() {
         assertThrows(CliUsageException.class,
-                () -> parser.parse(new String[] {"--subset-font", "entrada.srt", "saida.ass"}));
+                () -> parser.parse(new String[] {"--subset-font", "input.srt", "output.ass"}));
     }
 
     @Test
-    @DisplayName("Interpreta --strip-parentheses no ASS, no JSON e no --mpv")
+    @DisplayName("Parses --strip-parentheses in ASS, JSON and --mpv")
     void parsesStripParentheses() {
         assertTrue(parser.parse(new String[] {
-                "--strip-parentheses", "entrada.srt", "saida.ass"}).stripParentheses());
+                "--strip-parentheses", "input.srt", "output.ass"}).stripParentheses());
         assertTrue(parser.parse(new String[] {
-                "--strip-parentheses", "entrada.srt", "saida.json"}).stripParentheses());
+                "--strip-parentheses", "input.srt", "output.json"}).stripParentheses());
         assertTrue(parser.parse(new String[] {
-                "--strip-parentheses", "--mpv", "legenda.srt", "video.mkv"}).stripParentheses());
+                "--strip-parentheses", "--mpv", "subtitle.srt", "video.mkv"}).stripParentheses());
 
-        assertFalse(parser.parse(new String[] {"entrada.srt", "saida.ass"}).stripParentheses());
+        assertFalse(parser.parse(new String[] {"input.srt", "output.ass"}).stripParentheses());
     }
 }

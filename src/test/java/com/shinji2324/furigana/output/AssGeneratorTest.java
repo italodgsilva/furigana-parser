@@ -13,15 +13,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link AssGenerator}: cabeçalho, eventos do texto principal e
- * posicionamento do furigana.
+ * Tests for {@link AssGenerator}: header, main text events and furigana
+ * positioning.
  */
 class AssGeneratorTest {
 
     private final AssGenerator generator = new AssGenerator();
 
     @Test
-    @DisplayName("Carrega o template padrão com os estilos Main e Furigana")
+    @DisplayName("Loads the default template with the Main and Furigana styles")
     void loadsDefaultTemplate() {
         String content = AssTemplate.defaultTemplate().content();
 
@@ -33,7 +33,7 @@ class AssGeneratorTest {
     }
 
     @Test
-    @DisplayName("Gera o texto principal e o furigana posicionado de uma linha")
+    @DisplayName("Generates the main text and positioned furigana for one line")
     void generatesSingleLineWithPositionedFurigana() {
         FuriganaDocument document = new FuriganaDocument(List.of(new FuriganaEntry(
                 "1", "00:00:01,000", "00:00:04,500",
@@ -50,22 +50,22 @@ class AssGeneratorTest {
 
         String output = generator.generate(document);
 
-        // Texto principal: uma única linha, centralizado na tela, na base.
+        // Main text: a single line, centered on screen, at the bottom.
         assertTrue(output.contains(
                 "Dialogue: 0,0:00:01.00,0:00:04.50,Main,,0,0,0,,{\\an5\\pos(960,988)}今日は日本語を勉強します。"));
 
-        // Furigana alinhado sobre cada bloco de kanji (13 células, início em 672,7px).
+        // Furigana aligned over each kanji block (13 cells, starting at 672.7px).
         assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(717,951)}きょう"));
         assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(872,951)}にほんご"));
         assertTrue(output.contains("Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\\an5\\pos(1026,951)}べんきょう"));
 
-        // Apenas os três blocos com kanji geram furigana.
+        // Only the three kanji blocks generate furigana.
         assertEquals(3, countOccurrences(output, ",Furigana,"));
         assertEquals(1, countOccurrences(output, ",Main,"));
     }
 
     @Test
-    @DisplayName("Trata entradas de duas linhas, associando o furigana à linha correta")
+    @DisplayName("Handles two-line entries, associating the furigana with the correct line")
     void handlesTwoLineEntry() {
         FuriganaDocument document = new FuriganaDocument(List.of(new FuriganaEntry(
                 "2", "00:00:05,000", "00:00:07,000",
@@ -78,12 +78,12 @@ class AssGeneratorTest {
 
         String output = generator.generate(document);
 
-        // Duas linhas principais: a de cima em 904 e a de baixo em 988.
+        // Two main lines: the top one at 904 and the bottom one at 988.
         assertTrue(output.contains("{\\an5\\pos(960,904)}元気ですか？"));
         assertTrue(output.contains("{\\an5\\pos(960,988)}元気です。"));
-        // O furigana acompanha a linha: y=867 (topo) e y=951 (base).
-        // Linha 1 (6 células, início em 827,4px): centro de "元気" em 872.
-        // Linha 2 (5 células, início em 849,5px): centro de "元気" em 894.
+        // The furigana follows the line: y=867 (top) and y=951 (bottom).
+        // Line 1 (6 cells, starting at 827.4px): center of "元気" at 872.
+        // Line 2 (5 cells, starting at 849.5px): center of "元気" at 894.
         assertTrue(output.contains(",Furigana,,0,0,0,,{\\an5\\pos(872,867)}げんき"));
         assertTrue(output.contains(",Furigana,,0,0,0,,{\\an5\\pos(894,951)}げんき"));
         assertEquals(2, countOccurrences(output, ",Main,"));
@@ -91,10 +91,10 @@ class AssGeneratorTest {
     }
 
     @Test
-    @DisplayName("Ignora o segmento de quebra de linha ao associar furigana (Kuromoji)")
+    @DisplayName("Ignores the line-break segment when associating furigana (Kuromoji)")
     void handlesNewlineSegment() {
-        // O Kuromoji emite a quebra de linha como um segmento sem leitura;
-        // ele não deve interromper a associação dos segmentos da linha seguinte.
+        // Kuromoji emits the line break as a segment without a reading;
+        // it must not interrupt the association of the next line's segments.
         FuriganaDocument document = new FuriganaDocument(List.of(new FuriganaEntry(
                 "2", "00:00:05,000", "00:00:07,000",
                 "元気ですか？\n私は元気です。",
@@ -112,7 +112,8 @@ class AssGeneratorTest {
 
         String output = generator.generate(document);
 
-        // "私" e "元気" da segunda linha precisam gerar furigana (além de "元気" da primeira).
+        // "私" and "元気" from the second line must generate furigana
+        // (in addition to "元気" from the first).
         assertTrue(output.contains(",Furigana,,0,0,0,,{\\an5\\pos("));
         assertTrue(output.contains("}わたし"));
         assertTrue(output.contains("}げんき"));
@@ -121,7 +122,7 @@ class AssGeneratorTest {
     }
 
     @Test
-    @DisplayName("Não gera furigana para texto apenas em kana")
+    @DisplayName("Does not generate furigana for kana-only text")
     void doesNotGenerateFuriganaForKanaOnly() {
         FuriganaDocument document = new FuriganaDocument(List.of(new FuriganaEntry(
                 "3", "00:00:08,000", "00:00:09,000",
@@ -137,7 +138,7 @@ class AssGeneratorTest {
     }
 
     @Test
-    @DisplayName("Gera documento vazio apenas com o cabeçalho")
+    @DisplayName("Generates an empty document with only the header")
     void generatesOnlyHeaderForEmptyDocument() {
         String output = generator.generate(new FuriganaDocument());
 
@@ -146,7 +147,7 @@ class AssGeneratorTest {
     }
 
     @Test
-    @DisplayName("Aceita documento nulo sem quebrar")
+    @DisplayName("Accepts a null document without breaking")
     void toleratesNullDocument() {
         String output = generator.generate(null);
 

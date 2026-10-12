@@ -3,70 +3,71 @@ package com.shinji2324.furigana.cli;
 import java.nio.file.Path;
 
 /**
- * Comando interpretado da linha de comando.
+ * Parsed command-line command.
  *
- * <p>Para {@link Mode#GENERATE_JSON} e {@link Mode#GENERATE_ASS}, {@code output}
- * é o arquivo de saída. Para {@link Mode#PLAY}, {@code input} é a legenda SRT e
- * {@code output} é o arquivo de vídeo. Para {@link Mode#HELP}, ambos são
+ * <p>For {@link Mode#GENERATE_JSON} and {@link Mode#GENERATE_ASS}, {@code output}
+ * is the output file. For {@link Mode#PLAY}, {@code input} is the SRT subtitle and
+ * {@code output} is the video file. For {@link Mode#HELP}, both are
  * {@code null}.
  *
- * <p>{@code embedFont} liga a embedação da fonte no ASS. {@code subsetFont},
- * quando ligado, reduz a fonte embutida aos glifos usados na legenda (exige
- * {@code embedFont}). {@code fontPath}, quando informado, aponta o arquivo de
- * fonte a embutir; quando {@code null}, a fonte é localizada pelo nome de família
- * no sistema. {@code stripParentheses} remove os trechos entre parênteses redondos
- * do texto antes do furigana (vale para JSON, ASS e {@code --mpv}).
+ * <p>{@code embedFont} enables font embedding in the ASS. {@code subsetFont},
+ * when enabled, subsets the embedded font to the glyphs used in the subtitle
+ * (requires {@code embedFont}). {@code fontPath}, when provided, points to the
+ * font file to embed; when {@code null}, the font is located by family name on
+ * the system. {@code stripParentheses} removes the passages between round
+ * parentheses from the text before furigana (applies to JSON, ASS and
+ * {@code --mpv}).
  *
- * @param mode             operação a executar
- * @param input            legenda SRT de entrada
- * @param output           destino (arquivo de saída ou vídeo), conforme o modo
- * @param embedFont        se a fonte deve ser embutida no ASS
- * @param subsetFont       se a fonte embutida deve ser reduzida aos glifos usados
- * @param fontPath         arquivo de fonte a embutir, ou {@code null} para localizar
- * @param stripParentheses se os trechos entre parênteses devem ser removidos
+ * @param mode             operation to execute
+ * @param input            input SRT subtitle
+ * @param output           destination (output file or video), depending on the mode
+ * @param embedFont        whether the font should be embedded in the ASS
+ * @param subsetFont       whether the embedded font should be subset to the glyphs used
+ * @param fontPath         font file to embed, or {@code null} to locate it
+ * @param stripParentheses whether the passages between parentheses should be removed
  */
 public record CliCommand(Mode mode, Path input, Path output, boolean embedFont, boolean subsetFont,
                          Path fontPath, boolean stripParentheses) {
 
-    /** Operação pedida na linha de comando. */
+    /** Operation requested on the command line. */
     public enum Mode {
-        /** Exibir instruções de uso. */
+        /** Show usage instructions. */
         HELP,
-        /** Gerar o modelo intermediário JSON. */
+        /** Generate the intermediate JSON model. */
         GENERATE_JSON,
-        /** Gerar a legenda ASS com furigana. */
+        /** Generate the ASS subtitle with furigana. */
         GENERATE_ASS,
-        /** Gerar o ASS e abrir o vídeo no MPV. */
+        /** Generate the ASS and open the video in MPV. */
         PLAY
     }
 
-    /** Cria o comando de ajuda. */
+    /** Creates the help command. */
     public static CliCommand help() {
         return new CliCommand(Mode.HELP, null, null, false, false, null, false);
     }
 
     /**
-     * Cria o comando de geração de JSON.
+     * Creates the JSON generation command.
      *
-     * @param input            legenda SRT
-     * @param output           arquivo JSON de saída
-     * @param stripParentheses se os trechos entre parênteses devem ser removidos
-     * @return comando configurado
+     * @param input            SRT subtitle
+     * @param output           output JSON file
+     * @param stripParentheses whether the passages between parentheses should be removed
+     * @return configured command
      */
     public static CliCommand generateJson(Path input, Path output, boolean stripParentheses) {
         return new CliCommand(Mode.GENERATE_JSON, input, output, false, false, null, stripParentheses);
     }
 
     /**
-     * Cria o comando de geração de ASS.
+     * Creates the ASS generation command.
      *
-     * @param input            legenda SRT
-     * @param output           arquivo ASS de saída
-     * @param embedFont        se a fonte deve ser embutida no ASS
-     * @param subsetFont       se a fonte embutida deve ser reduzida aos glifos usados
-     * @param fontPath         arquivo de fonte a embutir, ou {@code null} para localizar
-     * @param stripParentheses se os trechos entre parênteses devem ser removidos
-     * @return comando configurado
+     * @param input            SRT subtitle
+     * @param output           output ASS file
+     * @param embedFont        whether the font should be embedded in the ASS
+     * @param subsetFont       whether the embedded font should be subset to the glyphs used
+     * @param fontPath         font file to embed, or {@code null} to locate it
+     * @param stripParentheses whether the passages between parentheses should be removed
+     * @return configured command
      */
     public static CliCommand generateAss(Path input, Path output, boolean embedFont, boolean subsetFont,
                                          Path fontPath, boolean stripParentheses) {
@@ -75,15 +76,15 @@ public record CliCommand(Mode mode, Path input, Path output, boolean embedFont, 
     }
 
     /**
-     * Cria o comando de reprodução no MPV.
+     * Creates the MPV playback command.
      *
-     * @param subtitle         legenda SRT
-     * @param video            arquivo de vídeo
-     * @param embedFont        se a fonte deve ser embutida no ASS
-     * @param subsetFont       se a fonte embutida deve ser reduzida aos glifos usados
-     * @param fontPath         arquivo de fonte a embutir, ou {@code null} para localizar
-     * @param stripParentheses se os trechos entre parênteses devem ser removidos
-     * @return comando configurado
+     * @param subtitle         SRT subtitle
+     * @param video            video file
+     * @param embedFont        whether the font should be embedded in the ASS
+     * @param subsetFont       whether the embedded font should be subset to the glyphs used
+     * @param fontPath         font file to embed, or {@code null} to locate it
+     * @param stripParentheses whether the passages between parentheses should be removed
+     * @return configured command
      */
     public static CliCommand play(Path subtitle, Path video, boolean embedFont, boolean subsetFont,
                                   Path fontPath, boolean stripParentheses) {

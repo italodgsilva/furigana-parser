@@ -9,12 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link JapaneseScript}.
+ * Tests for {@link JapaneseScript}.
  */
 class JapaneseScriptTest {
 
     @Test
-    @DisplayName("Detecta a presença de kanji")
+    @DisplayName("Detects the presence of kanji")
     void detectsKanji() {
         assertTrue(JapaneseScript.containsKanji("日本語"));
         assertTrue(JapaneseScript.containsKanji("食べる"));
@@ -24,7 +24,7 @@ class JapaneseScriptTest {
     }
 
     @Test
-    @DisplayName("Identifica caracteres individuais")
+    @DisplayName("Identifies individual characters")
     void identifiesIndividualCharacters() {
         assertTrue(JapaneseScript.isKanji('漢'));
         assertFalse(JapaneseScript.isKanji('か'));
@@ -35,7 +35,7 @@ class JapaneseScriptTest {
     }
 
     @Test
-    @DisplayName("Converte katakana para hiragana preservando o restante")
+    @DisplayName("Converts katakana to hiragana preserving the rest")
     void convertsKatakanaToHiragana() {
         assertEquals("かたかな", JapaneseScript.toHiragana("カタカナ"));
         assertEquals("ひらがな", JapaneseScript.toHiragana("ひらがな"));
@@ -45,7 +45,7 @@ class JapaneseScriptTest {
     }
 
     @Test
-    @DisplayName("Classifica o texto pelo tipo de escrita")
+    @DisplayName("Classifies the text by script type")
     void classifiesByScript() {
         assertEquals("KANJI", JapaneseScript.classify("日本語"));
         assertEquals("HIRAGANA", JapaneseScript.classify("ひらがな"));

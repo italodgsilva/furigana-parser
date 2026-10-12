@@ -12,7 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * Testes do {@link MpvIntegration}, com um runner falso para não abrir o player.
+ * Tests for {@link MpvIntegration}, with a fake runner so as not to open the
+ * player.
  */
 class MpvIntegrationTest {
 
@@ -20,10 +21,10 @@ class MpvIntegrationTest {
     private final MpvIntegration integration = new MpvIntegration(runner);
 
     @Test
-    @DisplayName("Monta o comando do MPV com --sub-file e caminhos absolutos")
+    @DisplayName("Builds the MPV command with --sub-file and absolute paths")
     void buildsCommandWithAbsolutePaths() {
-        Path video = Path.of("videos", "episodio.mkv");
-        Path subtitle = Path.of("videos", "episodio.furigana.ass");
+        Path video = Path.of("videos", "episode.mkv");
+        Path subtitle = Path.of("videos", "episode.furigana.ass");
 
         List<String> command = integration.buildCommand(video, subtitle);
 
@@ -34,7 +35,7 @@ class MpvIntegrationTest {
     }
 
     @Test
-    @DisplayName("open executa o comando montado e devolve o código de saída")
+    @DisplayName("open runs the built command and returns the exit code")
     void openRunsBuiltCommand() throws Exception {
         runner.exitCode = 0;
         Path video = Path.of("video.mkv");
@@ -47,7 +48,7 @@ class MpvIntegrationTest {
     }
 
     @Test
-    @DisplayName("open devolve o código de saída diferente de zero")
+    @DisplayName("open returns the nonzero exit code")
     void openPropagatesExitCode() throws Exception {
         runner.exitCode = 3;
 
@@ -55,16 +56,16 @@ class MpvIntegrationTest {
     }
 
     @Test
-    @DisplayName("open propaga erro de inicialização do processo")
+    @DisplayName("open propagates a process startup error")
     void openPropagatesIoException() {
-        runner.failure = new IOException("mpv não encontrado");
+        runner.failure = new IOException("mpv not found");
 
         assertThrows(IOException.class,
                 () -> integration.open(Path.of("video.mkv"), Path.of("video.furigana.ass")));
     }
 
     /**
-     * Runner de teste que registra o último comando e simula código de saída/erro.
+     * Test runner that records the last command and simulates exit code/failure.
      */
     private static final class RecordingProcessRunner implements ProcessRunner {
 

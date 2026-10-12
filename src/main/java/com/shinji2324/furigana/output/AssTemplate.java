@@ -7,68 +7,66 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Cabeçalho estático de um arquivo ASS (Script Info, estilos e formato de eventos).
+ * Static header of an ASS file (Script Info, styles and event format).
  *
- * <p>Mantém a parte visual separada da lógica de geração, conforme o
- * docs/ass-format.md: cores, fontes, tamanhos e resolução podem ser alterados no
- * recurso {@code /ass/default-style.ass} sem tocar no {@link AssGenerator}.
+ * <p>Keeps the visual part separate from the generation logic, as described in
+ * docs/ass-format.md: colors, fonts, sizes, and resolution can be changed in the
+ * {@code /ass/default-style.ass} resource without touching {@link AssGenerator}.
  *
- * <p><strong>Atenção:</strong> o {@link AssLayout} assume a resolução declarada
- * aqui ({@code PlayResX}/{@code PlayResY} = 1920x1080). Alterar a resolução no
- * template exige ajustar as constantes de layout.
+ * <p><strong>Warning:</strong> {@link AssLayout} assumes the resolution declared
+ * here ({@code PlayResX}/{@code PlayResY} = 1920x1080). Changing the resolution in
+ * the template requires adjusting the layout constants.
  */
 public final class AssTemplate {
 
-    /** Caminho do template padrão no classpath. */
+    /** Path of the default template on the classpath. */
     public static final String DEFAULT_RESOURCE = "/ass/default-style.ass";
 
     private final String content;
 
     /**
-     * Cria um template a partir de um conteúdo já carregado.
+     * Creates a template from already loaded content.
      *
-     * @param content cabeçalho ASS (até a linha {@code Format:} de eventos)
+     * @param content ASS header (up to the events {@code Format:} line)
      */
     public AssTemplate(String content) {
         this.content = content == null ? "" : content;
     }
 
     /**
-     * Carrega o template padrão do classpath.
+     * Loads the default template from the classpath.
      *
-     * @return o template embutido no recurso {@link #DEFAULT_RESOURCE}
-     * @throws IllegalStateException se o recurso não puder ser lido
+     * @return the template embedded in the {@link #DEFAULT_RESOURCE} resource
+     * @throws IllegalStateException if the resource cannot be read
      */
     public static AssTemplate defaultTemplate() {
         try (InputStream stream = AssTemplate.class.getResourceAsStream(DEFAULT_RESOURCE)) {
             if (stream == null) {
-                throw new IllegalStateException("Recurso ASS não encontrado: " + DEFAULT_RESOURCE);
+                throw new IllegalStateException("ASS resource not found: " + DEFAULT_RESOURCE);
             }
             return new AssTemplate(new String(stream.readAllBytes(), StandardCharsets.UTF_8));
         } catch (IOException e) {
-            throw new IllegalStateException("Falha ao ler o template ASS: " + DEFAULT_RESOURCE, e);
+            throw new IllegalStateException("Failed to read the ASS template: " + DEFAULT_RESOURCE, e);
         }
     }
 
     /**
-     * Retorna o conteúdo do template.
+     * Returns the template content.
      *
-     * @return cabeçalho ASS
+     * @return ASS header
      */
     public String content() {
         return content;
     }
 
     /**
-     * Retorna os nomes de família distintos declarados nos estilos
-     * ({@code Fontname}), na ordem em que aparecem.
+     * Returns the distinct family names declared in the styles ({@code Fontname}),
+     * in the order they appear.
      *
-     * <p>Usado pela embedação de fontes para saber qual fonte localizar e
-     * embutir. Um estilo é uma linha {@code Style: Nome,Fontname,...} — ou seja,
-     * o segundo campo.
+     * <p>Used by font embedding to know which font to locate and embed. A style is
+     * a {@code Style: Name,Fontname,...} line — that is, the second field.
      *
-     * @return nomes de família distintos (lista vazia se o cabeçalho não tiver
-     *         estilos)
+     * @return distinct family names (empty list if the header has no styles)
      */
     public List<String> fontFamilies() {
         List<String> families = new ArrayList<>();

@@ -11,24 +11,23 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Subsetter de fontes baseado no HarfBuzz.
+ * HarfBuzz-based font subsetter.
  *
- * <p>Recebe uma face sfnt e um conjunto de code points e devolve a face reduzida
- * aos glifos correspondentes (mais os que o HarfBuzz mantém por dependência,
- * como {@code .notdef} e alvos de composição). O formato de saída é o mesmo do
- * entrada: um sfnt autônomo.
+ * <p>It receives an sfnt face and a set of code points and returns the face
+ * reduced to the corresponding glyphs (plus those HarfBuzz keeps as
+ * dependencies, such as {@code .notdef} and composite targets). The output
+ * format is the same as the input: a standalone sfnt.
  *
- * <p>O hinting é descartado ({@code HB_SUBSET_FLAGS_NO_HINTING}) para reduzir o
- * arquivo; os contornos e a tabela {@code name} — necessária para o player casar
- * a fonte com o {@code Fontname} do estilo — são preservados.
+ * <p>Hinting is discarded ({@code HB_SUBSET_FLAGS_NO_HINTING}) to reduce the
+ * file; the outlines and the {@code name} table — needed for the player to match
+ * the font with the style's {@code Fontname} — are preserved.
  *
- * <p>Qualquer falha do HarfBuzz (biblioteca ausente, entrada inválida, fonte não
- * suportada) resulta em {@code null}, sinalizando ao chamador para embutir a
- * fonte completa.
+ * <p>Any HarfBuzz failure (missing library, invalid input, unsupported font)
+ * results in {@code null}, signaling to the caller to embed the full font.
  */
 public final class HarfBuzzSubsetter implements FontSubsetter {
 
-    /** {@code HB_SUBSET_FLAGS_NO_HINTING}: descarta as instruções de hinting. */
+    /** {@code HB_SUBSET_FLAGS_NO_HINTING}: discards the hinting instructions. */
     private static final int FLAG_NO_HINTING = 0x1;
 
     private final HarfBuzzSubsetLibrary.HarfBuzz harfBuzz;
@@ -38,40 +37,40 @@ public final class HarfBuzzSubsetter implements FontSubsetter {
     }
 
     /**
-     * Carrega a biblioteca nativa e cria o subsetter.
+     * Loads the native library and creates the subsetter.
      *
-     * @return o subsetter, ou vazio se a biblioteca não estiver disponível
+     * @return the subsetter, or empty if the library is not available
      */
     public static Optional<HarfBuzzSubsetter> create() {
         return HarfBuzzSubsetLibrary.load().map(HarfBuzzSubsetter::new);
     }
 
     /**
-     * Sugestão exibida quando a biblioteca nativa não é encontrada.
+     * Hint shown when the native library is not found.
      *
-     * <p>Explica por que o ASS sairá maior, como instalar o HarfBuzz no sistema
-     * operacional em uso e como apontar um arquivo explicitamente.
+     * <p>It explains why the ASS will come out larger, how to install HarfBuzz
+     * on the operating system in use, and how to point to a file explicitly.
      *
-     * @return mensagem pronta para exibição
+     * @return message ready for display
      */
     public static String installationHint() {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         List<String> lines = new ArrayList<>();
-        lines.add("Aviso: a biblioteca nativa do HarfBuzz (libharfbuzz-subset) não foi "
-                + "encontrada; a fonte será embutida sem redução de tamanho.");
+        lines.add("Warning: the native HarfBuzz library (libharfbuzz-subset) was not "
+                + "found; the font will be embedded without size reduction.");
         if (os.contains("win")) {
-            lines.add("Para reduzir o ASS, instale o HarfBuzz "
-                    + "(ex.: via MSYS2, pacote mingw-w64-ucrt-x86_64-harfbuzz).");
+            lines.add("To reduce the ASS size, install HarfBuzz "
+                    + "(e.g. via MSYS2, package mingw-w64-ucrt-x86_64-harfbuzz).");
         } else if (os.contains("mac") || os.contains("darwin")) {
-            lines.add("Para reduzir o ASS, instale o HarfBuzz: brew install harfbuzz.");
+            lines.add("To reduce the ASS size, install HarfBuzz: brew install harfbuzz.");
         } else {
-            lines.add("Para reduzir o ASS, instale o HarfBuzz:");
+            lines.add("To reduce the ASS size, install HarfBuzz:");
             lines.add("  - Debian/Ubuntu: sudo apt install libharfbuzz-subset0");
             lines.add("  - Fedora: sudo dnf install harfbuzz");
             lines.add("  - Arch: sudo pacman -S harfbuzz");
         }
-        lines.add("Ou aponte o arquivo com " + HarfBuzzSubsetLibrary.OVERRIDE_ENV
-                + "=<arquivo> ou -D" + HarfBuzzSubsetLibrary.OVERRIDE_PROPERTY + "=<arquivo>.");
+        lines.add("Or point to the file with " + HarfBuzzSubsetLibrary.OVERRIDE_ENV
+                + "=<file> or -D" + HarfBuzzSubsetLibrary.OVERRIDE_PROPERTY + "=<file>.");
         return String.join(System.lineSeparator(), lines);
     }
 

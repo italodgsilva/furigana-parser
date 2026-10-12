@@ -4,10 +4,11 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Abstração para execução de um processo externo.
+ * Abstraction for running an external process.
  *
- * <p>Existe para manter a camada {@code mpv} testável: os testes injetam uma
- * implementação que apenas registra o comando, sem de fato abrir o player.
+ * <p>It exists to keep the {@code mpv} layer testable: the tests inject an
+ * implementation that merely records the command, without actually opening the
+ * player.
  *
  * @see DefaultProcessRunner
  */
@@ -15,12 +16,12 @@ import java.util.List;
 public interface ProcessRunner {
 
     /**
-     * Executa o comando informado e aguarda o término do processo.
+     * Runs the given command and waits for the process to finish.
      *
-     * @param command linha de comando já dividida em argumentos
-     * @return código de saída do processo
-     * @throws IOException          se o executável não puder ser iniciado (ex.: não está no PATH)
-     * @throws InterruptedException se a thread for interrompida enquanto aguarda
+     * @param command command line already split into arguments
+     * @return process exit code
+     * @throws IOException          if the executable cannot be started (e.g. not in the PATH)
+     * @throws InterruptedException if the thread is interrupted while waiting
      */
     int run(List<String> command) throws IOException, InterruptedException;
 }

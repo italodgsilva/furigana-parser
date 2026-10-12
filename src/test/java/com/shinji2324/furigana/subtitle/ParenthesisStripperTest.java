@@ -7,64 +7,64 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
- * Testes do {@link ParenthesisStripper}.
+ * Tests for {@link ParenthesisStripper}.
  */
 class ParenthesisStripperTest {
 
     @Test
-    @DisplayName("Remove pares full-width com o conteúdo")
+    @DisplayName("Removes full-width pairs with the content")
     void removesFullWidthPair() {
         assertEquals("やあ", ParenthesisStripper.strip("やあ（太郎）"));
         assertEquals("やあ", ParenthesisStripper.strip("（太郎）やあ"));
     }
 
     @Test
-    @DisplayName("Remove pares half-width com o conteúdo")
+    @DisplayName("Removes half-width pairs with the content")
     void removesHalfWidthPair() {
         assertEquals("やあ", ParenthesisStripper.strip("やあ(笑)"));
         assertEquals("やあ", ParenthesisStripper.strip("(Taro)やあ"));
     }
 
     @Test
-    @DisplayName("Remove conteúdo full-width dentro de parênteses half-width")
+    @DisplayName("Removes full-width content inside half-width parentheses")
     void removesFullWidthContentInsideHalfWidthPair() {
         assertEquals("やあ", ParenthesisStripper.strip("やあ(太郎)"));
     }
 
     @Test
-    @DisplayName("Remove vários pares na mesma linha")
+    @DisplayName("Removes multiple pairs on the same line")
     void removesMultiplePairs() {
         assertEquals("やあです", ParenthesisStripper.strip("やあ（太郎）です(笑)"));
     }
 
     @Test
-    @DisplayName("Remove pares aninhados de dentro para fora")
+    @DisplayName("Removes nested pairs from the inside out")
     void removesNestedPairs() {
         assertEquals("やあ", ParenthesisStripper.strip("（外（内）外）やあ"));
     }
 
     @Test
-    @DisplayName("Remove pares vazios ou só com espaços")
+    @DisplayName("Removes empty pairs or pairs with only spaces")
     void removesEmptyPairs() {
         assertEquals("やあ", ParenthesisStripper.strip("やあ（）( )"));
     }
 
     @Test
-    @DisplayName("Apara espaços que sobram nas pontas da linha alterada")
+    @DisplayName("Trims leftover spaces at the ends of the changed line")
     void trimsLeftoverSpaces() {
         assertEquals("やあ", ParenthesisStripper.strip("やあ （笑）"));
         assertEquals("やあ", ParenthesisStripper.strip("（笑） やあ"));
     }
 
     @Test
-    @DisplayName("Preserva o texto quando não há parênteses")
+    @DisplayName("Preserves the text when there are no parentheses")
     void keepsTextWithoutParentheses() {
         assertEquals("今日は日本語です。", ParenthesisStripper.strip("今日は日本語です。"));
         assertEquals("スペース は 保つ", ParenthesisStripper.strip("スペース は 保つ"));
     }
 
     @Test
-    @DisplayName("Preserva parênteses sem fechamento correspondente")
+    @DisplayName("Preserves parentheses without a matching closing one")
     void keepsUnbalancedParenthesis() {
         assertEquals("やあ（太郎", ParenthesisStripper.strip("やあ（太郎"));
         assertEquals("(太郎やあ", ParenthesisStripper.strip("(太郎やあ"));
@@ -72,20 +72,20 @@ class ParenthesisStripperTest {
     }
 
     @Test
-    @DisplayName("Descarta linhas que ficaram em branco e preserva as demais")
+    @DisplayName("Discards lines that became blank and preserves the others")
     void dropsBlankLines() {
         assertEquals("やあ\n元気", ParenthesisStripper.strip("（笑）\nやあ\n元気\n（ナレ）"));
     }
 
     @Test
-    @DisplayName("Devolve texto vazio quando tudo está entre parênteses")
+    @DisplayName("Returns empty text when everything is between parentheses")
     void returnsEmptyWhenEverythingIsParenthetical() {
         assertEquals("", ParenthesisStripper.strip("（笑）"));
         assertEquals("", ParenthesisStripper.strip("(laughs)"));
     }
 
     @Test
-    @DisplayName("Trata texto nulo ou vazio")
+    @DisplayName("Handles null or empty text")
     void handlesNullOrEmpty() {
         assertNull(ParenthesisStripper.strip(null));
         assertEquals("", ParenthesisStripper.strip(""));

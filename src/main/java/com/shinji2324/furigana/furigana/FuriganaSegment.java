@@ -1,15 +1,16 @@
 package com.shinji2324.furigana.furigana;
 
 /**
- * Unidade renderizável de uma entrada de furigana.
+ * Renderable unit of a furigana entry.
  *
- * <p>Representa a relação entre o texto original e a sua leitura, sem assumir
- * como o resultado será renderizado (JSON, ASS etc.). Para elementos que não
- * possuem furigana (hiragana, pontuação, espaços), {@link #reading()} é
- * {@code null} — veja o modelo conceitual em docs/architecture.md.
+ * <p>Represents the relationship between the original text and its reading,
+ * without assuming how the result will be rendered (JSON, ASS, etc.). For
+ * elements that have no furigana (hiragana, punctuation, spaces),
+ * {@link #reading()} is {@code null} — see the conceptual model in
+ * docs/architecture.md.
  *
- * @param text    trecho original do texto
- * @param reading leitura do trecho, ou {@code null} quando não há furigana
+ * @param text    original excerpt of the text
+ * @param reading reading of the excerpt, or {@code null} when there is no furigana
  */
 public record FuriganaSegment(String text, String reading) {
 }

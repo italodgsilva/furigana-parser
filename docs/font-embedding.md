@@ -1,45 +1,45 @@
-# Embutição de fonte no ASS
+# Font Embedding in the ASS
 
-## Objetivo
+## Goal
 
-Fazer o próprio arquivo ASS carregar a fonte necessária para renderizar o
-furigana, sem exigir que a fonte esteja instalada na máquina de quem assiste.
+Make the ASS file itself carry the font needed to render the furigana, without
+requiring the font to be installed on the viewer's machine.
 
-O problema: o ASS referencia a fonte por nome (`Noto Sans CJK JP`). Se essa fonte
-não estiver instalada, o player usa outra — ou nenhuma — e os kanji e as leituras
-podem aparecer com largura e posicionamento errados.
+The problem: the ASS references the font by name (`Noto Sans CJK JP`). If that font
+is not installed, the player uses another — or none — and the kanji and the readings
+may appear with wrong width and positioning.
 
-A solução: gravar os bytes da fonte dentro do ASS, na seção `[Fonts]`. O player
-registra essa fonte no provedor do sistema e a usa ao desenhar a legenda.
+The solution: write the font's bytes inside the ASS, in the `[Fonts]` section. The
+player registers this font with the system provider and uses it when drawing the
+subtitle.
 
-A embedação é feita em Java, dentro do pipeline. A redução opcional da fonte
-(`--subset-font`) usa a biblioteca do HarfBuzz, acessada por JNA — sem processo
-externo (veja [Subsetting](#subsetting-da-fonte)).
+The embedding is done in Java, inside the pipeline. The optional font subsetting
+(`--subset-font`) uses the HarfBuzz library, accessed through JNA — with no external
+process (see [Font subsetting](#font-subsetting)).
 
-## Como funciona
+## How it works
 
 ```text
-Estilo do ASS (Fontname)
+ASS style (Fontname)
    ↓
-Localizar o arquivo da fonte no sistema
+Locate the font file on the system
    ↓
-[com --subset-font] Reduzir aos glifos usados (HarfBuzz)
+[with --subset-font] Subset to the glyphs used (HarfBuzz)
    ↓
-Codificar os bytes e escrever a seção [Fonts]
+Encode the bytes and write the [Fonts] section
 ```
 
-1. **Localizar a fonte** — `FontLocator` varre os diretórios usuais do sistema
-   (Linux, macOS e Windows) e lê a tabela `name` de cada arquivo, comparando o
-   nome de família. O casamento ignora maiúsculas e espaços repetidos. Se a fonte
-   estiver dentro de uma coleção (`.ttc`), apenas a face correspondente é
-   recortada em uma fonte autônoma (`SfntReader`), pois o ASS embute uma face por
-   vez.
-2. **Reduzir (opcional)** — com `--subset-font`, `HarfBuzzSubsetter` mantém
-   apenas os glifos usados pela legenda. Veja a seção seguinte.
-3. **Codificar** — `AssFontEmbedder` converte os bytes no mesmo formato uuencode
-   do libass: cada 3 bytes viram 4 caracteres de 6 bits, somados a 33, em linhas
-   de tamanho fixo. As quebras de linha são ignoradas na leitura.
-4. **Inserir** — a seção é gravada entre `[V4+ Styles]` e `[Events]`:
+1. **Locate the font** — `FontLocator` scans the usual system directories
+   (Linux, macOS and Windows) and reads the `name` table of each file, comparing the
+   family name. The match ignores case and repeated spaces. If the font is inside a
+   collection (`.ttc`), only the corresponding face is extracted into a standalone
+   font (`SfntReader`), since the ASS embeds one face at a time.
+2. **Subset (optional)** — with `--subset-font`, `HarfBuzzSubsetter` keeps only the
+   glyphs used by the subtitle. See the next section.
+3. **Encode** — `AssFontEmbedder` converts the bytes into the same uuencode format
+   as libass: each 3 bytes become 4 six-bit characters, plus 33, in lines of fixed
+   size. Line breaks are ignored when reading.
+4. **Insert** — the section is written between `[V4+ Styles]` and `[Events]`:
 
    ```text
    [Fonts]
@@ -49,127 +49,126 @@ Codificar os bytes e escrever a seção [Fonts]
    [Events]
    ```
 
-   `fontname:` é o nome do arquivo sugerido para a fonte; as linhas seguintes são
-   os bytes codificados.
+   `fontname:` is the suggested file name for the font; the following lines are
+   the encoded bytes.
 
-## Subsetting da fonte
+## Font subsetting
 
-A `Noto Sans CJK JP` tem cerca de 65 mil glifos (todos os kanji CJK), mas uma
-legenda usa apenas algumas centenas. Sem redução, o ASS embutido fica com dezenas
-de MB. Com `--subset-font`, só os glifos usados são gravados.
+`Noto Sans CJK JP` has around 65 thousand glyphs (all CJK kanji), but a subtitle
+uses only a few hundred. Without subsetting, the embedded ASS ends up with tens of
+MB. With `--subset-font`, only the glyphs used are written.
 
-O processo:
+The process:
 
-1. **Coletar os code points** — `UsedCodePoints` percorre o `FuriganaDocument` e
-   reúne os caracteres do texto principal e das leituras (o furigana). Os
-   override tags (`\pos` etc.) não são glifos e não entram.
-2. **Reduzir** — `HarfBuzzSubsetter` usa a `libharfbuzz-subset` por JNA. As
-   funções `hb_subset_*` ficam nessa biblioteca; as demais (`hb_blob_*`,
-   `hb_face_*`, `hb_set_*`) vêm da `libharfbuzz`, que é sua dependência — por isso
-   resolvem a partir do mesmo identificador carregado. O hinting é descartado
-   (`HB_SUBSET_FLAGS_NO_HINTING`) e a tabela `name` é preservada, o que mantém a
-   família (`Noto Sans CJK JP`) e permite ao player casar a fonte com o
-   `Fontname` do estilo.
-3. **Embutir** — os bytes reduzidos seguem o fluxo normal de codificação e
-   inserção.
+1. **Collect the code points** — `UsedCodePoints` walks the `FuriganaDocument` and
+   gathers the characters of the main text and of the readings (the furigana). The
+   override tags (`\pos` etc.) are not glyphs and are not included.
+2. **Subset** — `HarfBuzzSubsetter` uses `libharfbuzz-subset` through JNA. The
+   functions `hb_subset_*` live in that library; the others (`hb_blob_*`,
+   `hb_face_*`, `hb_set_*`) come from `libharfbuzz`, which is its dependency — that
+   is why they resolve from the same loaded identifier. Hinting is discarded
+   (`HB_SUBSET_FLAGS_NO_HINTING`) and the `name` table is preserved, which keeps the
+   family (`Noto Sans CJK JP`) and lets the player match the font to the style's
+   `Fontname`.
+3. **Embed** — the subset bytes follow the normal encoding and insertion flow.
 
-O `AssFontEmbedder` não conhece o subsetting: recebe a `FontFile` já reduzida. A
-operação é abstraída por `FontSubsetter`, e a CLI cuida de acioná-la.
+`AssFontEmbedder` does not know about subsetting: it receives the already subset
+`FontFile`. The operation is abstracted by `FontSubsetter`, and the CLI takes care
+of invoking it.
 
-### Onde a biblioteca é procurada
+### Where the library is looked up
 
-Como o nome do arquivo varia entre sistemas (no Linux a instalação de runtime
-traz só o soname versionado, ex.: `libharfbuzz-subset.so.0`), a busca tenta
-primeiro a resolução padrão do JNA e depois varre os diretórios usuais
-(`/usr/lib/...`, `/usr/local/lib`, Homebrew, etc.). Para apontar um arquivo
-explicitamente, use a variável de ambiente `FURIGANA_HARFBUZZ_SUBSET` ou a
-propriedade `-Dfurigana.harfbuzz.subset=<arquivo>`.
+Because the file name varies between systems (on Linux the runtime installation
+brings only the versioned soname, e.g. `libharfbuzz-subset.so.0`), the search first
+tries JNA's standard resolution and then scans the usual directories
+(`/usr/lib/...`, `/usr/local/lib`, Homebrew, etc.). To point to a file explicitly,
+use the `FURIGANA_HARFBUZZ_SUBSET` environment variable or the
+`-Dfurigana.harfbuzz.subset=<file>` property.
 
-Se a biblioteca não for encontrada — ou se a redução de uma fonte falhar — o
-programa avisa em `stderr` e embute a fonte completa. O ASS nunca é gerado sem os
-glifos necessários. Quando a biblioteca está ausente, o aviso já traz o comando de
-instalação para o sistema em uso (por exemplo, `sudo apt install libharfbuzz-subset0`
-no Debian/Ubuntu ou `brew install harfbuzz` no macOS) e a lembrança da variável
-`FURIGANA_HARFBUZZ_SUBSET`, usada para apontar um arquivo explicitamente.
+If the library is not found — or if subsetting a font fails — the program warns on
+`stderr` and embeds the full font. The ASS is never generated without the necessary
+glyphs. When the library is missing, the warning already brings the installation
+command for the system in use (for example, `sudo apt install libharfbuzz-subset0`
+on Debian/Ubuntu or `brew install harfbuzz` on macOS) and the reminder of the
+`FURIGANA_HARFBUZZ_SUBSET` variable, used to point to a file explicitly.
 
-## Uso
+## Usage
 
-Sem argumento, a fonte é localizada pelo nome de família declarado no estilo
+Without an argument, the font is located by the family name declared in the style
 (`Noto Sans CJK JP`):
 
 ```
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font entrada.srt saida.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font input.srt output.ass
 ```
 
-Com um arquivo explícito, o arquivo informado é embutido (útil quando a fonte não
-está nos diretórios usuais ou quando se quer usar outra fonte):
+With an explicit file, the given file is embedded (useful when the font is not in
+the usual directories or when you want to use another font):
 
 ```
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font=fonte.otf entrada.srt saida.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font=font.otf input.srt output.ass
 ```
 
-Para reduzir a fonte embutida aos glifos usados (exige `--embed-font`):
+To subset the embedded font to the glyphs used (requires `--embed-font`):
 
 ```
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font --subset-font entrada.srt saida.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font --subset-font input.srt output.ass
 ```
 
-As opções valem para a geração de ASS e para o modo `--mpv`; na geração de JSON
-não têm efeito (o JSON não carrega fonte).
+The options apply to ASS generation and to `--mpv` mode; in JSON generation they
+have no effect (the JSON does not carry a font).
 
-Se a família não for encontrada no sistema, a geração falha com uma mensagem
-pedindo o caminho via `--embed-font=<arquivo>`.
+If the family is not found on the system, generation fails with a message asking for
+the path via `--embed-font=<file>`.
 
-## Tamanho do arquivo
+## File size
 
-Sem subsetting, o arquivo inteiro é embutido. A `Noto Sans CJK JP` tem cerca de
-16,5 MB, o que produz um ASS de aproximadamente 22 MB.
+Without subsetting, the whole file is embedded. `Noto Sans CJK JP` is about
+16.5 MB, which produces an ASS of approximately 22 MB.
 
-Com `--subset-font`, apenas os glifos usados entram. Como referência (fonte
-`NotoSansJP.otf`, mesma família do estilo):
+With `--subset-font`, only the glyphs used are included. As a reference (font
+`NotoSansJP.otf`, same family as the style):
 
-| Legenda | Sem subsetting | Com `--subset-font` |
+| Subtitle | Without subsetting | With `--subset-font` |
 | --- | --- | --- |
-| `japanese.srt` (3 entradas, ~40 caracteres) | ~22 MB | ~27 KB |
-| Um episódio (~370 entradas) | ~22 MB | ~0,3 MB |
+| `japanese.srt` (3 entries, ~40 characters) | ~22 MB | ~27 KB |
+| One episode (~370 entries) | ~22 MB | ~0.3 MB |
 
-O tempo de geração não muda de forma relevante (a redução leva alguns
-milissegundos; o custo está em tokenizar a legenda).
+The generation time does not change in any relevant way (the subsetting takes a few
+milliseconds; the cost lies in tokenizing the subtitle).
 
-## Verificação
+## Verification
 
-Para confirmar que a legenda usa a fonte embutida, renderize o ASS em um ambiente
-sem fontes instaladas (por exemplo, com um `fontconfig` vazio):
+To confirm that the subtitle uses the embedded font, render the ASS in an
+environment without installed fonts (for example, with an empty `fontconfig`):
 
 ```
-FONTCONFIG_FILE=/caminho/fontconfig-vazio ffmpeg -itsoffset <t> \
+FONTCONFIG_FILE=/path/to/empty-fontconfig ffmpeg -itsoffset <t> \
   -f lavfi -i color=c=black:s=1920x1080:d=0.1 \
-  -vf "ass=saida.ass,format=gray" -frames:v 1 -f rawvideo -pix_fmt gray out.gray
+  -vf "ass=output.ass,format=gray" -frames:v 1 -f rawvideo -pix_fmt gray out.gray
 ```
 
-Sem a seção `[Fonts]`, nenhuma legenda é desenhada; com ela, o texto aparece
-mesmo sem a fonte instalada no sistema. A saída com e sem subsetting é idêntica,
-byte a byte, no mesmo instante.
+Without the `[Fonts]` section, no subtitle is drawn; with it, the text appears even
+without the font installed on the system. The output with and without subsetting is
+identical, byte for byte, at the same instant.
 
-## Escopo
+## Scope
 
-O `AssGenerator` continua sem conhecer fontes: a embedação é um
-pós-processamento do texto ASS, acionado pela CLI (`Application`). Localizar,
-reduzir e codificar são etapas separadas (`FontLocator`, `FontSubsetter` /
-`HarfBuzzSubsetter`, `AssFontEmbedder`), e a geração do ASS segue independente
-desses detalhes.
+`AssGenerator` still knows nothing about fonts: the embedding is a post-processing
+of the ASS text, triggered by the CLI (`Application`). Locating, subsetting and
+encoding are separate steps (`FontLocator`, `FontSubsetter` / `HarfBuzzSubsetter`,
+`AssFontEmbedder`), and ASS generation remains independent of those details.
 
-## Testes
+## Tests
 
-O fluxo de chamadas ao HarfBuzz é coberto com uma implementação falsa da interface
-JNA (`HarfBuzzSubsetterTest`), sem exigir a biblioteca nativa. O teste que reduz
-uma fonte real só roda quando `libharfbuzz-subset` e uma fonte de exemplo estão
-disponíveis.
+The flow of calls to HarfBuzz is covered with a fake implementation of the JNA
+interface (`HarfBuzzSubsetterTest`), without requiring the native library. The test
+that subsets a real font only runs when `libharfbuzz-subset` and a sample font are
+available.
 
-## Melhorias futuras
+## Future improvements
 
-- **Subsetting sem biblioteca nativa** — uma porta Java pura (por exemplo, um
-  subsetter `glyf` para fontes TrueType) eliminaria a dependência de sistema,
-  mas não cobre CFF/CID como a `Noto Sans CJK JP`.
-- **Distribuir a biblioteca** — empacotar a `libharfbuzz-subset` por plataforma
-  faria o subsetting funcionar sem instalação prévia.
+- **Subsetting without a native library** — a pure Java port (for example, a `glyf`
+  subsetter for TrueType fonts) would remove the system dependency, but it does not
+  cover CFF/CID such as `Noto Sans CJK JP`.
+- **Distributing the library** — packaging `libharfbuzz-subset` per platform would
+  make subsetting work without prior installation.

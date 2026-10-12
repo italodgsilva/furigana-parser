@@ -7,51 +7,51 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Leitor mínimo de arquivos OpenType ({@code .ttf}/{@code .otf}) e de coleções
+ * Minimal reader for OpenType files ({@code .ttf}/{@code .otf}) and collections
  * ({@code .ttc}/{@code .otc}).
  *
- * <p>O único dado relevante para a embedação é o nome de família das fontes
- * (tabela {@code name}, IDs 1 e 16), usado para casar a fonte do estilo ASS com
- * um arquivo do sistema. Como um ASS embute uma face por vez, as faces de uma
- * coleção são separadas em fontes autônomas.
+ * <p>The only data relevant to embedding is the family name of the fonts
+ * ({@code name} table, IDs 1 and 16), used to match the ASS style's font with a
+ * system file. Since an ASS embeds one face at a time, the faces of a
+ * collection are separated into standalone fonts.
  *
- * <p>Este leitor não interpreta os contornos ({@code glyf}/{@code CFF}) nem
- * valida o arquivo: ele apenas reconhece o cabeçalho sfnt, varre o diretório de
- * tabelas em busca de {@code name} e, quando necessário, recorta uma face para
- * um sfnt independente.
+ * <p>This reader does not interpret the outlines ({@code glyf}/{@code CFF}) nor
+ * validate the file: it only recognizes the sfnt header, scans the table
+ * directory looking for {@code name} and, when necessary, extracts a face into
+ * an independent sfnt.
  */
 final class SfntReader {
 
-    /** Assinatura de coleção de fontes. */
+    /** Font collection signature. */
     private static final int TTC_TAG = 0x74746366; // 'ttcf'
 
-    /** Assinatura de fonte OpenType com contornos CFF. */
+    /** OpenType font signature with CFF outlines. */
     private static final int OTTO_TAG = 0x4F54544F; // 'OTTO'
 
-    /** Tag da tabela de nomes. */
+    /** Name table tag. */
     private static final int NAME_TAG = 0x6E616D65; // 'name'
 
     private SfntReader() {
     }
 
     /**
-     * Uma face individual de um arquivo sfnt.
+     * An individual face of an sfnt file.
      *
-     * @param families nomes de família declarados (tabela {@code name})
-     * @param data     bytes da face (a própria entrada, ou a face recortada de
-     *                 uma coleção)
-     * @param cff      {@code true} se os contornos são CFF ({@code OTTO})
-     * @param faceIndex índice da face na coleção, ou {@code -1} se o arquivo não
-     *                 é uma coleção
+     * @param families family names declared ({@code name} table)
+     * @param data     face bytes (the entry itself, or the face extracted from a
+     *                 collection)
+     * @param cff      {@code true} if the outlines are CFF ({@code OTTO})
+     * @param faceIndex index of the face in the collection, or {@code -1} if the
+     *                 file is not a collection
      */
     record Face(Set<String> families, byte[] data, boolean cff, int faceIndex) {
     }
 
     /**
-     * Lê as faces de um arquivo sfnt ou de uma coleção.
+     * Reads the faces of an sfnt file or a collection.
      *
-     * @param data conteúdo do arquivo
-     * @return faces encontradas (vazio se o conteúdo não for um sfnt conhecido)
+     * @param data file content
+     * @return faces found (empty if the content is not a known sfnt)
      */
     static List<Face> read(byte[] data) {
         List<Face> faces = new ArrayList<>();
@@ -83,7 +83,7 @@ final class SfntReader {
     }
 
     /**
-     * Verifica se o conteúdo no deslocamento informado é um sfnt reconhecido.
+     * Checks whether the content at the given offset is a recognized sfnt.
      */
     static boolean isSfnt(byte[] data, int offset) {
         if (offset < 0 || offset + 12 > data.length) {
@@ -101,11 +101,11 @@ final class SfntReader {
     }
 
     /**
-     * Recorta uma face de uma coleção em um sfnt autônomo.
+     * Extracts a face from a collection into a standalone sfnt.
      *
-     * <p>Reaproveita a tabela de diretório da face (trocando apenas os
-     * deslocamentos das tabelas) e copia os dados correspondentes. Os
-     * {@code checksum} por tabela continuam válidos, pois o conteúdo não muda.
+     * <p>It reuses the face's table directory (changing only the table offsets)
+     * and copies the corresponding data. The per-table {@code checksum}s remain
+     * valid, since the content does not change.
      */
     private static byte[] extract(byte[] data, int faceOffset) {
         int numTables = be16(data, faceOffset + 4);
@@ -138,7 +138,7 @@ final class SfntReader {
     }
 
     /**
-     * Extrai os nomes de família (IDs 1 e 16) da tabela {@code name}.
+     * Extracts the family names (IDs 1 and 16) from the {@code name} table.
      */
     static Set<String> readFamilies(byte[] data, int sfntOffset) {
         Set<String> families = new LinkedHashSet<>();
@@ -184,8 +184,8 @@ final class SfntReader {
     }
 
     private static String decodeName(byte[] data, int start, int length, int platform) {
-        // Plataformas 0 (Unicode) e 3 (Windows) usam UTF-16BE; a plataforma 1
-        // (Macintosh) codifica nomes latinos em um byte por caractere.
+        // Platforms 0 (Unicode) and 3 (Windows) use UTF-16BE; platform 1
+        // (Macintosh) encodes Latin names as one byte per character.
         if (platform == 0 || platform == 3) {
             return new String(data, start, length, StandardCharsets.UTF_16BE);
         }

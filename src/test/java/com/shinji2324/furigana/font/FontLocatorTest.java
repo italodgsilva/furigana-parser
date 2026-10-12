@@ -16,8 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link FontLocator}: busca por família, normalização e recorte de
- * face de uma coleção.
+ * Tests for {@link FontLocator}: search by family, normalization and extraction
+ * of a face from a collection.
  */
 class FontLocatorTest {
 
@@ -25,74 +25,74 @@ class FontLocatorTest {
     Path tempDir;
 
     @Test
-    @DisplayName("Localiza a fonte pela família, ignorando maiúsculas e espaços")
+    @DisplayName("Locates the font by family, ignoring case and whitespace")
     void findsByFamily() throws IOException {
-        byte[] font = TestFonts.sfnt("Minha Fonte");
-        Files.write(tempDir.resolve("arquivo-qualquer.ttf"), font);
+        byte[] font = TestFonts.sfnt("My Font");
+        Files.write(tempDir.resolve("some-file.ttf"), font);
 
-        Optional<FontFile> found = new FontLocator(List.of(tempDir)).find("  minha   fonte ");
+        Optional<FontFile> found = new FontLocator(List.of(tempDir)).find("  my   font ");
 
         assertTrue(found.isPresent());
-        assertEquals("arquivo-qualquer.ttf", found.get().fileName());
+        assertEquals("some-file.ttf", found.get().fileName());
         assertArrayEquals(font, found.get().data());
     }
 
     @Test
-    @DisplayName("Não encontra família inexistente")
+    @DisplayName("Does not find a nonexistent family")
     void doesNotFindUnknownFamily() throws IOException {
-        Files.write(tempDir.resolve("f.ttf"), TestFonts.sfnt("Outra"));
+        Files.write(tempDir.resolve("f.ttf"), TestFonts.sfnt("Other"));
 
-        assertTrue(new FontLocator(List.of(tempDir)).find("Minha Fonte").isEmpty());
+        assertTrue(new FontLocator(List.of(tempDir)).find("My Font").isEmpty());
     }
 
     @Test
-    @DisplayName("Recorta a face certa de uma coleção e renomeia o arquivo")
+    @DisplayName("Extracts the right face from a collection and renames the file")
     void extractsFaceFromCollection() throws IOException {
-        Files.write(tempDir.resolve("col.ttc"), TestFonts.ttc("Fonte A", "Fonte B"));
+        Files.write(tempDir.resolve("col.ttc"), TestFonts.ttc("Font A", "Font B"));
 
-        Optional<FontFile> found = new FontLocator(List.of(tempDir)).find("Fonte B");
+        Optional<FontFile> found = new FontLocator(List.of(tempDir)).find("Font B");
 
         assertTrue(found.isPresent());
         assertEquals("col-face1.ttf", found.get().fileName());
-        assertArrayEquals(TestFonts.sfnt("Fonte B"), found.get().data());
+        assertArrayEquals(TestFonts.sfnt("Font B"), found.get().data());
     }
 
     @Test
-    @DisplayName("Lê um arquivo informado explicitamente")
+    @DisplayName("Reads an explicitly given file")
     void readsExplicitFile() throws IOException {
         Path file = tempDir.resolve("custom.otf");
-        byte[] font = TestFonts.sfnt("Escolhida");
+        byte[] font = TestFonts.sfnt("Chosen");
         Files.write(file, font);
 
-        FontFile loaded = new FontLocator(List.<Path>of()).read(file, "Escolhida");
+        FontFile loaded = new FontLocator(List.<Path>of()).read(file, "Chosen");
 
         assertEquals("custom.otf", loaded.fileName());
         assertArrayEquals(font, loaded.data());
     }
 
     @Test
-    @DisplayName("Rejeita arquivo explicitamente informado que não é fonte")
+    @DisplayName("Rejects an explicitly given file that is not a font")
     void rejectsInvalidExplicitFile() throws IOException {
         Path file = tempDir.resolve("x.ttf");
         Files.write(file, new byte[] {1, 2, 3, 4});
 
-        assertThrows(IOException.class, () -> new FontLocator(List.<Path>of()).read(file, "Qualquer"));
+        assertThrows(IOException.class, () -> new FontLocator(List.<Path>of()).read(file, "Any"));
     }
 
     @Test
-    @DisplayName("Erro claro quando o arquivo informado não existe")
+    @DisplayName("Clear error when the given file does not exist")
     void reportsMissingExplicitFile() {
-        Path missing = tempDir.resolve("nao-existe.otf");
+        Path missing = tempDir.resolve("missing.otf");
 
         IOException error = assertThrows(IOException.class,
-                () -> new FontLocator(List.<Path>of()).read(missing, "Qualquer"));
+                () -> new FontLocator(List.<Path>of()).read(missing, "Any"));
 
-        assertTrue(error.getMessage().contains("não encontrado"));
+        assertTrue(error.getMessage().contains("not found"));
     }
 
     @Test
-    @DisplayName("Não varre diretórios inexistentes")
+    @DisplayName("Does not scan nonexistent directories")
     void ignoresMissingDirectory() {
-        assertTrue(new FontLocator(List.of(tempDir.resolve("nao-existe"))).find("Qualquer").isEmpty());
+        assertTrue(new FontLocator(List.of(tempDir.resolve("missing"))).find("Any").isEmpty());
     }
 }

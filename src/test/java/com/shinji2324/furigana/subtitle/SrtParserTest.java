@@ -15,18 +15,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link SrtParser}.
+ * Tests for {@link SrtParser}.
  */
 class SrtParserTest {
 
     private final SrtParser parser = new SrtParser();
 
     // ------------------------------------------------------------------
-    // Conteúdo de exemplo (fixtures)
+    // Example content (fixtures)
     // ------------------------------------------------------------------
 
     @Test
-    @DisplayName("Parsing de legenda simples em ASCII")
+    @DisplayName("Parsing a simple ASCII subtitle")
     void parsesSimpleFixture() throws IOException {
         Subtitle subtitle = parser.parse(readFixture("simple.srt"));
 
@@ -45,7 +45,7 @@ class SrtParserTest {
     }
 
     @Test
-    @DisplayName("Parsing de legenda japonesa com múltiplas linhas de texto")
+    @DisplayName("Parsing a Japanese subtitle with multiple text lines")
     void parsesJapaneseFixture() throws IOException {
         Subtitle subtitle = parser.parse(readFixture("japanese.srt"));
 
@@ -54,23 +54,23 @@ class SrtParserTest {
 
         assertEquals("今日は日本語を勉強します。", entries.get(0).getText());
 
-        // Entrada com duas linhas de texto unidas por \n.
+        // Entry with two text lines joined by \n.
         assertEquals("元気ですか？\n私は元気です。", entries.get(1).getText());
 
-        // Entrada que termina sem nova linha ao final do arquivo.
+        // Entry that ends without a newline at the end of the file.
         assertEquals("これは長いセリフで、\n二行目に続きます。", entries.get(2).getText());
     }
 
     // ------------------------------------------------------------------
-    // Variações aceitas do formato
+    // Accepted format variations
     // ------------------------------------------------------------------
 
     @Test
-    @DisplayName("Aceita entrada sem índice numérico")
+    @DisplayName("Accepts an entry without a numeric index")
     void parsesEntryWithoutIndex() {
         String content = """
                 00:00:01,000 --> 00:00:02,000
-                Texto sem índice
+                Text without index
                 """;
 
         Subtitle subtitle = parser.parse(content);
@@ -78,13 +78,13 @@ class SrtParserTest {
         assertEquals(1, subtitle.size());
         SubtitleEntry entry = subtitle.getEntries().get(0);
         assertNull(entry.getId());
-        assertEquals("Texto sem índice", entry.getText());
+        assertEquals("Text without index", entry.getText());
     }
 
     @Test
-    @DisplayName("Reconhece separador de timestamp com espaços extras")
+    @DisplayName("Recognizes a timestamp separator with extra spaces")
     void acceptsExtraSpacesAroundTimestampArrow() {
-        String content = "1\n00:00:01,000   -->   00:00:02,000\nOlá!";
+        String content = "1\n00:00:01,000   -->   00:00:02,000\nHello!";
 
         Subtitle subtitle = parser.parse(content);
 
@@ -95,9 +95,9 @@ class SrtParserTest {
     }
 
     @Test
-    @DisplayName("Aceita timestamp com ponto em vez de vírgula")
+    @DisplayName("Accepts a timestamp with a dot instead of a comma")
     void acceptsTimestampWithDotSeparator() {
-        String content = "1\n00:00:01.500 --> 00:00:02.750\nPonto decimal";
+        String content = "1\n00:00:01.500 --> 00:00:02.750\nDecimal point";
 
         Subtitle subtitle = parser.parse(content);
 
@@ -106,9 +106,9 @@ class SrtParserTest {
     }
 
     @Test
-    @DisplayName("Preserva a vírgula e a precisão do timestamp original")
+    @DisplayName("Preserves the comma and the precision of the original timestamp")
     void preservesTimestampAsWritten() {
-        String content = "1\n00:00:12,345 --> 00:01:13,999\nTeste";
+        String content = "1\n00:00:12,345 --> 00:01:13,999\nTest";
 
         SubtitleEntry entry = parser.parse(content).getEntries().get(0);
 
@@ -117,56 +117,56 @@ class SrtParserTest {
     }
 
     @Test
-    @DisplayName("Une múltiplas linhas de texto usando \\n")
+    @DisplayName("Joins multiple text lines using \\n")
     void concatenatesMultilineTextWithNewline() {
-        String content = "1\n00:00:01,000 --> 00:00:02,000\nPrimeira\nSegunda\nTerceira";
+        String content = "1\n00:00:01,000 --> 00:00:02,000\nFirst\nSecond\nThird";
 
         SubtitleEntry entry = parser.parse(content).getEntries().get(0);
 
-        assertEquals("Primeira\nSegunda\nTerceira", entry.getText());
+        assertEquals("First\nSecond\nThird", entry.getText());
     }
 
     @Test
-    @DisplayName("Preserva espaços estruturais do texto da legenda")
+    @DisplayName("Preserves structural spaces in the subtitle text")
     void preservesStructuralSpacesInText() {
-        String content = "1\n00:00:01,000 --> 00:00:02,000\n  linha com recuo  ";
+        String content = "1\n00:00:01,000 --> 00:00:02,000\n  indented line  ";
 
         SubtitleEntry entry = parser.parse(content).getEntries().get(0);
 
-        assertEquals("  linha com recuo  ", entry.getText());
+        assertEquals("  indented line  ", entry.getText());
     }
 
     @Test
-    @DisplayName("Ignora linhas em branco entre blocos")
+    @DisplayName("Ignores blank lines between blocks")
     void ignoresBlankLinesBetweenBlocks() {
         String content = """
                 1
                 00:00:01,000 --> 00:00:02,000
-                Primeiro
+                First
 
                    \s
 
 
                 2
                 00:00:03,000 --> 00:00:04,000
-                Segundo
+                Second
                 """;
 
         Subtitle subtitle = parser.parse(content);
 
         assertEquals(2, subtitle.size());
-        assertEquals("Segundo", subtitle.getEntries().get(1).getText());
+        assertEquals("Second", subtitle.getEntries().get(1).getText());
     }
 
     @Test
-    @DisplayName("Ignora uma única linha de ruído no fim do arquivo")
+    @DisplayName("Ignores a single line of noise at the end of the file")
     void skipsSingleLineJunkAtEnd() {
         String content = """
                 1
                 00:00:01,000 --> 00:00:02,000
-                Texto válido
+                Valid text
 
-                rodapé
+                footer
                 """;
 
         Subtitle subtitle = parser.parse(content);
@@ -175,95 +175,95 @@ class SrtParserTest {
     }
 
     // ------------------------------------------------------------------
-    // Fim de linha e codificação
+    // Line endings and encoding
     // ------------------------------------------------------------------
 
     @Test
-    @DisplayName("Aceita quebras de linha CRLF")
+    @DisplayName("Accepts CRLF line breaks")
     void handlesCrlfLineEndings() {
-        String content = "1\r\n00:00:01,000 --> 00:00:02,000\r\nTexto com CRLF\r\n\r\n"
-                + "2\r\n00:00:03,000 --> 00:00:04,000\r\nSegunda\r\n";
+        String content = "1\r\n00:00:01,000 --> 00:00:02,000\r\nText with CRLF\r\n\r\n"
+                + "2\r\n00:00:03,000 --> 00:00:04,000\r\nSecond\r\n";
 
         Subtitle subtitle = parser.parse(content);
 
         assertEquals(2, subtitle.size());
-        assertEquals("Texto com CRLF", subtitle.getEntries().get(0).getText());
-        assertEquals("Segunda", subtitle.getEntries().get(1).getText());
+        assertEquals("Text with CRLF", subtitle.getEntries().get(0).getText());
+        assertEquals("Second", subtitle.getEntries().get(1).getText());
     }
 
     @Test
-    @DisplayName("Aceita quebras de linha CR (Mac clássico)")
+    @DisplayName("Accepts CR line breaks (classic Mac)")
     void handlesCrLineEndings() {
-        String content = "1\r00:00:01,000 --> 00:00:02,000\rTexto com CR\r\r2\r00:00:03,000 --> 00:00:04,000\rSegundo\r";
+        String content = "1\r00:00:01,000 --> 00:00:02,000\rText with CR\r\r2\r00:00:03,000 --> 00:00:04,000\rSecond\r";
 
         Subtitle subtitle = parser.parse(content);
 
         assertEquals(2, subtitle.size());
-        assertEquals("Texto com CR", subtitle.getEntries().get(0).getText());
+        assertEquals("Text with CR", subtitle.getEntries().get(0).getText());
     }
 
     @Test
-    @DisplayName("Remove BOM UTF-8 no início do conteúdo")
+    @DisplayName("Removes the UTF-8 BOM at the start of the content")
     void handlesBomAtStartOfContent() {
-        String content = "\uFEFF1\n00:00:01,000 --> 00:00:02,000\nCom BOM";
+        String content = "\uFEFF1\n00:00:01,000 --> 00:00:02,000\nWith BOM";
 
         Subtitle subtitle = parser.parse(content);
 
         assertEquals(1, subtitle.size());
-        assertEquals("Com BOM", subtitle.getEntries().get(0).getText());
+        assertEquals("With BOM", subtitle.getEntries().get(0).getText());
     }
 
     @Test
-    @DisplayName("Aceita nova linha final após o último bloco")
+    @DisplayName("Accepts a trailing newline after the last block")
     void handlesTrailingNewline() {
-        String content = "1\n00:00:01,000 --> 00:00:02,000\nTexto\n";
+        String content = "1\n00:00:01,000 --> 00:00:02,000\nText\n";
 
         Subtitle subtitle = parser.parse(content);
 
         assertEquals(1, subtitle.size());
-        assertEquals("Texto", subtitle.getEntries().get(0).getText());
+        assertEquals("Text", subtitle.getEntries().get(0).getText());
     }
 
     // ------------------------------------------------------------------
-    // Conteúdo vazio
+    // Empty content
     // ------------------------------------------------------------------
 
     @Test
-    @DisplayName("Retorna legenda vazia para conteúdo nulo")
+    @DisplayName("Returns an empty subtitle for null content")
     void returnsEmptySubtitleForNull() {
         assertTrue(parser.parse(null).getEntries().isEmpty());
     }
 
     @Test
-    @DisplayName("Retorna legenda vazia para conteúdo em branco")
+    @DisplayName("Returns an empty subtitle for blank content")
     void returnsEmptySubtitleForBlank() {
         assertTrue(parser.parse("   \n  ").getEntries().isEmpty());
         assertTrue(parser.parse("").getEntries().isEmpty());
     }
 
     // ------------------------------------------------------------------
-    // Conteúdo inválido (fail-fast)
+    // Invalid content (fail-fast)
     // ------------------------------------------------------------------
 
     @Test
-    @DisplayName("Lança exceção quando o bloco não possui timestamp")
+    @DisplayName("Throws an exception when the block has no timestamp")
     void throwsOnBlockWithoutTimestamp() {
-        String content = "2\neste bloco não tem timestamp\ncontinuação";
+        String content = "2\nthis block has no timestamp\ncontinuation";
 
         SubtitleParseException exception = assertThrows(SubtitleParseException.class, () -> parser.parse(content));
         assertNotNull(exception.getMessage());
     }
 
     // ------------------------------------------------------------------
-    // Utilitários
+    // Utilities
     // ------------------------------------------------------------------
 
     /**
-     * Lê uma fixture de legenda do classpath de teste (diretório {@code /subtitles}).
+     * Reads a subtitle fixture from the test classpath (directory {@code /subtitles}).
      */
     private String readFixture(String name) throws IOException {
         try (InputStream in = getClass().getResourceAsStream("/subtitles/" + name)) {
-            assertNotNull(in, "Fixture não encontrada no classpath: " + name);
+            assertNotNull(in, "Fixture not found on the classpath: " + name);
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
     }

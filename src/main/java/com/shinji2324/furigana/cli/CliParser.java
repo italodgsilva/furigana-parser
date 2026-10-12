@@ -6,51 +6,52 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Interpreta os argumentos da linha de comando.
+ * Parses the command-line arguments.
  *
- * <p>Formas aceitas:
+ * <p>Accepted forms:
  * <pre>
- * furigana-parser [--strip-parentheses] &lt;entrada.srt&gt; &lt;saida.json|saida.ass&gt;
- * furigana-parser [--strip-parentheses] --mpv &lt;entrada.srt&gt; &lt;video&gt;   (alias: play)
- * furigana-parser [--strip-parentheses] [--embed-font[=&lt;arquivo&gt;]] [--subset-font] &lt;entrada.srt&gt; &lt;saida.ass&gt;
+ * furigana-parser [--strip-parentheses] &lt;input.srt&gt; &lt;output.json|output.ass&gt;
+ * furigana-parser [--strip-parentheses] --mpv &lt;input.srt&gt; &lt;video&gt;   (alias: play)
+ * furigana-parser [--strip-parentheses] [--embed-font[=&lt;file&gt;]] [--subset-font] &lt;input.srt&gt; &lt;output.ass&gt;
  * furigana-parser --help
  * </pre>
  *
- * <p>No modo de geração, o formato de saída é decidido pela extensão do arquivo
- * ({@code .json} ou {@code .ass}). A opção {@code --embed-font} embute a fonte da
- * legenda no próprio ASS e {@code --subset-font} (que exige a anterior) reduz a
- * fonte embutida aos glifos usados (veja {@code docs/font-embedding.md}). A opção
- * {@code --strip-parentheses} remove os trechos entre parênteses redondos do texto
- * antes do furigana (vale para JSON, ASS e {@code --mpv}).
+ * <p>In generation mode, the output format is decided by the file extension
+ * ({@code .json} or {@code .ass}). The {@code --embed-font} option embeds the
+ * subtitle font into the ASS file itself, and {@code --subset-font} (which
+ * requires the former) subsets the embedded font to the glyphs used (see
+ * {@code docs/font-embedding.md}). The {@code --strip-parentheses} option removes
+ * the passages between round parentheses from the text before furigana
+ * (applies to JSON, ASS and {@code --mpv}).
  */
 public class CliParser {
 
-    /** Opção que liga a embedação da fonte no ASS. */
+    /** Option that enables font embedding in the ASS. */
     private static final String EMBED_FONT = "--embed-font";
 
-    /** Opção que liga a redução da fonte embutida aos glifos usados. */
+    /** Option that enables subsetting the embedded font to the glyphs used. */
     private static final String SUBSET_FONT = "--subset-font";
 
-    /** Opção que remove os trechos entre parênteses redondos do texto. */
+    /** Option that removes the passages between round parentheses from the text. */
     private static final String STRIP_PARENTHESES = "--strip-parentheses";
 
-    /** Texto de uso exibido em {@code --help} e em erros de argumentos. */
+    /** Usage text shown on {@code --help} and on argument errors. */
     public static final String USAGE = String.join("\n",
-            "Uso:",
-            "  furigana-parser [--strip-parentheses] <entrada.srt> <saida.json|saida.ass>",
-            "  furigana-parser [--strip-parentheses] --mpv <entrada.srt> <video>",
-            "  furigana-parser [--strip-parentheses] [--embed-font[=<arquivo>]] [--subset-font] "
-                    + "<entrada.srt> <saida.ass>",
+            "Usage:",
+            "  furigana-parser [--strip-parentheses] <input.srt> <output.json|output.ass>",
+            "  furigana-parser [--strip-parentheses] --mpv <input.srt> <video>",
+            "  furigana-parser [--strip-parentheses] [--embed-font[=<file>]] [--subset-font] "
+                    + "<input.srt> <output.ass>",
             "  furigana-parser --help");
 
     private static final String PLAY_ALIAS = "play";
 
     /**
-     * Converte os argumentos em um {@link CliCommand}.
+     * Converts the arguments into a {@link CliCommand}.
      *
-     * @param args argumentos da linha de comando
-     * @return o comando interpretado
-     * @throws CliUsageException se os argumentos não formarem um comando válido
+     * @param args command-line arguments
+     * @return the parsed command
+     * @throws CliUsageException if the arguments do not form a valid command
      */
     public CliCommand parse(String[] args) {
         if (args == null || args.length == 0 || isHelp(args[0])) {
@@ -74,7 +75,7 @@ public class CliParser {
                 String value = argument.substring(EMBED_FONT.length() + 1);
                 if (value.isBlank()) {
                     throw new CliUsageException(
-                            "Informe o arquivo de fonte em " + EMBED_FONT + "=<arquivo>.\n" + USAGE);
+                            "Provide the font file as " + EMBED_FONT + "=<file>.\n" + USAGE);
                 }
                 fontPath = Path.of(value);
             } else {
@@ -88,12 +89,13 @@ public class CliParser {
 
         if (subsetFont && !embedFont) {
             throw new CliUsageException(
-                    "A opção " + SUBSET_FONT + " exige " + EMBED_FONT + ".\n" + USAGE);
+                    "Option " + SUBSET_FONT + " requires " + EMBED_FONT + ".\n" + USAGE);
         }
 
         if (isPlay(positional.get(0))) {
             if (positional.size() != 3) {
-                throw new CliUsageException("O modo --mpv exige a legenda SRT e o vídeo.\n" + USAGE);
+                throw new CliUsageException(
+                        "The --mpv mode requires the SRT subtitle and the video.\n" + USAGE);
             }
             return CliCommand.play(Path.of(positional.get(1)), Path.of(positional.get(2)),
                     embedFont, subsetFont, fontPath, stripParentheses);
@@ -110,7 +112,7 @@ public class CliParser {
             case "ass" -> CliCommand.generateAss(input, output, embedFont, subsetFont, fontPath,
                     stripParentheses);
             default -> throw new CliUsageException(
-                    "Formato de saída não suportado: use .json ou .ass.\n" + USAGE);
+                    "Unsupported output format: use .json or .ass.\n" + USAGE);
         };
     }
 
@@ -123,7 +125,7 @@ public class CliParser {
     }
 
     /**
-     * Retorna a extensão do caminho em minúsculas (sem o ponto), ou string vazia.
+     * Returns the path extension in lowercase (without the dot), or an empty string.
      */
     private static String extensionOf(Path path) {
         String name = path.getFileName().toString();

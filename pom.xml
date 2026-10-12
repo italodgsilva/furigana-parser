@@ -12,7 +12,7 @@
 
     <name>Furigana Parser</name>
     <description>
-        Ferramenta para adicionar furigana a legendas japonesas.
+        Tool for adding furigana to Japanese subtitles.
     </description>
 
     <properties>
@@ -37,21 +37,21 @@
             <version>${jackson.version}</version>
         </dependency>
 
-        <!-- Tokenização morfológica do japonês (dicionário IPADIC embutido) -->
+        <!-- Japanese morphological tokenization (bundled IPADIC dictionary) -->
         <dependency>
             <groupId>com.atilika.kuromoji</groupId>
             <artifactId>kuromoji-ipadic</artifactId>
             <version>${kuromoji.version}</version>
         </dependency>
 
-        <!-- Acesso à biblioteca nativa do HarfBuzz para reduzir a fonte embutida -->
+        <!-- Access to the native HarfBuzz library to reduce the bundled font -->
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna</artifactId>
             <version>${jna.version}</version>
         </dependency>
 
-        <!-- Testes -->
+        <!-- Tests -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -65,7 +65,7 @@
 
         <plugins>
 
-            <!-- Compilação Java -->
+            <!-- Java compilation -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -75,14 +75,14 @@
                 </configuration>
             </plugin>
 
-            <!-- Testes JUnit 5 -->
+            <!-- JUnit 5 tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.3</version>
             </plugin>
 
-            <!-- JAR executável -->
+            <!-- Executable JAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -98,7 +98,7 @@
                 </configuration>
             </plugin>
 
-            <!-- Empacota as dependências no JAR (ex.: Jackson), permitindo executar java -jar -->
+            <!-- Packages the dependencies into the JAR (e.g. Jackson), allowing java -jar to run -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -128,15 +128,15 @@
     <profiles>
 
         <!--
-            Compilacao nativa com o GraalVM Native Image (opt-in).
+            Native compilation with GraalVM Native Image (opt-in).
 
-            Requer o GraalVM no PATH/JAVA_HOME (com o `native-image`) e um
-            toolchain C (gcc + cabecalhos de zlib). As configuracoes de
-            reflexao/recursos/JNI ficam em
+            Requires GraalVM on the PATH/JAVA_HOME (with `native-image`) and a
+            C toolchain (gcc + zlib headers). The reflection/resources/JNI
+            configurations live in
             src/main/resources/META-INF/native-image/.
 
-            Uso: mvn -Pnative package
-            Saida: target/furigana-parser
+            Usage: mvn -Pnative package
+            Output: target/furigana-parser
         -->
         <profile>
             <id>native</id>
@@ -144,12 +144,12 @@
                 <plugins>
 
                     <!--
-                        O uber jar do shade duplicaria classes e recursos no
-                        classpath entregue ao native-image: o plugin usa o jar do
-                        projeto *alem* dos jars de dependencia (o dicionario do
-                        Kuromoji entraria duas vezes, ~40 MB a mais). No build
-                        nativo ele e dispensado; o native-image le
-                        target/classes + dependencias.
+                        The shade uber jar would duplicate classes and resources
+                        on the classpath handed to native-image: the plugin uses
+                        the project jar *in addition* to the dependency jars (the
+                        Kuromoji dictionary would be included twice, ~40 MB more).
+                        In the native build it is skipped; native-image reads
+                        target/classes + dependencies.
                     -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>

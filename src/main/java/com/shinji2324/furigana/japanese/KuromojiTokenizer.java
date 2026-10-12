@@ -6,35 +6,36 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Tokenizador morfológico baseado no Kuromoji (dicionário IPADIC).
+ * Morphological tokenizer based on Kuromoji (IPADIC dictionary).
  *
- * <p>Diferente do {@link ScriptJapaneseTokenizer}, faz análise morfológica real:
- * reconhece verbos conjugados, partículas e okurigana, e fornece a leitura de
- * cada token. As leituras do Kuromoji vêm em katakana e são normalizadas para
- * hiragana.
+ * <p>Unlike {@link ScriptJapaneseTokenizer}, it performs real morphological
+ * analysis: it recognizes conjugated verbs, particles, and okurigana, and
+ * provides the reading of each token. Kuromoji's readings come in katakana and
+ * are normalized to hiragana.
  *
- * <p>A leitura fica {@code null} quando o dicionário não a conhece (o Kuromoji
- * usa {@code "*"} para símbolos, números e latim). Cada token também carrega os
- * índices inicial/final no texto tokenizado, preservados para o posicionamento
- * posterior do furigana.
+ * <p>The reading is {@code null} when the dictionary does not know it (Kuromoji
+ * uses {@code "*"} for symbols, numbers, and Latin). Each token also carries the
+ * start/end indices in the tokenized text, preserved for the later positioning
+ * of the furigana.
  *
- * <p>A classe é um adaptador fino: toda a segmentação é delegada ao Kuromoji e a
- * camada {@code japanese} continua sem conhecer furigana ou formatos de saída.
+ * <p>The class is a thin adapter: all segmentation is delegated to Kuromoji and
+ * the {@code japanese} layer still knows nothing about furigana or output
+ * formats.
  */
 public class KuromojiTokenizer implements JapaneseTokenizer {
 
-    /** Dicionário IPADIC com que o tokenizador é construído por padrão. */
+    /** IPADIC dictionary with which the tokenizer is built by default. */
     private final Tokenizer tokenizer;
 
-    /** Cria o tokenizador com o dicionário IPADIC padrão. */
+    /** Creates the tokenizer with the default IPADIC dictionary. */
     public KuromojiTokenizer() {
         this(new Tokenizer());
     }
 
     /**
-     * Cria o tokenizador com uma instância de Kuromoji já configurada.
+     * Creates the tokenizer with an already configured Kuromoji instance.
      *
-     * @param tokenizer tokenizador do Kuromoji a ser adaptado
+     * @param tokenizer Kuromoji tokenizer to be adapted
      */
     public KuromojiTokenizer(Tokenizer tokenizer) {
         this.tokenizer = tokenizer;
@@ -62,11 +63,11 @@ public class KuromojiTokenizer implements JapaneseTokenizer {
     }
 
     /**
-     * Normaliza a leitura do Kuromoji: descarta o marcador {@code "*"} (leitura
-     * desconhecida) e converte o katakana para hiragana.
+     * Normalizes the Kuromoji reading: discards the {@code "*"} marker (unknown
+     * reading) and converts the katakana to hiragana.
      *
-     * @param reading leitura crua do Kuromoji
-     * @return leitura em hiragana, ou {@code null} quando desconhecida
+     * @param reading raw Kuromoji reading
+     * @return reading in hiragana, or {@code null} when unknown
      */
     private String normalizeReading(String reading) {
         if (reading == null || reading.isBlank() || "*".equals(reading)) {

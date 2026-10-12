@@ -3,38 +3,39 @@ package com.shinji2324.furigana.japanese;
 import java.util.regex.Pattern;
 
 /**
- * Utilitários de classificação de escrita japonesa.
+ * Utilities for classifying Japanese script.
  *
- * <p>Centraliza a detecção do tipo de caractere usada pelos tokenizadores e pelo
- * pipeline, evitando duplicar expressões regulares. Faz parte da camada
- * {@code japanese} e não conhece leituras, furigana ou formatos de saída.
+ * <p>Centralizes the character-type detection used by the tokenizers and by the
+ * pipeline, avoiding duplicating regular expressions. It is part of the
+ * {@code japanese} layer and knows nothing about readings, furigana, or output
+ * formats.
  */
 public final class JapaneseScript {
 
-    /** Partícula: um ou mais ideogramas Han (kanji), incluindo extensões. */
+    /** Pattern: one or more Han ideograms (kanji), including extensions. */
     private static final Pattern KANJI = Pattern.compile("[\\p{IsHan}]+");
 
-    /** Um ou mais caracteres hiragana. */
+    /** One or more hiragana characters. */
     private static final Pattern HIRAGANA = Pattern.compile("[\\p{IsHiragana}]+");
 
-    /** Um ou mais caracteres katakana. */
+    /** One or more katakana characters. */
     private static final Pattern KATAKANA = Pattern.compile("[\\p{IsKatakana}]+");
 
-    /** Um ou mais caracteres de pontuação Unicode (inclui 。、？！・). */
+    /** One or more Unicode punctuation characters (includes 。、？！・). */
     private static final Pattern PUNCTUATION = Pattern.compile("[\\p{P}]+");
 
-    /** Um ou mais espaços em branco. */
+    /** One or more whitespace characters. */
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     private JapaneseScript() {
-        // Classe utilitária: não deve ser instanciada.
+        // Utility class: must not be instantiated.
     }
 
     /**
-     * Informa se o texto contém ao menos um ideograma Han (kanji).
+     * Tells whether the text contains at least one Han ideogram (kanji).
      *
-     * @param text texto a inspecionar (pode ser {@code null})
-     * @return {@code true} se houver kanji
+     * @param text text to inspect (may be {@code null})
+     * @return {@code true} if there is kanji
      */
     public static boolean containsKanji(String text) {
         if (text == null || text.isEmpty()) {
@@ -44,20 +45,20 @@ public final class JapaneseScript {
     }
 
     /**
-     * Informa se o caractere é um ideograma Han (kanji).
+     * Tells whether the character is a Han ideogram (kanji).
      *
-     * @param c caractere a inspecionar
-     * @return {@code true} se for kanji
+     * @param c character to inspect
+     * @return {@code true} if it is kanji
      */
     public static boolean isKanji(char c) {
         return KANJI.matcher(String.valueOf(c)).matches();
     }
 
     /**
-     * Informa se o caractere é um kana (hiragana ou katakana).
+     * Tells whether the character is a kana (hiragana or katakana).
      *
-     * @param c caractere a inspecionar
-     * @return {@code true} se for kana
+     * @param c character to inspect
+     * @return {@code true} if it is kana
      */
     public static boolean isKana(char c) {
         return HIRAGANA.matcher(String.valueOf(c)).matches()
@@ -65,14 +66,14 @@ public final class JapaneseScript {
     }
 
     /**
-     * Converte caracteres katakana para hiragana, preservando os demais.
+     * Converts katakana characters to hiragana, preserving the rest.
      *
-     * <p>A conversão desloca os katakana do bloco principal (U+30A1–U+30F6) em
-     * 0x60 posições; caracteres já em hiragana, pontuação e o alongador {@code ー}
-     * permanecem inalterados.
+     * <p>The conversion shifts the katakana of the main block (U+30A1–U+30F6) by
+     * 0x60 positions; characters already in hiragana, punctuation, and the
+     * prolonged sound mark {@code ー} remain unchanged.
      *
-     * @param text texto a normalizar (pode ser {@code null})
-     * @return texto com katakana convertido para hiragana
+     * @param text text to normalize (may be {@code null})
+     * @return text with katakana converted to hiragana
      */
     public static String toHiragana(String text) {
         if (text == null || text.isEmpty()) {
@@ -91,14 +92,14 @@ public final class JapaneseScript {
     }
 
     /**
-     * Classifica o texto conforme o tipo de escrita que o compõe.
+     * Classifies the text according to the type of script it is composed of.
      *
-     * <p>O texto é classificado apenas quando composto por um único tipo de
-     * escrita; combinações (ex.: {@code 勉強し}) resultam em {@code UNKNOWN}.
+     * <p>The text is classified only when it is composed of a single type of
+     * script; combinations (e.g. {@code 勉強し}) result in {@code UNKNOWN}.
      *
-     * @param text texto a classificar
+     * @param text text to classify
      * @return {@code KANJI}, {@code HIRAGANA}, {@code KATAKANA},
-     *         {@code PUNCTUATION}, {@code WHITESPACE} ou {@code UNKNOWN}
+     *         {@code PUNCTUATION}, {@code WHITESPACE} or {@code UNKNOWN}
      */
     public static String classify(String text) {
         if (text == null || text.isEmpty()) {

@@ -1,17 +1,17 @@
 package com.shinji2324.furigana.cli;
 
 /**
- * Erro de uso da linha de comando (argumentos ausentes ou inválidos).
+ * Command-line usage error (missing or invalid arguments).
  *
- * <p>Sinaliza que a aplicação deve imprimir as instruções de uso e encerrar com
- * código de erro de argumentos, sem tentar processar nada.
+ * <p>Signals that the application should print the usage instructions and exit
+ * with the argument error code, without attempting to process anything.
  */
 public class CliUsageException extends RuntimeException {
 
     /**
-     * Cria a exceção com a mensagem de uso.
+     * Creates the exception with the usage message.
      *
-     * @param message mensagem exibida ao usuário
+     * @param message message shown to the user
      */
     public CliUsageException(String message) {
         super(message);

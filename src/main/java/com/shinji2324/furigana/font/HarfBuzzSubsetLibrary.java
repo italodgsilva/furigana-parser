@@ -16,43 +16,43 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * Acesso à biblioteca nativa do HarfBuzz para subsetting
+ * Access to the native HarfBuzz library for subsetting
  * ({@code libharfbuzz-subset}).
  *
- * <p>O subsetting de fontes CFF/CID como a {@code Noto Sans CJK JP} exige uma
- * implementação especializada; o HarfBuzz é a referência e é o mesmo componente
- * usado por ferramentas como o {@code assfonts}. Aqui ele é acessado por JNA,
- * sem processo externo.
+ * <p>Subsetting CFF/CID fonts such as {@code Noto Sans CJK JP} requires a
+ * specialized implementation; HarfBuzz is the reference and is the same
+ * component used by tools such as {@code assfonts}. Here it is accessed through
+ * JNA, without an external process.
  *
- * <p>A biblioteca é carregada sob demanda. Como o nome do arquivo varia entre
- * sistemas (no Linux a instalação de runtime traz apenas o soname versionado,
- * ex.: {@code libharfbuzz-subset.so.0}), a busca tenta primeiro a resolução
- * padrão do JNA e depois varre os diretórios usuais. É possível apontar um
- * arquivo explícito pela propriedade {@value #OVERRIDE_PROPERTY} ou pela
- * variável de ambiente {@value #OVERRIDE_ENV}.
+ * <p>The library is loaded on demand. Since the file name varies between
+ * systems (on Linux the runtime installation ships only the versioned soname,
+ * e.g. {@code libharfbuzz-subset.so.0}), the search first tries JNA's standard
+ * resolution and then scans the usual directories. It is possible to point to
+ * an explicit file through the {@value #OVERRIDE_PROPERTY} property or the
+ * {@value #OVERRIDE_ENV} environment variable.
  *
- * <p>As funções {@code hb_blob_*} e {@code hb_face_*} vivem na biblioteca core
- * ({@code libharfbuzz}), que é dependência da biblioteca de subsetting — por
- * isso resolvem a partir do mesmo identificador carregado.
+ * <p>The {@code hb_blob_*} and {@code hb_face_*} functions live in the core
+ * library ({@code libharfbuzz}), which is a dependency of the subsetting
+ * library — that is why they resolve from the same loaded identifier.
  */
 final class HarfBuzzSubsetLibrary {
 
-    /** Propriedade de sistema que aponta o arquivo da biblioteca. */
+    /** System property that points to the library file. */
     static final String OVERRIDE_PROPERTY = "furigana.harfbuzz.subset";
 
-    /** Variável de ambiente que aponta o arquivo da biblioteca. */
+    /** Environment variable that points to the library file. */
     static final String OVERRIDE_ENV = "FURIGANA_HARFBUZZ_SUBSET";
 
-    /** Nome lógico usado na resolução padrão do JNA. */
+    /** Logical name used in JNA's standard resolution. */
     private static final String LIBRARY_NAME = "harfbuzz-subset";
 
-    /** Modo de memória do HarfBuzz em que os bytes informados são copiados. */
+    /** HarfBuzz memory mode in which the given bytes are copied. */
     static final int HB_MEMORY_MODE_DUPLICATE = 0;
 
     private HarfBuzzSubsetLibrary() {
     }
 
-    /** Funções do HarfBuzz usadas pelo subsetting. */
+    /** HarfBuzz functions used by subsetting. */
     interface HarfBuzz extends Library {
 
         Pointer hb_blob_create(Pointer data, int length, int mode, Pointer userData, Pointer destroy);
@@ -80,18 +80,18 @@ final class HarfBuzzSubsetLibrary {
         void hb_set_add(Pointer set, int codePoint);
     }
 
-    /** Carrega a biblioteca usando os nomes e diretórios padrão do sistema. */
+    /** Loads the library using the system's standard names and directories. */
     static Optional<HarfBuzz> load() {
         return load(defaultNames(), defaultDirectories());
     }
 
     /**
-     * Carrega a biblioteca tentando os nomes informados e, em seguida, varrendo
-     * os diretórios em busca de um arquivo de subsetting.
+     * Loads the library by trying the given names and then scanning the
+     * directories for a subsetting file.
      *
-     * @param names       nomes lógicos ou caminhos a tentar primeiro
-     * @param directories diretórios onde procurar o arquivo
-     * @return a biblioteca carregada, ou vazio se não for encontrada
+     * @param names       logical names or paths to try first
+     * @param directories directories in which to look for the file
+     * @return the loaded library, or empty if it is not found
      */
     static Optional<HarfBuzz> load(List<String> names, List<Path> directories) {
         for (String name : names) {
@@ -151,7 +151,7 @@ final class HarfBuzzSubsetLibrary {
                         .sorted()
                         .forEach(files::add);
             } catch (IOException e) {
-                // Diretório inacessível: ignora.
+                // Inaccessible directory: ignore it.
             }
         }
         return files;

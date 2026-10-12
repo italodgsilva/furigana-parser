@@ -5,51 +5,51 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Modelo intermediário de uma legenda processada com furigana.
+ * Intermediate model of a subtitle processed with furigana.
  *
- * <p>É a representação utilizada pelas camadas de saída (JSON, ASS, futuros
- * formatos). Uma entrada é adicionada por entrada SRT, preservando sincronização.
+ * <p>It is the representation used by the output layers (JSON, ASS, future
+ * formats). One entry is added per SRT entry, preserving synchronization.
  */
 public class FuriganaDocument {
 
     private final List<FuriganaEntry> entries;
 
-    /** Cria um documento vazio. */
+    /** Creates an empty document. */
     public FuriganaDocument() {
         this.entries = new ArrayList<>();
     }
 
     /**
-     * Cria um documento com as entradas informadas.
+     * Creates a document with the given entries.
      *
-     * @param entries entradas do documento
+     * @param entries entries of the document
      */
     public FuriganaDocument(List<FuriganaEntry> entries) {
         this.entries = new ArrayList<>(entries);
     }
 
     /**
-     * Adiciona uma entrada ao documento.
+     * Adds an entry to the document.
      *
-     * @param entry entrada a ser adicionada
+     * @param entry entry to be added
      */
     public void addEntry(FuriganaEntry entry) {
         entries.add(entry);
     }
 
     /**
-     * Retorna as entradas do documento, em uma visão somente leitura.
+     * Returns the entries of the document, in a read-only view.
      *
-     * @return lista de entradas, na ordem em que foram adicionadas
+     * @return list of entries, in the order they were added
      */
     public List<FuriganaEntry> getEntries() {
         return Collections.unmodifiableList(entries);
     }
 
     /**
-     * Retorna a quantidade de entradas do documento.
+     * Returns the number of entries in the document.
      *
-     * @return número de entradas
+     * @return number of entries
      */
     public int size() {
         return entries.size();

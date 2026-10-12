@@ -12,50 +12,50 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link SfntReader}: leitura do nome de família e separação das faces
- * de uma coleção.
+ * Tests for {@link SfntReader}: reading the family name and separating the faces
+ * of a collection.
  */
 class SfntReaderTest {
 
     @Test
-    @DisplayName("Lê a família de um sfnt autônomo")
+    @DisplayName("Reads the family of a standalone sfnt")
     void readsSingleFace() {
-        List<SfntReader.Face> faces = SfntReader.read(TestFonts.sfnt("Minha Fonte"));
+        List<SfntReader.Face> faces = SfntReader.read(TestFonts.sfnt("My Font"));
 
         assertEquals(1, faces.size());
-        assertEquals(Set.of("Minha Fonte"), faces.get(0).families());
+        assertEquals(Set.of("My Font"), faces.get(0).families());
         assertEquals(-1, faces.get(0).faceIndex());
         assertFalse(faces.get(0).cff());
     }
 
     @Test
-    @DisplayName("Separa as faces de uma coleção e identifica a família de cada uma")
+    @DisplayName("Separates the faces of a collection and identifies each family")
     void separatesCollectionFaces() {
-        byte[] collection = TestFonts.ttc("Fonte A", "Fonte B");
+        byte[] collection = TestFonts.ttc("Font A", "Font B");
 
         List<SfntReader.Face> faces = SfntReader.read(collection);
 
         assertEquals(2, faces.size());
-        assertEquals(Set.of("Fonte A"), faces.get(0).families());
+        assertEquals(Set.of("Font A"), faces.get(0).families());
         assertEquals(0, faces.get(0).faceIndex());
-        assertEquals(Set.of("Fonte B"), faces.get(1).families());
+        assertEquals(Set.of("Font B"), faces.get(1).families());
         assertEquals(1, faces.get(1).faceIndex());
     }
 
     @Test
-    @DisplayName("A face recortada da coleção equivale ao sfnt autônomo")
+    @DisplayName("The face extracted from the collection equals the standalone sfnt")
     void extractsFaceAsStandaloneSfnt() {
-        byte[] collection = TestFonts.ttc("Fonte A", "Fonte B");
+        byte[] collection = TestFonts.ttc("Font A", "Font B");
 
         List<SfntReader.Face> faces = SfntReader.read(collection);
 
-        // O conteúdo recortado deve ser idêntico à fonte autônoma equivalente.
-        assertArrayEquals(TestFonts.sfnt("Fonte B"), faces.get(1).data());
+        // The extracted content must be identical to the equivalent standalone font.
+        assertArrayEquals(TestFonts.sfnt("Font B"), faces.get(1).data());
         assertTrue(SfntReader.isSfnt(faces.get(1).data(), 0));
     }
 
     @Test
-    @DisplayName("Ignora conteúdo que não é um sfnt")
+    @DisplayName("Ignores content that is not an sfnt")
     void ignoresNonSfntContent() {
         assertTrue(SfntReader.read(null).isEmpty());
         assertTrue(SfntReader.read(new byte[] {1, 2, 3}).isEmpty());

@@ -1,5 +1,5 @@
-# Integração contínua: compila o projeto e executa a suíte de testes
-# a cada push na main, a cada pull request e manualmente.
+# Continuous integration: builds the project and runs the test suite
+# on every push to main, on every pull request and manually.
 name: CI
 
 on:
@@ -9,36 +9,36 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# Cancela execuções antigas da mesma branch para economizar minutos de CI.
+# Cancels old runs of the same branch to save CI minutes.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Permissões mínimas necessárias (somente leitura do repositório).
+# Minimum required permissions (read-only repository access).
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Build e testes (Java 21)
+    name: Build and tests (Java 21)
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout do código
+      - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Configurar JDK 21 (Temurin)
+      - name: Set up JDK 21 (Temurin)
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
-      # `verify` executa os testes e empacota o JAR.
-      - name: Compilar e executar os testes
+      # `verify` runs the tests and packages the JAR.
+      - name: Compile and run the tests
         run: mvn --batch-mode --no-transfer-progress clean verify
 
-      - name: Publicar relatórios de teste (em caso de falha)
+      - name: Upload test reports (on failure)
         if: failure()
         uses: actions/upload-artifact@v7
         with:

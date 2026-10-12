@@ -8,53 +8,53 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Gera a legenda ASS com furigana posicionado (estratégia 3 do docs/ass-format.md).
+ * Generates the ASS subtitle with positioned furigana (strategy 3 of docs/ass-format.md).
  *
- * <p>Cada linha visual do texto principal vira um evento no estilo {@code Main},
- * centralizado com {@code \pos}. Cada leitura vira um evento adicional no estilo
- * {@code Furigana}, posicionado por {@code \pos} sobre o kanji correspondente,
- * usando a grade de caracteres de {@link AssLayout}. O texto e a sincronização
- * originais são preservados.
+ * <p>Each visual line of the main text becomes an event in the {@code Main} style,
+ * centered with {@code \pos}. Each reading becomes an additional event in the
+ * {@code Furigana} style, positioned by {@code \pos} over the corresponding kanji,
+ * using the character grid of {@link AssLayout}. The original text and timing are
+ * preserved.
  *
- * <p>O gerador recebe um {@link FuriganaDocument} já processado: ele não conhece
- * SRT, Kuromoji nem o Jisho. Estilos e resolução ficam no template
+ * <p>The generator receives an already processed {@link FuriganaDocument}: it does
+ * not know SRT, Kuromoji, or Jisho. Styles and resolution live in the template
  * {@link AssTemplate} ({@code /ass/default-style.ass}).
  *
- * <p>A associação entre segmentos e linhas visuais é feita localizando cada
- * segmento no texto original (por deslocamento de caractere). Isso funciona tanto
- * com tokenizadores que preservam espaços e quebras de linha como tokens
- * (Kuromoji) quanto com os que os descartam ({@code ScriptJapaneseTokenizer}).
+ * <p>The association between segments and visual lines is done by locating each
+ * segment in the original text (by character offset). This works both with
+ * tokenizers that preserve spaces and line breaks as tokens (Kuromoji) and with
+ * those that discard them ({@code ScriptJapaneseTokenizer}).
  */
 public class AssGenerator {
 
-    /** Estilo do texto principal. */
+    /** Style of the main text. */
     static final String MAIN_STYLE = "Main";
 
-    /** Estilo do furigana. */
+    /** Furigana style. */
     static final String FURIGANA_STYLE = "Furigana";
 
     private final AssTemplate template;
     private final AssWriter writer;
 
-    /** Cria o gerador com o template padrão e o writer padrão. */
+    /** Creates the generator with the default template and the default writer. */
     public AssGenerator() {
         this(AssTemplate.defaultTemplate(), new AssWriter());
     }
 
     /**
-     * Cria o gerador com um template informado.
+     * Creates the generator with a given template.
      *
-     * @param template cabeçalho ASS (estilos e resolução)
+     * @param template ASS header (styles and resolution)
      */
     public AssGenerator(AssTemplate template) {
         this(template, new AssWriter());
     }
 
     /**
-     * Cria o gerador com template e writer informados.
+     * Creates the generator with a given template and writer.
      *
-     * @param template cabeçalho ASS
-     * @param writer   serializador de eventos
+     * @param template ASS header
+     * @param writer   event serializer
      */
     public AssGenerator(AssTemplate template, AssWriter writer) {
         this.template = template;
@@ -62,10 +62,10 @@ public class AssGenerator {
     }
 
     /**
-     * Gera o conteúdo ASS completo a partir do documento processado.
+     * Generates the complete ASS content from the processed document.
      *
-     * @param document documento com as entradas e segmentos de furigana
-     * @return conteúdo ASS (cabeçalho + eventos)
+     * @param document document with the furigana entries and segments
+     * @return ASS content (header + events)
      */
     public String generate(FuriganaDocument document) {
         List<AssEvent> events = new ArrayList<>();
@@ -78,7 +78,7 @@ public class AssGenerator {
     }
 
     /**
-     * Converte uma entrada em eventos ASS (texto principal + furigana por linha).
+     * Converts an entry into ASS events (main text + furigana per line).
      */
     private List<AssEvent> eventsForEntry(FuriganaEntry entry) {
         String start = AssWriter.formatTime(entry.start());
@@ -87,12 +87,12 @@ public class AssGenerator {
         String text = entry.text();
         String[] lines = text.split("\n", -1);
 
-        // Deslocamento absoluto do primeiro caractere de cada linha.
+        // Absolute offset of the first character of each line.
         int[] lineStart = new int[lines.length];
         int runningOffset = 0;
         for (int i = 0; i < lines.length; i++) {
             lineStart[i] = runningOffset;
-            runningOffset += lines[i].length() + 1; // +1 refere-se ao '\n' separador
+            runningOffset += lines[i].length() + 1; // +1 refers to the '\n' separator
         }
 
         List<List<AssEvent>> furiganaByLine = new ArrayList<>();
@@ -147,7 +147,7 @@ public class AssGenerator {
     }
 
     /**
-     * Retorna o índice da linha que contém o deslocamento informado.
+     * Returns the index of the line that contains the given offset.
      */
     private static int lineIndexForOffset(int offset, int[] lineStart) {
         int result = 0;
@@ -162,7 +162,7 @@ public class AssGenerator {
     }
 
     /**
-     * Monta o prefixo de override com alinhamento central e posição.
+     * Builds the override prefix with center alignment and position.
      */
     private static String position(double x, double y) {
         return "{\\an5\\pos(" + Math.round(x) + "," + Math.round(y) + ")}";

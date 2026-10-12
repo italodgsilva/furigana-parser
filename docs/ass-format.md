@@ -1,54 +1,54 @@
-# Formato ASS e Furigana
+# ASS Format and Furigana
 
-## Objetivo
+## Goal
 
-O formato ASS (Advanced SubStation Alpha) é utilizado para produzir legendas com
-maior controle de posicionamento e formatação.
+The ASS (Advanced SubStation Alpha) format is used to produce subtitles with
+greater control over positioning and formatting.
 
-O objetivo é representar visualmente algo semelhante a:
+The goal is to visually represent something similar to:
 
 ```text
    きょう       にほんご
 今日は日本語を勉強します。
 ```
 
-em vez de simplesmente:
+instead of simply:
 
 ```text
 今日は日本語を勉強します。
 （きょう）（にほんご）
 ```
 
-## Por que ASS?
+## Why ASS?
 
-SRT possui uma estrutura simples e pouca capacidade de controle visual.
+SRT has a simple structure and little capacity for visual control.
 
-ASS permite controlar propriedades como:
+ASS allows controlling properties such as:
 
-- posição;
-- fonte;
-- tamanho;
-- cor;
-- alinhamento;
-- estilo;
-- espaçamento;
-- efeitos de texto;
-- posicionamento individual de elementos.
+- position;
+- font;
+- size;
+- color;
+- alignment;
+- style;
+- spacing;
+- text effects;
+- individual positioning of elements.
 
-Isso o torna mais adequado para uma representação de furigana.
+This makes it more suitable for a furigana representation.
 
-## Importante
+## Important
 
-ASS não deve ser tratado como parte da lógica de obtenção das leituras.
+ASS must not be treated as part of the logic for obtaining readings.
 
-A arquitetura é:
+The architecture is:
 
 ```text
-Japonês
+Japanese
    ↓
-Tokenização
+Tokenization
    ↓
-Leituras
+Readings
    ↓
 FuriganaDocument
    ↓
@@ -57,63 +57,63 @@ AssGenerator
 ASS
 ```
 
-O `AssGenerator` recebe um documento já processado. Ele não consulta o Jisho nem
-conhece SRT ou tokenizadores.
+`AssGenerator` receives an already processed document. It does not query Jisho nor
+know SRT or tokenizers.
 
-## Modelo visual
+## Visual model
 
-Considere:
+Consider:
 
 ```text
 日本語
 にほんご
 ```
 
-A representação desejada é:
+The desired representation is:
 
 ```text
 にほんご
 日本語
 ```
 
-com a leitura posicionada acima do texto principal.
+with the reading positioned above the main text.
 
-Para uma frase:
+For a sentence:
 
 ```text
 今日は日本語を勉強します。
 ```
 
-podemos conceitualmente dividir a linha em:
+we can conceptually split the line into:
 
 ```text
 今日 | は | 日本語 | を | 勉強 | します | 。
 ```
 
-e renderizar apenas os segmentos que possuem leitura:
+and render only the segments that have a reading:
 
 ```text
   きょう             にほんご       べんきょう
 今日は              日本語        勉強 します。
 ```
 
-## Estratégias possíveis
+## Possible strategies
 
-### Estratégia 1 — duas linhas
+### Strategy 1 — two lines
 
-Gerar duas linhas de texto:
+Generate two lines of text:
 
 ```text
 furigana
-texto principal
+main text
 ```
 
-É relativamente simples, mas apresenta problemas de alinhamento quando existem
-vários segmentos com tamanhos diferentes.
+It is relatively simple, but it has alignment problems when there are several
+segments of different sizes.
 
-### Estratégia 2 — posicionamento por segmento
+### Strategy 2 — per-segment positioning
 
-Cada segmento é renderizado separadamente:
+Each segment is rendered separately:
 
 ```text
 [今日] [は] [日本語] [を] [勉強] [します]
@@ -121,118 +121,114 @@ Cada segmento é renderizado separadamente:
 furigana      furigana     furigana
 ```
 
-Oferece maior controle, mas aumenta a complexidade do gerador.
+It offers more control, but increases the complexity of the generator.
 
-### Estratégia 3 — tags e posicionamento ASS
+### Strategy 3 — ASS tags and positioning
 
-Utiliza tags de posicionamento e estilos ASS para construir a composição
-diretamente dentro da legenda.
+It uses positioning tags and ASS styles to build the composition directly inside
+the subtitle.
 
-## Estratégia adotada
+## Adopted strategy
 
-Foi adotada a **Estratégia 3**, combinada com a ideia da Estratégia 2:
-posicionamento por segmento via tags ASS.
+**Strategy 3** was adopted, combined with the idea of Strategy 2: per-segment
+positioning via ASS tags.
 
-O `AssGenerator`:
+`AssGenerator`:
 
-- emite um evento por **linha visual** do texto principal, no estilo `Main`,
-  centralizado com `{\an5\pos(x,y)}`;
-- emite um evento independente de furigana, no estilo `Furigana`, para cada
-  segmento com leitura, posicionado com `{\an5\pos(x,y)}` sobre o kanji
-  correspondente.
+- emits one event per **visual line** of the main text, in the `Main` style,
+  centered with `{\an5\pos(x,y)}`;
+- emits an independent furigana event, in the `Furigana` style, for each segment
+  with a reading, positioned with `{\an5\pos(x,y)}` above the corresponding kanji.
 
-Como o ASS não possui rubi nativo, a coordenada horizontal do furigana é
-calculada a partir de uma **grade de caracteres** (`AssLayout`): cada caractere de
-largura total (kanji, kana, pontuação japonesa) ocupa um "em", o katakana
-half-width ocupa meio "em", e os caracteres ASCII usam o **avanço real** da fonte
-do template (`ASCII_ADVANCES`, extraído de `hmtx`). O latim de fonte CJK é
-proporcional — o espaço mede `0,224` em, o `(` mede `0,338` em —, bem distante de
-uma largura fixa de meio "em", e ignorar isso desloca o furigana de forma
-cumulativa ao longo da linha.
+Since ASS has no native ruby, the horizontal coordinate of the furigana is
+calculated from a **character grid** (`AssLayout`): each full-width character
+(kanji, kana, Japanese punctuation) occupies one "em", half-width katakana occupies
+half an "em", and ASCII characters use the **real advance** of the template font
+(`ASCII_ADVANCES`, extracted from `hmtx`). The CJK font's Latin is proportional —
+the space measures `0.224` em, the `(` measures `0.338` em —, far from a fixed
+half-em width, and ignoring this shifts the furigana cumulatively along the line.
 
-O "em" **não** é o tamanho de fonte declarado no ASS: o libass (usado pelo MPV)
-interpreta o `Fontsize` como a altura da linha da fonte (`hhea`), então o avanço
-real de um caractere de largura total é `Fontsize * EM_PER_FONT_SIZE`. Para a
-fonte do template (`Noto Sans CJK JP`), `EM_PER_FONT_SIZE = 1000/1448 ≈ 0,6906`.
-As coordenadas verticais do texto principal usam a caixa de linha do libass
-(que tem exatamente a altura do `Fontsize`); o furigana é posicionado pelos
-"em" (as caixas de glifo, `CELL_WIDTH` e `FURIGANA_FONT_SIZE * EM_PER_FONT_SIZE`),
-com uma folga pequena (`FURIGANA_GAP`) — a caixa de linha desta fonte tem um
-"leading" interno grande, que afastaria a leitura do kanji se fosse usada como
-referência.
+The "em" is **not** the font size declared in the ASS: libass (used by MPV)
+interprets `Fontsize` as the font's line height (`hhea`), so the real advance of a
+full-width character is `Fontsize * EM_PER_FONT_SIZE`. For the template font
+(`Noto Sans CJK JP`), `EM_PER_FONT_SIZE = 1000/1448 ≈ 0.6906`. The vertical
+coordinates of the main text use the libass line box (which has exactly the height
+of `Fontsize`); the furigana is positioned by the "em" (the glyph boxes,
+`CELL_WIDTH` and `FURIGANA_FONT_SIZE * EM_PER_FONT_SIZE`), with a small gap
+(`FURIGANA_GAP`) — this font's line box has a large internal "leading", which would
+push the reading away from the kanji if used as a reference.
 
-O texto e a sincronização originais são sempre preservados. A associação entre
-segmentos e linhas visuais é feita por deslocamento de caractere no texto
-original, o que funciona tanto com tokenizadores que preservam quebras de linha
-como tokens (Kuromoji) quanto com os que as descartam
-(`ScriptJapaneseTokenizer`).
+The original text and synchronization are always preserved. The association between
+segments and visual lines is done by character offset in the original text, which
+works both with tokenizers that preserve line breaks as tokens (Kuromoji) and with
+those that discard them (`ScriptJapaneseTokenizer`).
 
-As constantes geométricas (`AssLayout`) pressupõem a resolução 1920x1080 e a
-fonte do template padrão; alterar o `PlayRes` ou a fonte exige ajustar essas
-constantes (em particular `EM_PER_FONT_SIZE` e a tabela `ASCII_ADVANCES`).
+The geometric constants (`AssLayout`) assume the 1920x1080 resolution and the
+default template font; changing the `PlayRes` or the font requires adjusting these
+constants (in particular `EM_PER_FONT_SIZE` and the `ASCII_ADVANCES` table).
 
-## Estilos
+## Styles
 
-Os estilos ASS são mantidos separados da lógica de geração: ficam no recurso
-`src/main/resources/ass/default-style.ass`, que também define `[Script Info]`,
-resolução e o cabeçalho de `[Events]`. O `AssGenerator` apenas anexa os eventos.
+The ASS styles are kept separate from the generation logic: they live in the
+resource `src/main/resources/ass/default-style.ass`, which also defines
+`[Script Info]`, the resolution and the `[Events]` header. `AssGenerator` only
+appends the events.
 
-Estilos atuais:
+Current styles:
 
 ```text
-Main       — texto principal (branco, 64px)
-Furigana   — leitura (branco, 32px), exibida acima do texto principal
+Main       — main text (white, 64px)
+Furigana   — reading (white, 32px), displayed above the main text
 ```
 
-Isso permite alterar fonte, tamanho, cor, margem e estilo sem modificar a lógica
-responsável pela composição do texto.
+This makes it possible to change the font, size, color, margin and style without
+modifying the logic responsible for composing the text.
 
-## Sincronização
+## Synchronization
 
-O timestamp da legenda original é preservado.
+The original subtitle timestamp is preserved.
 
-Se uma entrada SRT tiver:
+If an SRT entry has:
 
 ```text
 00:01:12,500 --> 00:01:15,200
 ```
 
-a entrada ASS correspondente utiliza o mesmo intervalo temporal
-(`0:01:12.50` → `0:01:15.20`). O processo de adicionar furigana não altera a
-sincronização.
+the corresponding ASS entry uses the same time interval (`0:01:12.50` →
+`0:01:15.20`). The process of adding furigana does not change the synchronization.
 
-## Caracteres japoneses
+## Japanese characters
 
-O gerador preserva integralmente:
+The generator fully preserves:
 
 - kanji;
 - hiragana;
 - katakana;
-- pontuação japonesa;
-- espaços relevantes;
-- caracteres Unicode presentes na legenda.
+- Japanese punctuation;
+- relevant spaces;
+- Unicode characters present in the subtitle.
 
-A codificação de saída é UTF-8.
+The output encoding is UTF-8.
 
-## Questões em aberto
+## Open questions
 
-Pontos que ainda podem exigir refinamento:
+Points that may still need refinement:
 
-- caracteres fora de ASCII e CJK (ex.: letras latinas acentuadas, outros
-  alfabetos) ainda usam um "em" por padrão, sem medição real;
-- kerning entre pares de glifos não é considerado;
-- colisão entre linhas com furigana em textos com muitas linhas;
-- textos muito longos (quebra automática).
+- characters outside ASCII and CJK (e.g. accented Latin letters, other alphabets)
+  still use one "em" by default, with no real measurement;
+- kerning between glyph pairs is not considered;
+- collision between lines with furigana in texts with many lines;
+- very long texts (automatic wrapping).
 
-## Exemplo conceitual de transformação
+## Conceptual transformation example
 
-Entrada:
+Input:
 
 ```text
 今日は日本語を勉強します。
 ```
 
-Modelo intermediário:
+Intermediate model:
 
 ```text
 今日       → きょう
@@ -244,7 +240,7 @@ Modelo intermediário:
 。         → -
 ```
 
-Saída ASS real (trecho):
+Actual ASS output (excerpt):
 
 ```text
 Dialogue: 0,0:00:01.00,0:00:04.50,Main,,0,0,0,,{\an5\pos(960,988)}今日は日本語を勉強します。
@@ -253,20 +249,21 @@ Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(872,951)}にほん�
 Dialogue: 0,0:00:01.00,0:00:04.50,Furigana,,0,0,0,,{\an5\pos(1026,951)}べんきょう
 ```
 
-## Fonte embutida
+## Embedded font
 
-O ASS pode carregar a própria fonte na seção `[Fonts]`, dispensando instalá-la na
-máquina que exibe a legenda. A opção `--embed-font` da CLI faz essa embedação
-localizando a fonte do estilo pelo nome de família e gravando os bytes antes da
-seção `[Events]`. Com `--subset-font`, a fonte é reduzida aos glifos usados na
-legenda (via HarfBuzz) antes de ser embutida, o que reduz muito o arquivo. Veja
+The ASS can carry the font itself in the `[Fonts]` section, so there is no need to
+install it on the machine displaying the subtitle. The CLI's `--embed-font` option
+does this embedding by locating the style's font by family name and writing the
+bytes before the `[Events]` section. With `--subset-font`, the font is subset to
+the glyphs used in the subtitle (via HarfBuzz) before being embedded, which greatly
+reduces the file size. See
 [`font-embedding.md`](font-embedding.md).
 
-## Relação com MPV
+## Relation to MPV
 
-O MPV será responsável apenas pela reprodução e exibição do arquivo ASS.
+MPV will be responsible only for playing and displaying the ASS file.
 
-O pipeline de geração é independente:
+The generation pipeline is independent:
 
 ```text
 SRT
@@ -278,7 +275,7 @@ ASS
 MPV
 ```
 
-Posteriormente poderá ser criada uma integração mais dinâmica, na qual o MPV
-utilize scripts para solicitar ou atualizar as leituras durante a reprodução.
+Later, a more dynamic integration could be created, in which MPV uses scripts to
+request or update the readings during playback.
 
-Essa integração fica fora do escopo inicial.
+That integration is outside the initial scope.

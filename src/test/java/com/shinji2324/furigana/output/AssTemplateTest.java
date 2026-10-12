@@ -9,12 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link AssTemplate}: conteúdo padrão e nomes de família dos estilos.
+ * Tests for {@link AssTemplate}: default content and style family names.
  */
 class AssTemplateTest {
 
     @Test
-    @DisplayName("Lista os nomes de família distintos dos estilos")
+    @DisplayName("Lists the distinct family names of the styles")
     void listsDistinctFontFamilies() {
         AssTemplate template = new AssTemplate(String.join("\n",
                 "[V4+ Styles]",
@@ -25,13 +25,13 @@ class AssTemplateTest {
     }
 
     @Test
-    @DisplayName("Sem estilos, não há famílias")
+    @DisplayName("Without styles, there are no families")
     void returnsEmptyWithoutStyles() {
         assertTrue(new AssTemplate("[Script Info]\nTitle: X\n").fontFamilies().isEmpty());
     }
 
     @Test
-    @DisplayName("O template padrão usa a fonte Noto Sans CJK JP")
+    @DisplayName("The default template uses the Noto Sans CJK JP font")
     void defaultTemplateUsesNotoCjk() {
         assertEquals(List.of("Noto Sans CJK JP"),
                 AssTemplate.defaultTemplate().fontFamilies());

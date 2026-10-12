@@ -1,21 +1,21 @@
 package com.shinji2324.furigana.japanese;
 
 /**
- * Unidade identificada durante a tokenização.
+ * Unit identified during tokenization.
  *
- * <p>Além da superfície ({@code surface}) e do tipo ({@code kind}), um token pode
- * carregar a leitura fornecida pelo tokenizador morfológico (Kuromoji), sempre
- * normalizada para hiragana. A leitura é {@code null} quando o tokenizador não a
- * conhece (símbolos, números, latim) ou quando o tokenizador é o provisório
- * {@link ScriptJapaneseTokenizer}, que não produz leituras.
+ * <p>Besides the surface ({@code surface}) and the type ({@code kind}), a token
+ * can carry the reading provided by the morphological tokenizer (Kuromoji),
+ * always normalized to hiragana. The reading is {@code null} when the tokenizer
+ * does not know it (symbols, numbers, Latin) or when the tokenizer is the
+ * provisional {@link ScriptJapaneseTokenizer}, which produces no readings.
  *
- * <p>Os deslocamentos ({@code start}/{@code end}) são índices de caractere no
- * texto tokenizado e valem {@code -1} quando não se aplicam. Eles são usados
- * pelas etapas posteriores (ex.: posicionamento do furigana no ASS).
+ * <p>The offsets ({@code start}/{@code end}) are character indices in the
+ * tokenized text and are {@code -1} when they do not apply. They are used by
+ * later stages (e.g. positioning of the furigana in ASS).
  */
 public class Token {
 
-    /** Valor usado quando o deslocamento não é conhecido. */
+    /** Value used when the offset is not known. */
     public static final int UNKNOWN_OFFSET = -1;
 
     private final String surface;
@@ -25,43 +25,43 @@ public class Token {
     private final int end;
 
     /**
-     * Cria um token sem leitura nem deslocamentos.
+     * Creates a token without a reading or offsets.
      *
-     * @param surface superfície do token
+     * @param surface surface of the token
      */
     public Token(String surface) {
         this(surface, "UNKNOWN");
     }
 
     /**
-     * Cria um token sem leitura nem deslocamentos.
+     * Creates a token without a reading or offsets.
      *
-     * @param surface superfície do token
-     * @param kind    classificação do token (depende do tokenizador)
+     * @param surface surface of the token
+     * @param kind    classification of the token (depends on the tokenizer)
      */
     public Token(String surface, String kind) {
         this(surface, kind, null);
     }
 
     /**
-     * Cria um token com leitura, mas sem deslocamentos conhecidos.
+     * Creates a token with a reading, but without known offsets.
      *
-     * @param surface superfície do token
-     * @param kind    classificação do token
-     * @param reading leitura em hiragana, ou {@code null}
+     * @param surface surface of the token
+     * @param kind    classification of the token
+     * @param reading reading in hiragana, or {@code null}
      */
     public Token(String surface, String kind, String reading) {
         this(surface, kind, reading, UNKNOWN_OFFSET, UNKNOWN_OFFSET);
     }
 
     /**
-     * Cria um token completo.
+     * Creates a complete token.
      *
-     * @param surface superfície do token
-     * @param kind    classificação do token
-     * @param reading leitura em hiragana, ou {@code null}
-     * @param start   índice inicial no texto tokenizado, ou {@link #UNKNOWN_OFFSET}
-     * @param end     índice final (exclusivo) no texto tokenizado, ou {@link #UNKNOWN_OFFSET}
+     * @param surface surface of the token
+     * @param kind    classification of the token
+     * @param reading reading in hiragana, or {@code null}
+     * @param start   starting index in the tokenized text, or {@link #UNKNOWN_OFFSET}
+     * @param end     end index (exclusive) in the tokenized text, or {@link #UNKNOWN_OFFSET}
      */
     public Token(String surface, String kind, String reading, int start, int end) {
         this.surface = surface;
@@ -92,9 +92,9 @@ public class Token {
     }
 
     /**
-     * Informa se o token possui leitura não vazia.
+     * Tells whether the token has a non-empty reading.
      *
-     * @return {@code true} quando há leitura
+     * @return {@code true} when there is a reading
      */
     public boolean hasReading() {
         return reading != null && !reading.isBlank();

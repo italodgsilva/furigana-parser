@@ -24,16 +24,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * Testes do {@link HarfBuzzSubsetter}.
+ * Tests for {@link HarfBuzzSubsetter}.
  *
- * <p>O fluxo de chamadas é exercitado com uma implementação falsa da interface
- * JNA, sem exigir a biblioteca nativa. O teste com a biblioteca real só roda
- * quando {@code libharfbuzz-subset} e uma fonte de exemplo estão disponíveis.
+ * <p>The call flow is exercised with a fake implementation of the JNA
+ * interface, without requiring the native library. The test with the real
+ * library only runs when {@code libharfbuzz-subset} and a sample font are
+ * available.
  */
 class HarfBuzzSubsetterTest {
 
     @Test
-    @DisplayName("Lê os bytes reduzidos e libera os recursos do HarfBuzz")
+    @DisplayName("Reads the subset bytes and releases HarfBuzz resources")
     void readsSubsetBytesAndReleases() {
         byte[] output = {1, 2, 3, 4, 5};
         FakeHarfBuzz fake = new FakeHarfBuzz(output);
@@ -49,7 +50,7 @@ class HarfBuzzSubsetterTest {
     }
 
     @Test
-    @DisplayName("Devolve null quando o subsetting falha, liberando o blob de entrada")
+    @DisplayName("Returns null when subsetting fails, releasing the input blob")
     void returnsNullOnFailure() {
         FakeHarfBuzz fake = new FakeHarfBuzz(new byte[] {1});
         fake.failSubset = true;
@@ -61,7 +62,7 @@ class HarfBuzzSubsetterTest {
     }
 
     @Test
-    @DisplayName("Entradas vazias não chamam a biblioteca")
+    @DisplayName("Empty inputs do not call the library")
     void skipsEmptyInput() {
         FakeHarfBuzz fake = new FakeHarfBuzz(new byte[] {1});
         HarfBuzzSubsetter subsetter = new HarfBuzzSubsetter(fake);
@@ -74,37 +75,37 @@ class HarfBuzzSubsetterTest {
     }
 
     @Test
-    @DisplayName("load devolve vazio quando não há biblioteca nos diretórios")
+    @DisplayName("load returns empty when there is no library in the directories")
     void loadReturnsEmptyWhenMissing(@TempDir Path directory) throws IOException {
-        Files.writeString(directory.resolve("libharfbuzz.so.0"), "não é a lib de subset");
-        Files.writeString(directory.resolve("outra-biblioteca.so"), "irrelevante");
-        Files.writeString(directory.resolve("libharfbuzz-subset.so.0"), "arquivo inválido");
+        Files.writeString(directory.resolve("libharfbuzz.so.0"), "not the subset library");
+        Files.writeString(directory.resolve("other-library.so"), "irrelevant");
+        Files.writeString(directory.resolve("libharfbuzz-subset.so.0"), "invalid file");
 
         assertTrue(HarfBuzzSubsetLibrary.load(List.of(), List.of(directory)).isEmpty());
-        assertTrue(HarfBuzzSubsetLibrary.load(List.of("nome-inexistente-xyz"), List.of(directory))
+        assertTrue(HarfBuzzSubsetLibrary.load(List.of("nonexistent-name-xyz"), List.of(directory))
                 .isEmpty());
     }
 
     @Test
-    @DisplayName("O aviso de instalação explica o motivo e como resolver")
+    @DisplayName("The installation hint explains the reason and how to fix it")
     void installationHintIsHelpful() {
         String hint = HarfBuzzSubsetter.installationHint();
 
         assertFalse(hint.isBlank());
-        assertTrue(hint.contains("libharfbuzz-subset"), "deve citar a biblioteca ausente");
-        assertTrue(hint.contains("sem redução de tamanho"), "deve explicar o efeito");
-        assertTrue(hint.contains("HarfBuzz"), "deve sugerir instalar o HarfBuzz");
+        assertTrue(hint.contains("libharfbuzz-subset"), "should mention the missing library");
+        assertTrue(hint.contains("without size reduction"), "should explain the effect");
+        assertTrue(hint.contains("HarfBuzz"), "should suggest installing HarfBuzz");
         assertTrue(hint.contains(HarfBuzzSubsetLibrary.OVERRIDE_ENV),
-                "deve lembrar da variável de ambiente");
+                "should mention the environment variable");
     }
 
     @Test
-    @DisplayName("Reduz uma fonte real quando a biblioteca e a fonte estão disponíveis")
+    @DisplayName("Subsets a real font when the library and the font are available")
     void subsetsRealFontWhenAvailable() throws IOException {
         Optional<HarfBuzzSubsetLibrary.HarfBuzz> library = HarfBuzzSubsetLibrary.load();
         Path font = Path.of(System.getProperty("user.home"), ".fonts", "NotoSansJP.otf");
-        assumeTrue(library.isPresent(), "libharfbuzz-subset não disponível");
-        assumeTrue(Files.isRegularFile(font), "fonte de exemplo não disponível: " + font);
+        assumeTrue(library.isPresent(), "libharfbuzz-subset not available");
+        assumeTrue(Files.isRegularFile(font), "sample font not available: " + font);
 
         HarfBuzzSubsetter subsetter = new HarfBuzzSubsetter(library.get());
         byte[] full = Files.readAllBytes(font);
@@ -114,16 +115,16 @@ class HarfBuzzSubsetterTest {
         byte[] reduced = subsetter.subset(full, codePoints);
 
         assertNotNull(reduced);
-        assertTrue(reduced.length < full.length, "o subconjunto deve ser menor");
-        assertTrue(SfntReader.isSfnt(reduced, 0), "a saída deve continuar sendo sfnt");
+        assertTrue(reduced.length < full.length, "the subset must be smaller");
+        assertTrue(SfntReader.isSfnt(reduced, 0), "the output must still be sfnt");
         assertFalse(SfntReader.readFamilies(reduced, 0).isEmpty(),
-                "a família deve ser preservada para o player casar o estilo");
+                "the family must be preserved so the player can match the style");
     }
 
-    /** Valor de {@code HB_SUBSET_FLAGS_NO_HINTING}. */
+    /** Value of {@code HB_SUBSET_FLAGS_NO_HINTING}. */
     private static final int NO_HINTING = 0x1;
 
-    /** Implementação falsa da biblioteca, apenas para exercitar o fluxo JNA. */
+    /** Fake implementation of the library, only to exercise the JNA flow. */
     private static final class FakeHarfBuzz implements HarfBuzzSubsetLibrary.HarfBuzz {
 
         private final Memory blob = new Memory(1);

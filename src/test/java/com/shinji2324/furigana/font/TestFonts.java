@@ -3,11 +3,11 @@ package com.shinji2324.furigana.font;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Constrói fontes sfnt sintéticas e mínimas para os testes.
+ * Builds minimal, synthetic sfnt fonts for the tests.
  *
- * <p>Cada fonte tem apenas a tabela {@code name} (com um nome de família), o
- * suficiente para exercitar o {@link SfntReader} e o {@link FontLocator} sem
- * depender de fontes instaladas na máquina.
+ * <p>Each font has only the {@code name} table (with a family name), enough to
+ * exercise {@link SfntReader} and {@link FontLocator} without depending on fonts
+ * installed on the machine.
  */
 final class TestFonts {
 
@@ -15,17 +15,18 @@ final class TestFonts {
     }
 
     /**
-     * Monta um sfnt TrueType mínimo com uma única família declarada.
+     * Builds a minimal TrueType sfnt with a single declared family.
      *
-     * @param family nome de família gravado na tabela {@code name}
-     * @return bytes do arquivo
+     * @param family family name written to the {@code name} table
+     * @return file bytes
      */
     static byte[] sfnt(String family) {
         byte[] text = family.getBytes(StandardCharsets.UTF_16BE);
-        int nameTableLength = 6 + 12 + text.length; // cabeçalho + 1 registro + texto
-        int nameOffset = 28; // 12 (offset table) + 16 (1 registro de tabela)
+        int nameTableLength = 6 + 12 + text.length; // header + 1 record + text
+        int nameOffset = 28; // 12 (offset table) + 16 (1 table record)
+        int fileLength = align4(nameOffset + nameTableLength); // tables are 4-byte aligned
 
-        byte[] out = new byte[nameOffset + nameTableLength];
+        byte[] out = new byte[fileLength];
         put32(out, 0, 0x00010000); // scaler type: TrueType
         put16(out, 4, 1); // numTables
 
@@ -35,22 +36,22 @@ final class TestFonts {
 
         put16(out, nameOffset, 0); // format 0
         put16(out, nameOffset + 2, 1); // count
-        put16(out, nameOffset + 4, 18); // stringOffset (após o registro)
+        put16(out, nameOffset + 4, 18); // stringOffset (after the record)
         put16(out, nameOffset + 6, 3); // platformID: Windows
         put16(out, nameOffset + 8, 1); // encodingID: Unicode BMP
         put16(out, nameOffset + 10, 0x0409); // languageID en-US
-        put16(out, nameOffset + 12, 1); // nameID: família
+        put16(out, nameOffset + 12, 1); // nameID: family
         put16(out, nameOffset + 14, text.length);
-        put16(out, nameOffset + 16, 0); // offset dentro do bloco de strings
+        put16(out, nameOffset + 16, 0); // offset within the string block
         System.arraycopy(text, 0, out, nameOffset + 18, text.length);
         return out;
     }
 
     /**
-     * Monta uma coleção ({@code ttcf}) com uma face por família informada.
+     * Builds a collection ({@code ttcf}) with one face per given family.
      *
-     * @param families famílias, na ordem das faces
-     * @return bytes da coleção
+     * @param families families, in face order
+     * @return collection bytes
      */
     static byte[] ttc(String... families) {
         byte[][] faces = new byte[families.length][];
@@ -68,17 +69,21 @@ final class TestFonts {
 
         byte[] out = new byte[total];
         put32(out, 0, 0x74746366); // 'ttcf'
-        put32(out, 4, 0x00010000); // versão 1.0
+        put32(out, 4, 0x00010000); // version 1.0
         put32(out, 8, families.length);
         for (int i = 0; i < families.length; i++) {
             put32(out, 12 + 4 * i, offsets[i]);
             System.arraycopy(faces[i], 0, out, offsets[i], faces[i].length);
-            // Numa coleção, os deslocamentos das tabelas são absolutos: ajusta o
-            // campo de offset (faceOffset + 20) do único registro da face.
+            // In a collection, the table offsets are absolute: adjust the
+            // offset field (faceOffset + 20) of the face's single record.
             int field = offsets[i] + 20;
             put32(out, field, be32(out, field) + offsets[i]);
         }
         return out;
+    }
+
+    private static int align4(int value) {
+        return (value + 3) & ~3;
     }
 
     static int be32(byte[] data, int offset) {

@@ -8,28 +8,28 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Testes do {@link MpvPaths}.
+ * Tests for {@link MpvPaths}.
  */
 class MpvPathsTest {
 
     @Test
-    @DisplayName("Gera o ASS ao lado da SRT, trocando a extensão")
+    @DisplayName("Generates the ASS next to the SRT, swapping the extension")
     void derivesSiblingPath() {
         assertEquals(Path.of("/tmp/show.furigana.ass"),
                 MpvPaths.furiganaSubtitle(Path.of("/tmp/show.srt")));
     }
 
     @Test
-    @DisplayName("Preserva sufixos intermediários do nome")
+    @DisplayName("Preserves intermediate name suffixes")
     void keepsIntermediateSuffixes() {
         assertEquals(Path.of("fallback.ja.furigana.ass"),
                 MpvPaths.furiganaSubtitle(Path.of("fallback.ja.srt")));
     }
 
     @Test
-    @DisplayName("Aceita arquivo sem extensão")
+    @DisplayName("Accepts a file without extension")
     void handlesFileWithoutExtension() {
-        assertEquals(Path.of("sem-extensao.furigana.ass"),
-                MpvPaths.furiganaSubtitle(Path.of("sem-extensao")));
+        assertEquals(Path.of("no-extension.furigana.ass"),
+                MpvPaths.furiganaSubtitle(Path.of("no-extension")));
     }
 }

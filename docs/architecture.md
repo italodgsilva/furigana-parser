@@ -1,10 +1,10 @@
-# Arquitetura
+# Architecture
 
-## Visão geral
+## Overview
 
-O Furigana Parser será construído como um pipeline de processamento de texto.
+The Furigana Parser will be built as a text-processing pipeline.
 
-A arquitetura inicial é:
+The initial architecture is:
 
 ```text
 ┌─────────────┐
@@ -47,13 +47,13 @@ A arquitetura inicial é:
                            MPV
 ````
 
- ## Camadas
+## Layers
 
- ### `subtitle`
+### `subtitle`
 
- Responsável pela leitura e representação das legendas.
+Responsible for reading and representing the subtitles.
 
- Exemplos:
+Examples:
 
 ```
 Subtitle
@@ -62,38 +62,38 @@ SubtitleParser
 SrtParser
 ```
 
- Essa camada não deve possuir conhecimento sobre japonês, furigana ou Jisho.
+This layer must not have any knowledge of Japanese, furigana or Jisho.
 
- ### `japanese`
+### `japanese`
 
- Responsável pelo processamento específico do idioma japonês.
+Responsible for processing specific to the Japanese language.
 
- A principal responsabilidade inicial será a tokenização.
+The main initial responsibility will be tokenization.
 
- Exemplo:
+Example:
 
 ```
 今日は日本語を勉強します。
 ```
 
- pode ser segmentado como:
+can be segmented as:
 
 ```
 今日 | は | 日本語 | を | 勉強 | します | 。
 ```
 
- A implementação concreta do tokenizador passou a ser o Kuromoji, com o
- dicionário IPADIC: além de segmentar, ele identifica a classe gramatical e
- fornece a leitura de cada token (normalizada para hiragana). O
- `ScriptJapaneseTokenizer` (segmentação por tipo de escrita) permanece como
- alternativa leve/offline, sem leituras. Cada `Token` carrega superfície, classe
- gramatical, leitura e deslocamentos no texto tokenizado.
+The concrete implementation of the tokenizer has become Kuromoji, with the
+IPADIC dictionary: besides segmenting, it identifies the part of speech and
+provides the reading of each token (normalized to hiragana).
+`ScriptJapaneseTokenizer` (segmentation by script type) remains as a
+lightweight/offline alternative, without readings. Each `Token` carries the
+surface, part of speech, reading and offsets in the tokenized text.
 
- ### `reading`
+### `reading`
 
- Responsável por obter as leituras dos tokens.
+Responsible for obtaining the readings of the tokens.
 
- A abstração principal será:
+The main abstraction will be:
 
 ```
 interface ReadingProvider {
@@ -101,23 +101,23 @@ interface ReadingProvider {
 }
 ```
 
- A leitura tem prioridade vinda do próprio tokenizador (Kuromoji). Quando ele
- não a conhece, e apenas para tokens que contêm kanji, consulta-se o Jisho como
- fallback:
+The reading has priority when it comes from the tokenizer itself (Kuromoji). When
+it does not know it, and only for tokens that contain kanji, Jisho is queried as a
+fallback:
 
 ```
 JishoReadingProvider
-LocalDictionaryProvider (futuro)
+LocalDictionaryProvider (future)
 ```
 
- A aplicação não deve depender diretamente de uma implementação específica: o
- provider escolhido é decorado por um `CachingReadingProvider`.
+The application must not depend directly on a specific implementation: the chosen
+provider is decorated by a `CachingReadingProvider`.
 
- ### `reading.cache`
+### `reading.cache`
 
- Responsável por armazenar resultados de consultas.
+Responsible for storing query results.
 
- Fluxo conceitual:
+Conceptual flow:
 
 ```
 Token
@@ -125,9 +125,9 @@ Token
   ▼
 Cache
   │
-  ├── encontrado → retorna resultado
+  ├── found → returns result
   │
-  └── não encontrado
+  └── not found
            │
            ▼
       ReadingProvider
@@ -136,78 +136,79 @@ Cache
          Cache
 ```
 
- O cache deverá evitar consultas repetidas para o mesmo termo.
+The cache should avoid repeated queries for the same term.
 
- Implementação atual: `CachingReadingProvider` (decorador) + `FileReadingCache`,
- com um arquivo JSON que mapeia superfície → leitura (padrão:
- `data/cache/readings.json`). O cache é best-effort — falhas de leitura/escrita
- não interrompem o processamento — e não persiste termos não encontrados.
+Current implementation: `CachingReadingProvider` (decorator) + `FileReadingCache`,
+with a JSON file that maps surface → reading (default:
+`data/cache/readings.json`). The cache is best-effort — read/write failures do not
+interrupt processing — and it does not persist terms that are not found.
 
- ### `furigana`
+### `furigana`
 
- Contém o modelo intermediário utilizado pelo restante da aplicação.
+Contains the intermediate model used by the rest of the application.
 
- A camada deve representar a relação entre texto original e leitura sem assumir como o resultado será renderizado.
+The layer must represent the relationship between the original text and the
+reading without assuming how the result will be rendered.
 
- Isso é importante porque furigana pode posteriormente ser convertido para diferentes formatos.
+This is important because furigana can later be converted to different formats.
 
- Também concentra a segmentação de um token em kanji (com leitura) e okurigana
- (sem leitura), via `FuriganaSegmenter`, alinhando a superfície à leitura em
- hiragana. O okurigana final casa com o *fim* da leitura, evitando confundir um
- kana do okurigana com um kana igual dentro da leitura do kanji (ex.: `大嫌い` /
- `だいきらい`).
+It also centralizes the segmentation of a token into kanji (with reading) and
+okurigana (without reading), via `FuriganaSegmenter`, aligning the surface with the
+hiragana reading. The final okurigana matches the *end* of the reading, avoiding
+confusing an okurigana kana with an equal kana inside the kanji reading (e.g.
+`大嫌い` / `だいきらい`).
 
- O `FuriganaPipeline` emite, por um canal de avisos opcional, um alerta para cada
- termo com kanji que ficou sem leitura (nem Kuromoji nem o provider o conhecem):
- a entrada é mantida, mas fica sem furigana.
+`FuriganaPipeline` emits, through an optional warning channel, an alert for each
+term with kanji that was left without a reading (neither Kuromoji nor the provider
+knows it): the entry is kept, but has no furigana.
 
- ### `output`
+### `output`
 
- Responsável pela geração dos formatos de saída.
+Responsible for generating the output formats.
 
 ```
 JsonWriter     — FuriganaDocument → JSON
-AssGenerator   — FuriganaDocument → eventos ASS (posicionamento do furigana)
-AssWriter      — monta o arquivo final (template + eventos, timestamps)
-AssTemplate    — cabeçalho/estilos carregados de /ass/default-style.ass
-AssLayout      — geometria da grade de caracteres usada no `\pos`
+AssGenerator   — FuriganaDocument → ASS events (furigana positioning)
+AssWriter      — assembles the final file (template + events, timestamps)
+AssTemplate    — header/styles loaded from /ass/default-style.ass
+AssLayout      — character grid geometry used in `\pos`
 ```
 
- O `AssGenerator` gera a composição (Estratégia 3 do docs/ass-format.md):
- um evento `Main` por linha visual e um evento `Furigana` por leitura, ambos
- posicionados com `{\an5\pos(x,y)}`. Ele não conhece SRT nem Jisho.
+`AssGenerator` generates the composition (Strategy 3 from docs/ass-format.md): one
+`Main` event per visual line and one `Furigana` event per reading, both positioned
+with `{\an5\pos(x,y)}`. It does not know SRT or Jisho.
 
- Novos formatos poderão ser adicionados sem alterar as camadas anteriores.
+New formats can be added without changing the earlier layers.
 
- ### `mpv`
+### `mpv`
 
- Responsável por reproduzir o vídeo com a legenda de furigana gerada.
+Responsible for playing the video with the generated furigana subtitle.
 
-Implementada nesta etapa como um lançador desacoplado do pipeline:
+Implemented at this stage as a launcher decoupled from the pipeline:
 
- ```
-MpvPaths        — convenção de nome do ASS gerado (.furigana.ass)
-MpvIntegration  — monta/executa: mpv --sub-file=<ass> <video>
-ProcessRunner   — abstração da execução do processo (testável)
- ```
+```
+MpvPaths        — naming convention of the generated ASS (.furigana.ass)
+MpvIntegration  — assembles/runs: mpv --sub-file=<ass> <video>
+ProcessRunner   — process execution abstraction (testable)
+```
 
- O `MpvIntegration` não conhece SRT, Jisho nem `FuriganaDocument`; ele recebe
- apenas os caminhos do vídeo e do ASS. A geração do ASS continua no pipeline e
- na camada `output`, orquestrada pelo `Application` (modo `--mpv`).
+`MpvIntegration` does not know SRT, Jisho or `FuriganaDocument`; it receives only
+the paths of the video and the ASS. ASS generation remains in the pipeline and in
+the `output` layer, orchestrated by `Application` (`--mpv` mode).
 
- Permanece como escopo futuro:
+It remains a future scope:
 
- - scripts Lua;
-- atalhos;
-- carregamento automático de legendas;
-- comunicação com a aplicação;
-- atualização dinâmica da legenda.
+- Lua scripts;
+- shortcuts;
+- automatic subtitle loading;
+- communication with the application;
+- dynamic subtitle updates.
 
- As limitações da integração atual estão em `docs/mpv.md`.
+The limitations of the current integration are in `docs/mpv.md`.
 
- ## Fluxo de dados
+## Data flow
 
- O fluxo principal deverá ser:
+The main flow should be:
 
 ```
 SubtitleEntry
@@ -235,50 +236,50 @@ FuriganaDocument
       └──→ AssGenerator
 ```
 
- ## Modelo conceitual
+## Conceptual model
 
- ### Token
+### Token
 
- Representa uma unidade identificada durante a tokenização.
+Represents a unit identified during tokenization.
 
- Exemplo:
+Example:
 
 ```
 surface = "日本語"
 ```
 
- ### Reading
+### Reading
 
- Representa uma leitura associada a um termo.
+Represents a reading associated with a term.
 
- Exemplo:
+Example:
 
 ```
 surface = "日本語"
 reading = "にほんご"
 ```
 
- ### FuriganaSegment
+### FuriganaSegment
 
- Representa uma unidade que poderá ser renderizada.
+Represents a unit that can be rendered.
 
- Exemplo conceitual:
+Conceptual example:
 
 ```
 baseText = "日本語"
 reading = "にほんご"
 ```
 
- Para elementos que não possuem furigana:
+For elements that do not have furigana:
 
 ```
 baseText = "を"
 reading = null
 ```
 
- ## Independência entre componentes
+## Independence between components
 
- As seguintes dependências devem ser evitadas:
+The following dependencies should be avoided:
 
 ```
 SrtParser → Jisho
@@ -288,7 +289,7 @@ Jisho → MPV
 AssWriter → Jisho
 ```
 
- Em vez disso:
+Instead:
 
 ```
 SRT → Subtitle
@@ -299,49 +300,49 @@ Token + Reading → FuriganaDocument
 FuriganaDocument → Output
 ```
 
- ## Execução nativa (GraalVM)
+## Native execution (GraalVM)
 
-Além do JAR, o projeto pode ser compilado como um binário autônomo com o GraalVM
-Native Image (`mvn -Pnative package`). Como a tokenização (Kuromoji) lê o
-dicionário como recurso do classpath, o Jackson serializa os records por
-reflexão e o subsetting de fonte usa JNA/JNI, o build nativo depende de
-configurações explícitas, versionadas em
+Besides the JAR, the project can be compiled as a standalone binary with GraalVM
+Native Image (`mvn -Pnative package`). Because tokenization (Kuromoji) reads the
+dictionary as a classpath resource, Jackson serializes the records by reflection
+and font subsetting uses JNA/JNI, the native build depends on explicit
+configurations, versioned under
 `src/main/resources/META-INF/native-image/`:
 
-- `reflect-config.json` — reflexão (modelo do furigana, Jackson, JNA);
-- `resource-config.json` — recursos lidos em runtime (dicionário do Kuromoji,
-  estilo ASS padrão, `libjnidispatch` do JNA);
-- `jni-config.json` / `proxy-config.json` — acesso JNI e proxy dinâmico do JNA.
+- `reflect-config.json` — reflection (furigana model, Jackson, JNA);
+- `resource-config.json` — resources read at runtime (Kuromoji dictionary,
+  default ASS style, JNA's `libjnidispatch`);
+- `jni-config.json` / `proxy-config.json` — JNI access and JNA dynamic proxy.
 
-O profile `native` também desativa o `maven-shade-plugin`, para que o uber jar
-não duplique classes e recursos no classpath entregue ao `native-image`. Os
-detalhes estão em `docs/native-image.md`.
+The `native` profile also disables the `maven-shade-plugin`, so that the uber jar
+does not duplicate classes and resources in the classpath handed to
+`native-image`. The details are in `docs/native-image.md`.
 
- ## Decisões ainda abertas
+## Decisions still open
 
- As seguintes decisões serão tomadas durante a implementação:
+The following decisions will be made during implementation:
 
- - tratamento de palavras com múltiplas leituras;
-- tratamento de nomes próprios;
-- integração dinâmica com MPV (scripts Lua / atualização em tempo real).
+- handling of words with multiple readings;
+- handling of proper nouns;
+- dynamic MPV integration (Lua scripts / real-time updates).
 
- Decisões já tomadas:
+Decisions already made:
 
- - tokenização: Kuromoji (IPADIC);
-- leituras: prioridade para o tokenizador, com fallback no Jisho;
-- cache: JSON em `data/cache/readings.json`, via `CachingReadingProvider`;
-- okurigana: separado dentro do token pelo `FuriganaSegmenter`;
-- verbos conjugados: tokenizados pelo Kuromoji (radical + okurigana);
-- ASS: Estratégia 3 (`\pos` + estilos `Main`/`Furigana`, grade de caracteres);
-- MPV: lançador `mpv --sub-file=<ass>` com `ProcessRunner` injetável.
+- tokenization: Kuromoji (IPADIC);
+- readings: priority for the tokenizer, with a fallback to Jisho;
+- cache: JSON at `data/cache/readings.json`, via `CachingReadingProvider`;
+- okurigana: separated inside the token by `FuriganaSegmenter`;
+- conjugated verbs: tokenized by Kuromoji (stem + okurigana);
+- ASS: Strategy 3 (`\pos` + `Main`/`Furigana` styles, character grid);
+- MPV: launcher `mpv --sub-file=<ass>` with an injectable `ProcessRunner`.
 
- Essas decisões não devem ser antecipadas sem necessidade.
+These decisions should not be anticipated without need.
 
- ## Princípio de evolução
+## Evolution principle
 
- Cada etapa deve produzir uma saída verificável.
+Each step must produce verifiable output.
 
- Por exemplo:
+For example:
 
 ```
 SRT
@@ -357,4 +358,5 @@ JSON
 ASS
 ```
 
- Isso permite testar cada estágio independentemente e identificar erros sem depender do MPV ou da renderização final.
+This makes it possible to test each stage independently and identify errors
+without depending on MPV or the final rendering.

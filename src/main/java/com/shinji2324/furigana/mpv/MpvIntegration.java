@@ -6,47 +6,47 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Integração com o MPV para reprodução de um vídeo com a legenda de furigana.
+ * Integration with MPV for playing a video with the furigana subtitle.
  *
- * <p>Esta camada é deliberadamente simples e desacoplada do pipeline: ela apenas
- * monta e executa o comando
- * {@code mpv --sub-file=<legenda.ass> <video>}. Não conhece SRT, Kuromoji, Jisho
- * nem o {@code FuriganaDocument}. O caminho da legenda gerada é responsabilidade
- * de quem chama (ver {@link MpvPaths}).
+ * <p>This layer is deliberately simple and decoupled from the pipeline: it only
+ * builds and runs the command
+ * {@code mpv --sub-file=<subtitle.ass> <video>}. It knows neither SRT, Kuromoji,
+ * Jisho nor the {@code FuriganaDocument}. The path of the generated subtitle is
+ * the caller's responsibility (see {@link MpvPaths}).
  *
- * <p>A execução real do processo é delegada a um {@link ProcessRunner}, o que
- * permite testar a integração sem abrir o player.
+ * <p>The actual execution of the process is delegated to a {@link ProcessRunner},
+ * which makes it possible to test the integration without opening the player.
  *
- * <p>Pressupõe que o executável {@code mpv} esteja instalado e disponível no
- * {@code PATH}.
+ * <p>It assumes that the {@code mpv} executable is installed and available on
+ * the {@code PATH}.
  */
 public class MpvIntegration {
 
-    /** Nome do executável do MPV procurado no {@code PATH}. */
+    /** Name of the MPV executable searched for on the {@code PATH}. */
     public static final String MPV_EXECUTABLE = "mpv";
 
     private final ProcessRunner processRunner;
 
-    /** Cria a integração com o executor de processos padrão. */
+    /** Creates the integration with the default process runner. */
     public MpvIntegration() {
         this(new DefaultProcessRunner());
     }
 
     /**
-     * Cria a integração com um executor de processos informado.
+     * Creates the integration with a given process runner.
      *
-     * @param processRunner executor usado para iniciar o MPV
+     * @param processRunner runner used to start MPV
      */
     public MpvIntegration(ProcessRunner processRunner) {
         this.processRunner = Objects.requireNonNull(processRunner, "processRunner");
     }
 
     /**
-     * Monta o comando do MPV que abre o vídeo com a legenda de furigana.
+     * Builds the MPV command that opens the video with the furigana subtitle.
      *
-     * @param video         arquivo de vídeo
-     * @param subtitleFile  arquivo ASS com o furigana
-     * @return linha de comando pronta para execução
+     * @param video         video file
+     * @param subtitleFile  ASS file with the furigana
+     * @return command line ready for execution
      */
     public List<String> buildCommand(Path video, Path subtitleFile) {
         Objects.requireNonNull(video, "video");
@@ -58,13 +58,14 @@ public class MpvIntegration {
     }
 
     /**
-     * Abre o vídeo no MPV com a legenda de furigana e aguarda o término.
+     * Opens the video in MPV with the furigana subtitle and waits for it to
+     * finish.
      *
-     * @param video        arquivo de vídeo
-     * @param subtitleFile arquivo ASS com o furigana
-     * @return código de saída do MPV
-     * @throws IOException          se o MPV não puder ser iniciado (ex.: não instalado)
-     * @throws InterruptedException se a thread for interrompida enquanto aguarda
+     * @param video        video file
+     * @param subtitleFile ASS file with the furigana
+     * @return MPV exit code
+     * @throws IOException          if MPV cannot be started (e.g. not installed)
+     * @throws InterruptedException if the thread is interrupted while waiting
      */
     public int open(Path video, Path subtitleFile) throws IOException, InterruptedException {
         return processRunner.run(buildCommand(video, subtitleFile));

@@ -10,29 +10,30 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Abstração mínima de uma requisição HTTP que devolve texto.
+ * Minimal abstraction of an HTTP request that returns text.
  *
- * <p>Isola o {@link JishoReadingProvider} do {@code java.net.http}, permitindo
- * testar o parsing das respostas sem acessar a rede.
+ * <p>Isolates {@link JishoReadingProvider} from {@code java.net.http}, allowing
+ * the parsing of responses to be tested without accessing the network.
  */
 @FunctionalInterface
 public interface HttpTextFetcher {
 
     /**
-     * Executa um GET e devolve o corpo da resposta.
+     * Performs a GET and returns the response body.
      *
-     * @param url URL absoluta a consultar
-     * @return corpo da resposta, ou {@link Optional#empty()} em caso de falha
+     * @param url absolute URL to query
+     * @return response body, or {@link Optional#empty()} on failure
      */
     Optional<String> fetch(String url);
 
     /**
-     * Cria o fetcher padrão, baseado em {@code java.net.http.HttpClient}.
+     * Creates the default fetcher, based on {@code java.net.http.HttpClient}.
      *
-     * <p>Falhas de rede, timeout e respostas diferentes de {@code 200} resultam em
-     * {@link Optional#empty()} — o provider deve ser tolerante a indisponibilidade.
+     * <p>Network failures, timeouts, and responses other than {@code 200} result
+     * in {@link Optional#empty()} — the provider must be tolerant of unavailable
+     * services.
      *
-     * @return fetcher HTTP real
+     * @return real HTTP fetcher
      */
     static HttpTextFetcher defaultFetcher() {
         HttpClient client = HttpClient.newBuilder()

@@ -13,43 +13,43 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Localiza o arquivo de uma fonte instalada a partir do nome de família.
+ * Locates the file of an installed font from its family name.
  *
- * <p>O ASS gerado referencia a fonte do template por nome (ex.:
- * {@code Noto Sans CJK JP}); para embutir o arquivo é preciso encontrá-lo no
- * sistema. A busca varre os diretórios usuais de fontes do Linux, do macOS e do
- * Windows e casa o nome de família lido da tabela {@code name} do próprio
- * arquivo — não o nome do arquivo.
+ * <p>The generated ASS references the template font by name (e.g.
+ * {@code Noto Sans CJK JP}); to embed the file it must first be found on the
+ * system. The search scans the usual font directories of Linux, macOS and
+ * Windows and matches the family name read from the file's own {@code name}
+ * table — not the file name.
  *
- * <p>Se uma face for encontrada dentro de uma coleção ({@code .ttc}), apenas
- * ela é recortada; o ASS embute uma face por vez.
+ * <p>If a face is found inside a collection ({@code .ttc}), only that face is
+ * extracted; ASS embeds one face at a time.
  */
 public final class FontLocator {
 
-    /** Extensões reconhecidas durante a varredura. */
+    /** Extensions recognized during the scan. */
     private static final Set<String> FONT_EXTENSIONS = Set.of("ttf", "otf", "ttc", "otc");
 
     private final List<Path> directories;
 
-    /** Cria o localizador com os diretórios usuais do sistema operacional. */
+    /** Creates the locator with the usual directories of the operating system. */
     public FontLocator() {
         this(defaultDirectories());
     }
 
     /**
-     * Cria o localizador com diretórios informados (útil em testes).
+     * Creates the locator with the given directories (useful in tests).
      *
-     * @param directories diretórios a varrer, na ordem
+     * @param directories directories to scan, in order
      */
     public FontLocator(List<Path> directories) {
         this.directories = List.copyOf(directories);
     }
 
     /**
-     * Procura a primeira face cujo nome de família case com o informado.
+     * Looks for the first face whose family name matches the given one.
      *
-     * @param familyName nome de família (ex.: {@code Noto Sans CJK JP})
-     * @return a fonte pronta para embutir, ou vazio se não encontrada
+     * @param familyName family name (e.g. {@code Noto Sans CJK JP})
+     * @return the font ready to embed, or empty if none is found
      */
     public Optional<FontFile> find(String familyName) {
         String target = normalize(familyName);
@@ -69,25 +69,25 @@ public final class FontLocator {
     }
 
     /**
-     * Carrega uma face de um arquivo informado explicitamente.
+     * Loads a face from an explicitly given file.
      *
-     * <p>Se o arquivo for uma coleção, escolhe a face cujo nome de família casa
-     * com o informado; se não houver casamento e a coleção tiver uma única face,
-     * usa essa face.
+     * <p>If the file is a collection, picks the face whose family name matches
+     * the given one; if there is no match and the collection has a single face,
+     * it uses that face.
      *
-     * @param path       arquivo de fonte
-     * @param familyName família esperada
-     * @return a fonte pronta para embutir
-     * @throws IOException se o arquivo não puder ser lido ou nenhuma face servir
+     * @param path       font file
+     * @param familyName expected family
+     * @return the font ready to embed
+     * @throws IOException if the file cannot be read or no face is usable
      */
     public FontFile read(Path path, String familyName) throws IOException {
         if (!Files.isRegularFile(path)) {
-            throw new IOException("Arquivo de fonte não encontrado: " + path);
+            throw new IOException("Font file not found: " + path);
         }
         byte[] data = Files.readAllBytes(path);
         List<SfntReader.Face> faces = SfntReader.read(data);
         if (faces.isEmpty()) {
-            throw new IOException("Arquivo de fonte não reconhecido: " + path);
+            throw new IOException("Unrecognized font file: " + path);
         }
         String target = normalize(familyName);
         for (SfntReader.Face face : faces) {
@@ -98,7 +98,7 @@ public final class FontLocator {
         if (faces.size() == 1) {
             return toFontFile(path, faces.get(0));
         }
-        throw new IOException("A fonte " + path + " não contém a família '" + familyName + "'");
+        throw new IOException("Font " + path + " does not contain family '" + familyName + "'");
     }
 
     private Optional<FontFile> findInDirectory(Path directory, String target) {
@@ -122,7 +122,7 @@ public final class FontLocator {
                 }
             }
         } catch (IOException | UncheckedIOException e) {
-            // Diretório inacessível: segue para o próximo.
+            // Inaccessible directory: move on to the next one.
         }
         return Optional.empty();
     }
@@ -145,7 +145,7 @@ public final class FontLocator {
         if (face.faceIndex() < 0) {
             return name;
         }
-        // Face recortada de uma coleção: o conteúdo deixa de ser um .ttc.
+        // Face extracted from a collection: the content is no longer a .ttc.
         int dot = name.lastIndexOf('.');
         String base = dot > 0 ? name.substring(0, dot) : name;
         return base + "-face" + face.faceIndex() + (face.cff() ? ".otf" : ".ttf");
@@ -161,8 +161,8 @@ public final class FontLocator {
     }
 
     /**
-     * Normaliza um nome de família para comparação (minúsculas e espaços
-     * colapsados).
+     * Normalizes a family name for comparison (lowercase and collapsed
+     * whitespace).
      */
     static String normalize(String familyName) {
         if (familyName == null) {

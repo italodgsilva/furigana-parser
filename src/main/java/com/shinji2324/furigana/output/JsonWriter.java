@@ -5,13 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shinji2324.furigana.furigana.FuriganaDocument;
 
 /**
- * Serializa um {@link FuriganaDocument} para o formato JSON intermediário.
+ * Serializes a {@link FuriganaDocument} to the intermediate JSON format.
  *
- * <p>Utiliza o Jackson para garantir uma serialização consistente com o modelo.
- * A estrutura gerada é estável e serve como saída verificável de cada etapa do
- * pipeline e como entrada para os geradores de formato.
+ * <p>Uses Jackson to ensure serialization consistent with the model. The generated
+ * structure is stable and serves as verifiable output of each stage of the
+ * pipeline and as input for the format generators.
  *
- * <p>Exemplo de saída (leitura abreviada):
+ * <p>Example output (reading abbreviated):
  * <pre>
  * {
  *   "entries": [
@@ -33,26 +33,26 @@ public class JsonWriter {
 
     private final ObjectMapper objectMapper;
 
-    /** Cria o escritor com um {@link ObjectMapper} padrão. */
+    /** Creates the writer with a default {@link ObjectMapper}. */
     public JsonWriter() {
         this(new ObjectMapper());
     }
 
     /**
-     * Cria o escritor com o mapper informado (permite configuração externa).
+     * Creates the writer with the given mapper (allows external configuration).
      *
-     * @param objectMapper mapper a ser utilizado na serialização
+     * @param objectMapper mapper to be used in serialization
      */
     public JsonWriter(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
     /**
-     * Serializa o documento para JSON, formatado para leitura.
+     * Serializes the document to JSON, formatted for reading.
      *
-     * @param document documento a ser serializado
-     * @return representação JSON do documento
-     * @throws JsonProcessingException se a serialização falhar
+     * @param document document to be serialized
+     * @return JSON representation of the document
+     * @throws JsonProcessingException if serialization fails
      */
     public String write(FuriganaDocument document) throws JsonProcessingException {
         if (document == null) {

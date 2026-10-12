@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link JsonWriter}.
+ * Tests for {@link JsonWriter}.
  */
 class JsonWriterTest {
 
@@ -22,7 +22,7 @@ class JsonWriterTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
-    @DisplayName("Serializa entradas com id, timestamps, texto e segmentos")
+    @DisplayName("Serializes entries with id, timestamps, text and segments")
     void serializesEntriesWithMetadata() throws Exception {
         FuriganaDocument document = new FuriganaDocument(List.of(
                 new FuriganaEntry("1", "00:00:01,000", "00:00:02,000", "今日は",
@@ -42,11 +42,11 @@ class JsonWriterTest {
         assertEquals("今日", segments.get(0).get("text").asText());
         assertEquals("きょう", segments.get(0).get("reading").asText());
         assertEquals("は", segments.get(1).get("text").asText());
-        assertTrue(segments.get(1).get("reading").isNull(), "leitura ausente deve ser null no JSON");
+        assertTrue(segments.get(1).get("reading").isNull(), "missing reading must be null in JSON");
     }
 
     @Test
-    @DisplayName("Serve como saída verificável de um pipeline completo")
+    @DisplayName("Serves as verifiable output of a complete pipeline")
     void roundTripFromPipelineExample() throws Exception {
         FuriganaDocument document = new FuriganaDocument(List.of(
                 new FuriganaEntry("1", "00:00:01,000", "00:00:04,500", "今日は日本語を勉強します。",
@@ -62,7 +62,7 @@ class JsonWriterTest {
     }
 
     @Test
-    @DisplayName("Serializa documento vazio como lista de entradas vazia")
+    @DisplayName("Serializes an empty document as an empty entry list")
     void serializesEmptyDocument() throws Exception {
         JsonNode root = mapper.readTree(writer.write(new FuriganaDocument()));
 
@@ -71,19 +71,19 @@ class JsonWriterTest {
     }
 
     @Test
-    @DisplayName("Retorna conteúdo vazio para documento nulo")
+    @DisplayName("Returns empty content for a null document")
     void returnsEmptyForNullDocument() throws Exception {
         assertEquals("", writer.write(null));
     }
 
     @Test
-    @DisplayName("Preserva null id de entries sem numeração")
+    @DisplayName("Preserves a null id for entries without numbering")
     void preservesNullId() throws Exception {
         FuriganaDocument document = new FuriganaDocument(List.of(
-                new FuriganaEntry(null, "00:00:01,000", "00:00:02,000", "texto", List.of())));
+                new FuriganaEntry(null, "00:00:01,000", "00:00:02,000", "text", List.of())));
 
         JsonNode entry = mapper.readTree(writer.write(document)).get("entries").get(0);
 
-        assertTrue(entry.get("id").isNull(), "id nulo deve ser preservado no JSON");
+        assertTrue(entry.get("id").isNull(), "a null id must be preserved in JSON");
     }
 }

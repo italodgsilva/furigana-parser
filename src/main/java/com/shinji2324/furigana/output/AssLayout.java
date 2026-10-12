@@ -1,93 +1,91 @@
 package com.shinji2324.furigana.output;
 
 /**
- * Geometria do furigana na tela, usada para posicionar cada leitura sobre o kanji.
+ * On-screen furigana geometry, used to position each reading over the kanji.
  *
- * <p>Como o ASS não possui rubi nativo, o {@link AssGenerator} posiciona cada
- * leitura com a tag {@code \pos}, calculando a coordenada horizontal a partir de
- * uma grade de caracteres. Cada caractere de largura total (kanji, kana,
- * pontuação japonesa) ocupa um "em"; o katakana half-width ocupa meio "em"; e
- * os caracteres ASCII usam o avanço real da fonte do template (tabela
- * {@code ASCII_ADVANCES}). Assim o alinhamento fica preciso para o japonês e
- * para o latim presente nas legendas, enquanto a fonte do template for usada.
+ * <p>Since ASS has no native ruby, {@link AssGenerator} positions each reading
+ * with the {@code \pos} tag, computing the horizontal coordinate from a character
+ * grid. Each full-width character (kanji, kana, Japanese punctuation) occupies one
+ * "em"; half-width katakana occupies half an "em"; and ASCII characters use the
+ * real advance of the template font (table {@code ASCII_ADVANCES}). This way the
+ * alignment is precise for Japanese and for the Latin present in the subtitles, as
+ * long as the template font is used.
  *
- * <p><strong>O "em" não é o tamanho de fonte declarado no ASS.</strong> O libass
- * (motor de legendas do mpv) interpreta o {@code Fontsize} do ASS como a
- * <em>altura da linha</em> da fonte — o ascendente menos o descendente da tabela
- * {@code hhea} —, e não como o tamanho do "em". Ou seja, o avanço real de um
- * caractere de largura total é {@code Fontsize * EM_PER_FONT_SIZE}, com
- * {@code EM_PER_FONT_SIZE} dependente da fonte. Ignorar esse fator desloca
- * todas as leituras horizontalmente (o erro cresce com o comprimento da linha).
- * <p>As coordenadas verticais do texto principal usam a caixa de linha (o libass
- * a dimensiona exatamente para o {@code Fontsize}); já o furigana é posicionado
- * pelos "em" (as caixas de glifo), porque a caixa de linha desta fonte tem um
- * "leading" interno grande que deixaria a leitura distante do kanji.
+ * <p><strong>The "em" is not the font size declared in the ASS.</strong> libass
+ * (mpv's subtitle engine) interprets the ASS {@code Fontsize} as the <em>line
+ * height</em> of the font — the ascender minus the descender of the {@code hhea}
+ * table —, and not as the "em" size. That is, the real advance of a full-width
+ * character is {@code Fontsize * EM_PER_FONT_SIZE}, with {@code EM_PER_FONT_SIZE}
+ * depending on the font. Ignoring this factor shifts all readings horizontally
+ * (the error grows with the line length).
+ * <p>The vertical coordinates of the main text use the line box (libass sizes it
+ * exactly to the {@code Fontsize}); furigana, however, is positioned by the "em"
+ * (the glyph boxes), because this font's line box has a large internal "leading"
+ * that would leave the reading far from the kanji.
  *
- * <p>As constantes pressupõem a resolução 1920x1080 e a fonte
- * {@code Noto Sans CJK JP}, ambos declarados no {@code /ass/default-style.ass}.
- * Todas as coordenadas usam alinhamento {@code \an5} (centro), de modo que o par
- * {@code (x, y)} é o centro do texto.
+ * <p>The constants assume the 1920x1080 resolution and the font
+ * {@code Noto Sans CJK JP}, both declared in {@code /ass/default-style.ass}. All
+ * coordinates use {@code \an5} alignment (center), so that the {@code (x, y)} pair
+ * is the center of the text.
  */
 public final class AssLayout {
 
-    /** Largura lógica da tela (deve casar com o PlayResX do template). */
+    /** Logical screen width (must match the template's PlayResX). */
     public static final int PLAY_RES_X = 1920;
 
-    /** Altura lógica da tela (deve casar com o PlayResY do template). */
+    /** Logical screen height (must match the template's PlayResY). */
     public static final int PLAY_RES_Y = 1080;
 
-    /** Tamanho da fonte do texto principal (deve casar com o estilo Main). */
+    /** Main text font size (must match the Main style). */
     public static final int MAIN_FONT_SIZE = 64;
 
-    /** Tamanho da fonte do furigana (deve casar com o estilo Furigana). */
+    /** Furigana font size (must match the Furigana style). */
     public static final int FURIGANA_FONT_SIZE = 32;
 
-    /** Folga vertical entre o "em" do texto principal e o "em" do furigana, em pixels. */
+    /** Vertical gap between the main text "em" and the furigana "em", in pixels. */
     public static final int FURIGANA_GAP = 4;
 
-    /** Distância vertical entre linhas consecutivas do texto principal. */
+    /** Vertical distance between consecutive main text lines. */
     public static final int LINE_HEIGHT = 84;
 
-    /** Margem inferior reservada para a última linha do texto principal. */
+    /** Bottom margin reserved for the last main text line. */
     public static final int MAIN_BOTTOM_MARGIN = 60;
 
     /**
-     * Fator que converte o tamanho de fonte declarado no ASS para a largura real
-     * de um caractere de largura total (um "em"), conforme renderizado pelo
-     * libass.
+     * Factor that converts the font size declared in the ASS to the real width of
+     * a full-width character (one "em"), as rendered by libass.
      *
-     * <p>O libass dimensiona a fonte de modo que o {@code Fontsize} do ASS seja a
-     * altura da linha ({@code hhea.ascender - hhea.descender}), e não o tamanho do
-     * "em". Para a fonte do template ({@code Noto Sans CJK JP}):
-     * {@code unitsPerEm = 1000}, {@code hhea.ascender = 1160} e
-     * {@code hhea.descender = -288}, logo o avanço de um caractere de largura
-     * total é {@code 1000 / (1160 + 288) = 1000/1448 ≈ 0,6906} do {@code Fontsize}.
-     * Kanji e kana têm avanço de exatamente um "em".
+     * <p>libass sizes the font so that the ASS {@code Fontsize} is the line height
+     * ({@code hhea.ascender - hhea.descender}), and not the "em" size. For the
+     * template font ({@code Noto Sans CJK JP}):
+     * {@code unitsPerEm = 1000}, {@code hhea.ascender = 1160}, and
+     * {@code hhea.descender = -288}, so the advance of a full-width character is
+     * {@code 1000 / (1160 + 288) = 1000/1448 ≈ 0.6906} of the {@code Fontsize}.
+     * Kanji and kana have an advance of exactly one "em".
      *
-     * <p><strong>Atenção:</strong> este valor é específico da fonte do template.
-     * Trocar a fonte exige recalcular o fator a partir das métricas {@code hhea}
-     * da nova fonte, sob pena de desalinhar o furigana.
+     * <p><strong>Warning:</strong> this value is specific to the template font.
+     * Changing the font requires recomputing the factor from the {@code hhea}
+     * metrics of the new font, otherwise the furigana will be misaligned.
      */
     public static final double EM_PER_FONT_SIZE = 1000.0 / 1448.0;
 
-    /** Largura de um caractere de largura total (um "quadrado" da grade). */
+    /** Width of a full-width character (one "square" of the grid). */
     public static final double CELL_WIDTH = MAIN_FONT_SIZE * EM_PER_FONT_SIZE;
 
     /**
-     * Avanço, em "em", dos caracteres ASCII imprimíveis de {@code U+0020} a
-     * {@code U+007E}, na fonte do template.
+     * Advance, in "em", of the printable ASCII characters from {@code U+0020} to
+     * {@code U+007E}, in the template font.
      *
-     * <p>Valores lidos da tabela {@code hmtx} de {@code Noto Sans CJK JP}
-     * ({@code unitsPerEm = 1000}) e normalizados pelo "em" (o avanço de um
-     * caractere de largura total). A fonte renderiza o latim de forma
-     * proporcional — por exemplo, o espaço tem {@code 0.224} e o {@code "}"} tem
-     * {@code 0.338} —, bem distante de uma largura fixa de meio "em". Usar os
-     * avanços reais evita deslocamentos cumulativos nas linhas com pontuação ou
-     * texto latino.
+     * <p>Values read from the {@code hmtx} table of {@code Noto Sans CJK JP}
+     * ({@code unitsPerEm = 1000}) and normalized by the "em" (the advance of a
+     * full-width character). The font renders Latin proportionally — for example,
+     * the space is {@code 0.224} and the {@code "}"} is {@code 0.338} —, far from a
+     * fixed half-"em" width. Using the real advances avoids cumulative shifts in
+     * lines with punctuation or Latin text.
      *
-     * <p><strong>Atenção:</strong> a tabela é específica da fonte do template.
-     * Trocar a fonte exige recalculá-la a partir das métricas {@code hmtx} da
-     * nova fonte.
+     * <p><strong>Warning:</strong> the table is specific to the template font.
+     * Changing the font requires recomputing it from the {@code hmtx} metrics of
+     * the new font.
      */
     private static final double[] ASCII_ADVANCES = {
             0.224, 0.323, 0.474, 0.555, 0.555, 0.921, 0.680, 0.278, // 0x20..0x27
@@ -105,14 +103,14 @@ public final class AssLayout {
     };
 
     private AssLayout() {
-        // Classe utilitária: não deve ser instanciada.
+        // Utility class: must not be instantiated.
     }
 
     /**
-     * Coordenada vertical (centro) da linha principal.
+     * Vertical coordinate (center) of the main line.
      *
-     * @param indexFromBottom distância da linha até a base do bloco (0 = última linha)
-     * @return centro vertical da linha em pixels
+     * @param indexFromBottom distance from the line to the bottom of the block (0 = last line)
+     * @return vertical center of the line in pixels
      */
     public static double mainCenterY(int indexFromBottom) {
         double bottomLineCenter = PLAY_RES_Y - MAIN_BOTTOM_MARGIN - MAIN_FONT_SIZE / 2.0;
@@ -120,27 +118,27 @@ public final class AssLayout {
     }
 
     /**
-     * Coordenada vertical (centro) do furigana associado a uma linha principal.
+     * Vertical coordinate (center) of the furigana associated with a main line.
      *
-     * @param indexFromBottom distância da linha até a base do bloco (0 = última linha)
-     * @return centro vertical do furigana em pixels
+     * @param indexFromBottom distance from the line to the bottom of the block (0 = last line)
+     * @return vertical center of the furigana in pixels
      */
     public static double furiganaCenterY(int indexFromBottom) {
-        // Os glifos CJK vivem no "em", não na caixa de linha: esta fonte tem
-        // altura de linha de 1,448 "em" e um "leading" interno grande. Posicionar
-        // as caixas de linha deixa o furigana longe da palavra; posicionar os
-        // "em" (CELL_WIDTH para o Main, FURIGANA_FONT_SIZE * EM_PER_FONT_SIZE para
-        // o Furigana) com uma folga pequena o mantém próximo do kanji.
+        // CJK glyphs live in the "em", not in the line box: this font has a
+        // line height of 1.448 "em" and a large internal "leading". Positioning
+        // the line boxes leaves the furigana far from the word; positioning the
+        // "em" (CELL_WIDTH for Main, FURIGANA_FONT_SIZE * EM_PER_FONT_SIZE for
+        // Furigana) with a small gap keeps it close to the kanji.
         double offset = CELL_WIDTH / 2.0 + FURIGANA_GAP + FURIGANA_FONT_SIZE * EM_PER_FONT_SIZE / 2.0;
         return mainCenterY(indexFromBottom) - offset;
     }
 
     /**
-     * Calcula a coordenada horizontal (centro) de uma célula da grade.
+     * Computes the horizontal coordinate (center) of a grid cell.
      *
-     * @param centerCell célula central do trecho, a partir do início da linha
-     * @param totalCells largura total da linha, em células
-     * @return centro horizontal em pixels, alinhado ao texto centralizado
+     * @param centerCell center cell of the span, from the start of the line
+     * @param totalCells total width of the line, in cells
+     * @return horizontal center in pixels, aligned with the centered text
      */
     public static double xForCenterCell(double centerCell, double totalCells) {
         double lineStart = (PLAY_RES_X - totalCells * CELL_WIDTH) / 2.0;
@@ -148,10 +146,10 @@ public final class AssLayout {
     }
 
     /**
-     * Soma a largura, em células, de um texto.
+     * Sums the width, in cells, of a text.
      *
-     * @param text texto a medir (pode ser {@code null})
-     * @return largura total em células
+     * @param text text to measure (may be {@code null})
+     * @return total width in cells
      */
     public static double cells(String text) {
         if (text == null || text.isEmpty()) {
@@ -165,20 +163,20 @@ public final class AssLayout {
     }
 
     /**
-     * Largura de um caractere na grade, em unidades de "em" (largura total).
+     * Width of a character in the grid, in "em" units (full-width).
      *
-     * <p>Caracteres ASCII usam o avanço real da fonte do template
-     * ({@link #ASCII_ADVANCES}); alguns sinais latinos aplicáveis a legendas
-     * (aspas curvas e travessões) também; o katakana half-width e a pontuação
-     * half-width ocupam meio "em"; os demais (kanji, kana, pontuação japonesa)
-     * ocupam um "em". Caracteres de controle não deslocam a grade.
+     * <p>ASCII characters use the real advance of the template font
+     * ({@link #ASCII_ADVANCES}); some Latin signs applicable to subtitles (curly
+     * quotes and dashes) as well; half-width katakana and half-width punctuation
+     * occupy half an "em"; the rest (kanji, kana, Japanese punctuation) occupy one
+     * "em". Control characters do not shift the grid.
      *
-     * @param c caractere a medir
-     * @return largura em "em"
+     * @param c character to measure
+     * @return width in "em"
      */
     public static double cellWidth(char c) {
         if (c < ' ' || c == '\u007F') {
-            // Controles (ex.: '\r' residual) não devem existir no texto.
+            // Controls (e.g. a leftover '\r') should not exist in the text.
             return 0.0;
         }
         if (c <= '~') {
@@ -201,7 +199,7 @@ public final class AssLayout {
                 break;
         }
         if (c >= '\uFF61' && c <= '\uFF9F') {
-            // Katakana half-width e pontuação half-width.
+            // Half-width katakana and half-width punctuation.
             return 0.5;
         }
         return 1.0;

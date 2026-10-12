@@ -14,22 +14,22 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link AssFontEmbedder}: codificação uuencode, montagem da seção
- * {@code [Fonts]} e inserção no ASS.
+ * Tests for {@link AssFontEmbedder}: uuencode encoding, assembly of the
+ * {@code [Fonts]} section and insertion into the ASS.
  */
 class AssFontEmbedderTest {
 
     private static final byte[] OTTO = "OTTO".getBytes(StandardCharsets.US_ASCII);
 
     @Test
-    @DisplayName("Codifica bytes conhecidos no formato do libass")
+    @DisplayName("Encodes known bytes in the libass format")
     void encodesKnownBytes() {
         assertEquals("!!!!\n", AssFontEmbedder.uuencode(new byte[] {0, 0, 0}, 80));
         assertEquals("4V254Q\n", AssFontEmbedder.uuencode(OTTO, 80));
     }
 
     @Test
-    @DisplayName("Distribui a codificação em linhas e nunca deixa resto 1")
+    @DisplayName("Splits the encoding into lines and never leaves a remainder of 1")
     void splitsLinesWithoutRemainderOne() {
         byte[] data = new byte[256];
         for (int i = 0; i < data.length; i++) {
@@ -45,7 +45,7 @@ class AssFontEmbedderTest {
         assertTrue(lines[lines.length - 1].length() >= 1);
         assertTrue(lines[lines.length - 1].length() <= 16);
 
-        // 256 bytes → 85 grupos de 3 + 1 byte final → 85*4 + 2 = 342 caracteres.
+        // 256 bytes → 85 groups of 3 + 1 final byte → 85*4 + 2 = 342 characters.
         String flat = encoded.replace("\n", "");
         assertEquals(342, flat.length());
         assertFalse(flat.length() % 4 == 1);
@@ -55,7 +55,7 @@ class AssFontEmbedderTest {
     }
 
     @Test
-    @DisplayName("A codificação volta aos bytes originais, para todos os restos")
+    @DisplayName("The encoding round-trips to the original bytes, for every remainder")
     void roundTripsEveryRemainder() {
         for (int length = 0; length <= 10; length++) {
             byte[] data = new byte[length];
@@ -65,24 +65,24 @@ class AssFontEmbedderTest {
 
             byte[] decoded = decode(AssFontEmbedder.uuencode(data, 80));
 
-            assertArrayEquals(data, decoded, "comprimento " + length);
+            assertArrayEquals(data, decoded, "length " + length);
         }
     }
 
     @Test
-    @DisplayName("Monta a seção [Fonts] com o cabeçalho fontname")
+    @DisplayName("Builds the [Fonts] section with the fontname header")
     void buildsFontsSection() {
-        String section = AssFontEmbedder.section(List.of(new FontFile("MinhaFonte.ttf", OTTO)));
+        String section = AssFontEmbedder.section(List.of(new FontFile("MyFont.ttf", OTTO)));
 
-        assertEquals("[Fonts]\nfontname: MinhaFonte.ttf\n4V254Q\n", section);
+        assertEquals("[Fonts]\nfontname: MyFont.ttf\n4V254Q\n", section);
     }
 
     @Test
-    @DisplayName("Insere a seção [Fonts] antes de [Events]")
+    @DisplayName("Inserts the [Fonts] section before [Events]")
     void insertsSectionBeforeEvents() {
         String ass = "[Script Info]\nTitle: X\n\n[V4+ Styles]\nStyle: Main,F,...\n\n"
                 + "[Events]\nFormat: Layer, Start, End, Style, Text\n"
-                + "Dialogue: 0,0:00:01.00,0:00:02.00,Main,,0,0,0,,ola\n";
+                + "Dialogue: 0,0:00:01.00,0:00:02.00,Main,,0,0,0,,hello\n";
 
         String result = new AssFontEmbedder().embed(ass, List.of(new FontFile("F.ttf", OTTO)));
 
@@ -90,12 +90,12 @@ class AssFontEmbedderTest {
         int events = result.indexOf("[Events]");
         assertTrue(fonts > 0 && fonts < events);
         assertTrue(result.contains("fontname: F.ttf"));
-        assertTrue(result.contains("Dialogue: 0,0:00:01.00,0:00:02.00,Main,,0,0,0,,ola"));
-        assertTrue(result.endsWith("ola\n"));
+        assertTrue(result.contains("Dialogue: 0,0:00:01.00,0:00:02.00,Main,,0,0,0,,hello"));
+        assertTrue(result.endsWith("hello\n"));
     }
 
     @Test
-    @DisplayName("Sem fontes o ASS não muda")
+    @DisplayName("Without fonts the ASS is unchanged")
     void keepsAssUnchangedWithoutFonts() {
         String ass = "[Events]\nFormat: Layer\n";
 
@@ -105,7 +105,7 @@ class AssFontEmbedderTest {
     }
 
     @Test
-    @DisplayName("Sem seção [Events], anexa a seção ao final")
+    @DisplayName("Without an [Events] section, appends the section at the end")
     void appendsWhenNoEventsSection() {
         String result = new AssFontEmbedder().embed("[Script Info]\nTitle: X\n",
                 List.of(new FontFile("F.ttf", OTTO)));
@@ -114,7 +114,7 @@ class AssFontEmbedderTest {
         assertTrue(result.contains("fontname: F.ttf"));
     }
 
-    /** Decodificador equivalente ao do libass, usado para validar a ida e volta. */
+    /** Decoder equivalent to libass's, used to validate the round trip. */
     private static byte[] decode(String encoded) {
         String flat = encoded.replace("\n", "");
         ByteArrayOutputStream out = new ByteArrayOutputStream();

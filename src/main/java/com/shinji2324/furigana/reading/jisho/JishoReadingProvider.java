@@ -12,49 +12,50 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 /**
- * Provider de leituras baseado na API pública do Jisho.
+ * Reading provider based on the public Jisho API.
  *
- * <p>Consulta {@code https://jisho.org/api/v1/search/words?keyword=<termo>} e
- * usa a primeira forma japonesa cujo {@code word} coincide exatamente com a
- * superfície do token. O Jisho devolve a leitura em hiragana.
+ * <p>Queries {@code https://jisho.org/api/v1/search/words?keyword=<term>} and
+ * uses the first Japanese form whose {@code word} matches the token surface
+ * exactly. Jisho returns the reading in hiragana.
  *
- * <p>Apenas coincidências exatas são aceitas: para formas conjugadas o Jisho
- * costuma retornar o dicionário (ex.: {@code 食べる} para {@code 食べた}), e usar
- * essa leitura diretamente poderia produzir furigana incorreto. Nesse caso o
- * provider devolve vazio e a leitura do tokenizador (Kuromoji) prevalece.
+ * <p>Only exact matches are accepted: for conjugated forms Jisho usually returns
+ * the dictionary form (e.g. {@code 食べる} for {@code 食べた}), and using that
+ * reading directly could produce incorrect furigana. In that case the provider
+ * returns empty and the tokenizer's reading (Kuromoji) prevails.
  *
- * <p>Falhas de rede e respostas malformadas resultam em {@link Optional#empty()};
- * o pipeline continua funcionando sem furigana para o token.
+ * <p>Network failures and malformed responses result in
+ * {@link Optional#empty()}; the pipeline keeps working without furigana for the
+ * token.
  */
 public class JishoReadingProvider implements ReadingProvider {
 
-    /** Endpoint padrão da API de busca do Jisho. */
+    /** Default endpoint of the Jisho search API. */
     public static final String DEFAULT_ENDPOINT = "https://jisho.org/api/v1/search/words";
 
     private final String endpoint;
     private final HttpTextFetcher fetcher;
     private final ObjectMapper objectMapper;
 
-    /** Cria o provider com o endpoint e o fetcher HTTP padrão. */
+    /** Creates the provider with the default endpoint and HTTP fetcher. */
     public JishoReadingProvider() {
         this(DEFAULT_ENDPOINT, HttpTextFetcher.defaultFetcher(), new ObjectMapper());
     }
 
     /**
-     * Cria o provider com o endpoint padrão e um fetcher informado (útil em testes).
+     * Creates the provider with the default endpoint and a given fetcher (useful in tests).
      *
-     * @param fetcher camada de requisição HTTP
+     * @param fetcher HTTP request layer
      */
     public JishoReadingProvider(HttpTextFetcher fetcher) {
         this(DEFAULT_ENDPOINT, fetcher, new ObjectMapper());
     }
 
     /**
-     * Cria o provider completo.
+     * Creates the complete provider.
      *
-     * @param endpoint      URL base da API
-     * @param fetcher       camada de requisição HTTP
-     * @param objectMapper  mapper usado para interpretar a resposta JSON
+     * @param endpoint      base URL of the API
+     * @param fetcher       HTTP request layer
+     * @param objectMapper  mapper used to interpret the JSON response
      */
     public JishoReadingProvider(String endpoint, HttpTextFetcher fetcher, ObjectMapper objectMapper) {
         this.endpoint = endpoint;
@@ -75,11 +76,11 @@ public class JishoReadingProvider implements ReadingProvider {
     }
 
     /**
-     * Extrai a leitura da superfície a partir do JSON do Jisho.
+     * Extracts the reading of the surface from the Jisho JSON.
      *
-     * @param surface termo consultado
-     * @param json    corpo da resposta
-     * @return leitura encontrada, ou vazio
+     * @param surface queried term
+     * @param json    response body
+     * @return reading found, or empty
      */
     private Optional<Reading> extractReading(String surface, String json) {
         try {

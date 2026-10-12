@@ -22,12 +22,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link FuriganaPipeline}.
+ * Tests for {@link FuriganaPipeline}.
  */
 class FuriganaPipelineTest {
 
     @Test
-    @DisplayName("Preserva id, timestamps e texto original de cada entrada")
+    @DisplayName("Preserves id, timestamps and original text of each entry")
     void preservesEntryMetadata() {
         FuriganaPipeline pipeline = pipelineWithoutProvider();
 
@@ -55,7 +55,7 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Gera um segmento por token, com leitura nula quando não há provider")
+    @DisplayName("Generates one segment per token, with null reading when there is no provider")
     void createsOneSegmentPerTokenWithoutProvider() {
         FuriganaDocument document = pipelineWithoutProvider()
                 .process("1\n00:00:01,000 --> 00:00:02,000\n今日は日本語。");
@@ -68,11 +68,11 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Usa o provider de leituras quando configurado")
+    @DisplayName("Uses the reading provider when configured")
     void usesReadingProviderWhenConfigured() {
         ReadingProvider provider = token -> {
             if (token.getSurface().equals("日本語")) {
-                return Optional.of(new Reading("日本語", "にほんご", "teste"));
+                return Optional.of(new Reading("日本語", "にほんご", "test"));
             }
             return Optional.empty();
         };
@@ -82,13 +82,13 @@ class FuriganaPipelineTest {
                 .getEntries().get(0).segments();
 
         assertEquals("にほんご", segments.get(0).reading());
-        assertNull(segments.get(1).reading()); // を, sem leitura
+        assertNull(segments.get(1).reading()); // を, no reading
         assertEquals("勉強", segments.get(2).text());
         assertNull(segments.get(2).reading());
     }
 
     @Test
-    @DisplayName("Mantém entradas sem kanji (não descarta, evita dessincronização)")
+    @DisplayName("Keeps entries without kanji (does not discard, avoids desynchronization)")
     void keepsEntriesWithoutKanji() {
         FuriganaDocument document = pipelineWithoutProvider()
                 .process("1\n00:00:01,000 --> 00:00:02,000\nありがとうございます。");
@@ -98,7 +98,7 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Preserva quebras de linha internas no texto da entrada")
+    @DisplayName("Preserves internal line breaks in the entry text")
     void preservesInternalLineBreaks() {
         FuriganaDocument document = pipelineWithoutProvider()
                 .process("1\n00:00:01,000 --> 00:00:02,000\n元気ですか？\n私は元気です。");
@@ -107,7 +107,7 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Remove trechos entre parênteses e descarta entradas que ficam vazias")
+    @DisplayName("Removes passages between parentheses and discards entries that become empty")
     void stripsParenthesesWhenEnabled() {
         FuriganaPipeline pipeline = new FuriganaPipeline(new ScriptJapaneseTokenizer(), null, true);
 
@@ -134,7 +134,7 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Mantém os parênteses quando a limpeza está desligada")
+    @DisplayName("Keeps parentheses when cleaning is disabled")
     void keepsParenthesesWhenDisabled() {
         FuriganaDocument document = pipelineWithoutProvider()
                 .process("1\n00:00:01,000 --> 00:00:02,000\n（太郎）やあ（笑）");
@@ -143,7 +143,7 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Tokeniza o texto já limpo, sem gerar furigana para o que foi removido")
+    @DisplayName("Tokenizes cleaned text without generating furigana for removed content")
     void tokenizesCleanedText() {
         List<FuriganaSegment> segments =
                 new FuriganaPipeline(new ScriptJapaneseTokenizer(), null, true)
@@ -154,7 +154,7 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Retorna documento vazio para conteúdo vazio ou nulo")
+    @DisplayName("Returns an empty document for empty or null content")
     void returnsEmptyDocumentForNullOrBlank() {
         FuriganaPipeline pipeline = pipelineWithoutProvider();
 
@@ -164,7 +164,7 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Integra o Kuromoji: separa kanji e okurigana com leituras reais")
+    @DisplayName("Integrates Kuromoji: splits kanji and okurigana with real readings")
     void integratesKuromojiAndSplitsOkurigana() {
         List<FuriganaSegment> segments = new FuriganaPipeline(new KuromojiTokenizer(), null)
                 .process("1\n00:00:01,000 --> 00:00:02,000\n日本語を勉強します。")
@@ -176,10 +176,10 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Separa a leitura do provider em kanji e okurigana")
+    @DisplayName("Splits the provider reading into kanji and okurigana")
     void splitsProviderReadingIntoKanjiAndOkurigana() {
         JapaneseTokenizer tokenizer = text -> List.of(new Token("食べる", "動詞"));
-        ReadingProvider provider = token -> Optional.of(new Reading("食べる", "たべる", "teste"));
+        ReadingProvider provider = token -> Optional.of(new Reading("食べる", "たべる", "test"));
 
         List<FuriganaSegment> segments = new FuriganaPipeline(tokenizer, provider)
                 .process("1\n00:00:01,000 --> 00:00:02,000\n食べる")
@@ -189,7 +189,7 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Não consulta o provider para tokens sem kanji")
+    @DisplayName("Does not query the provider for tokens without kanji")
     void doesNotQueryProviderForKanaTokens() {
         AtomicInteger calls = new AtomicInteger();
         ReadingProvider provider = token -> {
@@ -204,7 +204,7 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Consulta o provider apenas para tokens com kanji")
+    @DisplayName("Queries the provider only for tokens with kanji")
     void queriesProviderOnlyForKanjiTokens() {
         AtomicInteger calls = new AtomicInteger();
         ReadingProvider provider = token -> {
@@ -219,7 +219,7 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Integra o Kuromoji: alinha okurigana final sem perder leitura (大嫌い)")
+    @DisplayName("Integrates Kuromoji: aligns trailing okurigana without losing the reading (大嫌い)")
     void integratesKuromojiForTrailingOkurigana() {
         List<FuriganaSegment> segments = new FuriganaPipeline(new KuromojiTokenizer(), null)
                 .process("1\n00:00:01,000 --> 00:00:02,000\n大嫌い")
@@ -231,7 +231,7 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Avisa quando um termo com kanji fica sem leitura")
+    @DisplayName("Warns when a term with kanji has no reading")
     void warnsWhenKanjiTokenHasNoReading() {
         List<String> warnings = new ArrayList<>();
         JapaneseTokenizer tokenizer = text -> List.of(new Token("大嫌い", "名詞"));
@@ -240,11 +240,12 @@ class FuriganaPipelineTest {
         new FuriganaPipeline(tokenizer, provider, false, warnings::add)
                 .process("1\n00:00:01,000 --> 00:00:02,000\n大嫌い");
 
-        assertEquals(List.of("sem leitura para \"大嫌い\"; o termo ficará sem furigana."), warnings);
+        assertEquals(List.of(
+                "no reading for \"大嫌い\"; the term will stay without furigana."), warnings);
     }
 
     @Test
-    @DisplayName("Avisa uma única vez por superfície repetida na mesma legenda")
+    @DisplayName("Warns only once per surface repeated in the same subtitle")
     void warnsOncePerRepeatedSurface() {
         List<String> warnings = new ArrayList<>();
         JapaneseTokenizer tokenizer = text -> List.of(new Token("大嫌い", "名詞"));
@@ -265,11 +266,11 @@ class FuriganaPipelineTest {
     }
 
     @Test
-    @DisplayName("Não avisa quando a leitura é encontrada")
+    @DisplayName("Does not warn when the reading is found")
     void doesNotWarnWhenReadingFound() {
         List<String> warnings = new ArrayList<>();
         JapaneseTokenizer tokenizer = text -> List.of(new Token("大嫌い", "名詞"));
-        ReadingProvider provider = token -> Optional.of(new Reading("大嫌い", "だいきらい", "teste"));
+        ReadingProvider provider = token -> Optional.of(new Reading("大嫌い", "だいきらい", "test"));
 
         new FuriganaPipeline(tokenizer, provider, false, warnings::add)
                 .process("1\n00:00:01,000 --> 00:00:02,000\n大嫌い");
@@ -278,7 +279,7 @@ class FuriganaPipelineTest {
     }
 
     // ------------------------------------------------------------------
-    // Utilitários
+    // Utilities
     // ------------------------------------------------------------------
 
     private FuriganaPipeline pipelineWithoutProvider() {

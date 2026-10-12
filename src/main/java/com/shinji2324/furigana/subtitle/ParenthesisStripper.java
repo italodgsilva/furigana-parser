@@ -5,42 +5,41 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * Remove trechos entre parênteses redondos do texto de uma legenda.
+ * Removes passages between round parentheses from the text of a subtitle.
  *
- * <p>Legendas japonesas costumam marcar, entre parênteses, nomes de personagens,
- * leituras alternativas, indicações de cena ou reações (ex.: {@code （笑）}). Como
- * esse conteúdo não faz parte da fala, ele é removido — junto com os próprios
- * parênteses — antes da tokenização, para não gerar furigana nem consultas de
- * leitura.
+ * <p>Japanese subtitles often mark, between parentheses, character names,
+ * alternative readings, scene indications or reactions (e.g. {@code （笑）}). Since
+ * this content is not part of the speech, it is removed — along with the
+ * parentheses themselves — before tokenization, so as not to generate furigana or
+ * reading queries.
  *
- * <p>Pares reconhecidos: full-width {@code （…）} e half-width {@code (…)}. Os dois
- * lados de um par devem ser do mesmo tipo; pares aninhados são removidos de
- * dentro para fora. Um parêntese sem fechamento correspondente é preservado.
+ * <p>Recognized pairs: full-width {@code （…）} and half-width {@code (…)}. Both
+ * sides of a pair must be of the same type; nested pairs are removed from the
+ * inside out. A parenthesis without a matching closing one is preserved.
  *
- * <p>A limpeza é feita linha a linha. Quando uma linha muda, os espaços que
- * sobraram nas pontas são descartados (um espaço residual deslocaria a
- * centralização do ASS, porque o espaço tem largura na grade de caracteres) e
- * linhas que ficaram em branco não entram no resultado. Se todo o texto for
- * consumido, o resultado é uma string vazia — cabe ao chamador decidir se a
- * entrada deve ser descartada.
+ * <p>Cleaning is done line by line. When a line changes, the spaces left over at
+ * the ends are discarded (a residual space would shift the ASS centering, because
+ * the space has width in the character grid) and lines that became blank do not
+ * enter the result. If all the text is consumed, the result is an empty string —
+ * it is up to the caller to decide whether the entry should be discarded.
  */
 public final class ParenthesisStripper {
 
-    /** Par full-width: {@code （…）}, sem parênteses internos de nenhum tipo. */
+    /** Full-width pair: {@code （…）}, without inner parentheses of any kind. */
     private static final Pattern FULL_WIDTH = Pattern.compile("（[^（）()]*）");
 
-    /** Par half-width: {@code (…)}, sem parênteses internos de nenhum tipo. */
+    /** Half-width pair: {@code (…)}, without inner parentheses of any kind. */
     private static final Pattern HALF_WIDTH = Pattern.compile("\\([^（）()]*\\)");
 
     private ParenthesisStripper() {
-        // Classe utilitária: não deve ser instanciada.
+        // Utility class: must not be instantiated.
     }
 
     /**
-     * Remove os trechos entre parênteses redondos e devolve o texto limpo.
+     * Removes the passages between round parentheses and returns the cleaned text.
      *
-     * @param text texto de uma entrada (pode conter quebras de linha), ou {@code null}
-     * @return o texto sem os trechos entre parênteses; vazio se tudo for removido
+     * @param text text of an entry (may contain line breaks), or {@code null}
+     * @return the text without the passages between parentheses; empty if everything is removed
      */
     public static String strip(String text) {
         if (text == null || text.isEmpty()) {
@@ -60,13 +59,13 @@ public final class ParenthesisStripper {
     }
 
     /**
-     * Remove os pares de uma única linha, repetindo até não haver mais mudança.
+     * Removes the pairs from a single line, repeating until there is no further change.
      *
-     * <p>A repetição é necessária para pares aninhados: o par interno só fica
-     * visível (e removível) depois que os de dentro já saíram.
+     * <p>The repetition is necessary for nested pairs: the inner pair only becomes
+     * visible (and removable) after the ones inside have already been removed.
      *
-     * @param line linha a limpar
-     * @return a linha sem os trechos entre parênteses
+     * @param line line to clean
+     * @return the line without the passages between parentheses
      */
     private static String stripLine(String line) {
         if (line.isEmpty()) {

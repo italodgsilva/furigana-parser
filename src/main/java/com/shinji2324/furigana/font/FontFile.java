@@ -1,15 +1,16 @@
 package com.shinji2324.furigana.font;
 
 /**
- * Uma fonte localizada, pronta para ser embutida em um ASS.
+ * A located font, ready to be embedded into an ASS.
  *
- * <p>O {@code data} contém os bytes de uma única face (um arquivo {@code .ttf}
- * ou {@code .otf} autônomo). Quando a fonte original é uma coleção ({@code .ttc}),
- * a face correspondente já vem extraída, pois o ASS embute uma face por vez.
+ * <p>{@code data} holds the bytes of a single face (a standalone {@code .ttf}
+ * or {@code .otf} file). When the original font is a collection ({@code .ttc}),
+ * the corresponding face is already extracted, since ASS embeds one face at a
+ * time.
  *
- * @param fileName nome sugerido para a fonte, usado no cabeçalho
- *                 {@code fontname:} da seção {@code [Fonts]}
- * @param data     conteúdo binário da face da fonte
+ * @param fileName suggested name for the font, used in the {@code fontname:}
+ *                 header of the {@code [Fonts]} section
+ * @param data     binary content of the font face
  */
 public record FontFile(String fileName, byte[] data) {
 }

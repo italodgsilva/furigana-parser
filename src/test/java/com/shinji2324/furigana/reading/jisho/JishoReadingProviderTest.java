@@ -17,10 +17,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link JishoReadingProvider}.
+ * Tests for {@link JishoReadingProvider}.
  *
- * <p>A camada HTTP é substituída por um {@link HttpTextFetcher} que devolve
- * respostas pré-gravadas, mantendo os testes determinísticos e offline.
+ * <p>The HTTP layer is replaced by an {@link HttpTextFetcher} that returns
+ * pre-recorded responses, keeping the tests deterministic and offline.
  */
 class JishoReadingProviderTest {
 
@@ -39,7 +39,7 @@ class JishoReadingProviderTest {
             """;
 
     @Test
-    @DisplayName("Extrai a leitura da forma japonesa que coincide com a superfície")
+    @DisplayName("Extracts the reading from the Japanese form that matches the surface")
     void extractsReadingForMatchingSurface() {
         List<String> requestedUrls = new ArrayList<>();
         JishoReadingProvider provider = new JishoReadingProvider(url -> {
@@ -60,7 +60,7 @@ class JishoReadingProviderTest {
     }
 
     @Test
-    @DisplayName("Usa o endpoint configurado")
+    @DisplayName("Uses the configured endpoint")
     void usesConfiguredEndpoint() {
         List<String> requestedUrls = new ArrayList<>();
         JishoReadingProvider provider = new JishoReadingProvider(
@@ -77,7 +77,7 @@ class JishoReadingProviderTest {
     }
 
     @Test
-    @DisplayName("Retorna vazio quando nenhuma forma coincide exatamente")
+    @DisplayName("Returns empty when no form matches exactly")
     void returnsEmptyWhenNoExactMatch() {
         JishoReadingProvider provider = new JishoReadingProvider(url -> Optional.of(VALID_RESPONSE));
 
@@ -85,7 +85,7 @@ class JishoReadingProviderTest {
     }
 
     @Test
-    @DisplayName("Retorna vazio quando a requisição falha")
+    @DisplayName("Returns empty when the request fails")
     void returnsEmptyWhenFetchFails() {
         JishoReadingProvider provider = new JishoReadingProvider(url -> Optional.empty());
 
@@ -93,9 +93,9 @@ class JishoReadingProviderTest {
     }
 
     @Test
-    @DisplayName("Retorna vazio para JSON malformado ou sem lista de dados")
+    @DisplayName("Returns empty for malformed JSON or JSON without a data list")
     void returnsEmptyForMalformedResponse() {
-        JishoReadingProvider malformed = new JishoReadingProvider(url -> Optional.of("não é json"));
+        JishoReadingProvider malformed = new JishoReadingProvider(url -> Optional.of("not json"));
         assertTrue(malformed.findReading(new Token("日本語", "名詞")).isEmpty());
 
         JishoReadingProvider withoutData = new JishoReadingProvider(url -> Optional.of("{\"meta\":{}}"));
@@ -103,7 +103,7 @@ class JishoReadingProviderTest {
     }
 
     @Test
-    @DisplayName("Não consulta o endpoint para token nulo ou em branco")
+    @DisplayName("Does not query the endpoint for a null or blank token")
     void skipsInvalidTokens() {
         AtomicInteger calls = new AtomicInteger();
         JishoReadingProvider provider = new JishoReadingProvider(url -> {

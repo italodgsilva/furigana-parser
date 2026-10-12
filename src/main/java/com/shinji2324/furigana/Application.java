@@ -33,55 +33,55 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Ponto de entrada da aplicação (CLI).
+ * Application entry point (CLI).
  *
- * <p>Formas de uso:
+ * <p>Usage forms:
  * <pre>
- * furigana-parser &lt;entrada.srt&gt; &lt;saida.json|saida.ass&gt;
- * furigana-parser --mpv &lt;entrada.srt&gt; &lt;video&gt;
+ * furigana-parser &lt;input.srt&gt; &lt;output.json|output.ass&gt;
+ * furigana-parser --mpv &lt;input.srt&gt; &lt;video&gt;
  * furigana-parser --help
  * </pre>
  *
- * <p>O formato de saída é escolhido pela extensão do arquivo de saída:
- * {@code .json} gera o modelo intermediário e {@code .ass} gera a legenda com o
- * furigana posicionado.
+ * <p>The output format is chosen by the output file extension:
+ * {@code .json} generates the intermediate model and {@code .ass} generates the
+ * subtitle with positioned furigana.
  *
- * <p>No modo {@code --mpv}, a legenda é gerada ao lado da SRT (sufixo
- * {@code .furigana.ass}) e o vídeo é aberto no MPV com
- * {@code --sub-file}. Veja as limitações em {@code docs/mpv.md}.
+ * <p>In {@code --mpv} mode, the subtitle is generated next to the SRT (suffix
+ * {@code .furigana.ass}) and the video is opened in MPV with
+ * {@code --sub-file}. See the limitations in {@code docs/mpv.md}.
  *
- * <p>Lê a legenda SRT em UTF-8 e executa o pipeline. As leituras vêm do
- * tokenizador morfológico ({@link KuromojiTokenizer}); quando ele não conhece um
- * termo com kanji, o fallback consulta o {@link JishoReadingProvider}, sempre
- * mediado pelo {@link CachingReadingProvider} (cache em
- * {@code data/cache/readings.json}). Termos com kanji que fiquem sem leitura —
- * quando nem o tokenizador nem o Jisho os conhecem — geram um aviso em
- * {@code stderr}; a entrada é mantida, apenas sem furigana.
+ * <p>Reads the SRT subtitle in UTF-8 and runs the pipeline. Readings come from
+ * the morphological tokenizer ({@link KuromojiTokenizer}); when it does not know
+ * a term with kanji, the fallback queries the {@link JishoReadingProvider},
+ * always mediated by the {@link CachingReadingProvider} (on-disk cache at
+ * {@code data/cache/readings.json}). Terms with kanji that remain without a
+ * reading — when neither the tokenizer nor Jisho knows them — generate a warning
+ * on {@code stderr}; the entry is kept, only without furigana.
  *
- * <p>Esta classe é apenas o ponto de composição: a lógica permanece nas camadas
- * do pipeline. Ela não contém regras de negócio.
+ * <p>This class is only the composition point: the logic remains in the pipeline
+ * layers. It contains no business rules.
  */
 public class Application {
 
-    /** Código de saída para sucesso. */
+    /** Exit code for success. */
     static final int EXIT_OK = 0;
 
-    /** Código de saída para erro de processamento. */
+    /** Exit code for processing error. */
     static final int EXIT_ERROR = 1;
 
-    /** Código de saída para erro de argumentos. */
+    /** Exit code for argument error. */
     static final int EXIT_USAGE = 2;
 
-    /** Local padrão do cache de leituras, relativo ao diretório de execução. */
+    /** Default location of the reading cache, relative to the working directory. */
     private static final Path DEFAULT_CACHE_FILE = Path.of("data", "cache", "readings.json");
 
     private final CliParser cliParser = new CliParser();
     private final MpvIntegration mpvIntegration = new MpvIntegration();
 
     /**
-     * Ponto de entrada da CLI.
+     * CLI entry point.
      *
-     * @param args argumentos da linha de comando
+     * @param args command-line arguments
      */
     public static void main(String[] args) {
         int exitCode = new Application().run(args);
@@ -91,13 +91,13 @@ public class Application {
     }
 
     /**
-     * Executa a aplicação e retorna o código de saída.
+     * Runs the application and returns the exit code.
      *
-     * <p>Separado de {@link #main(String[])} para não encerrar a JVM ao ser usado
-     * em testes.
+     * <p>Separated from {@link #main(String[])} so as not to terminate the JVM
+     * when used in tests.
      *
-     * @param args argumentos da linha de comando
-     * @return código de saída
+     * @param args command-line arguments
+     * @return exit code
      */
     public int run(String[] args) {
         CliCommand command;
@@ -111,24 +111,24 @@ public class Application {
         try {
             return execute(command);
         } catch (SubtitleParseException e) {
-            System.err.println("Legenda inválida: " + e.getMessage());
+            System.err.println("Invalid subtitle: " + e.getMessage());
             return EXIT_ERROR;
         } catch (IllegalArgumentException e) {
-            System.err.println("Saída inválida: " + e.getMessage());
+            System.err.println("Invalid output: " + e.getMessage());
             return EXIT_ERROR;
         } catch (IOException e) {
-            // JsonProcessingException é subclasse de IOException, portanto é coberta aqui.
-            System.err.println("Erro ao processar legenda: " + e.getMessage());
+            // JsonProcessingException is a subclass of IOException, so it is covered here.
+            System.err.println("Error processing subtitle: " + e.getMessage());
             return EXIT_ERROR;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.err.println("Execução interrompida: " + e.getMessage());
+            System.err.println("Execution interrupted: " + e.getMessage());
             return EXIT_ERROR;
         }
     }
 
     /**
-     * Despacha o comando interpretado.
+     * Dispatches the parsed command.
      */
     private int execute(CliCommand command) throws IOException, InterruptedException {
         return switch (command.mode()) {
@@ -143,7 +143,7 @@ public class Application {
     }
 
     /**
-     * Gera a saída solicitada (JSON ou ASS) para o arquivo informado.
+     * Generates the requested output (JSON or ASS) to the given file.
      */
     private int generate(CliCommand command, boolean ass) throws IOException {
         FuriganaDocument document = process(command.input(), command.stripParentheses());
@@ -154,13 +154,13 @@ public class Application {
             rendered = new JsonWriter().write(document);
         }
         writeText(command.output(), rendered);
-        System.out.println("Furigana gerado (" + (ass ? "ass" : "json") + "): "
+        System.out.println("Furigana generated (" + (ass ? "ass" : "json") + "): "
                 + command.output().toAbsolutePath());
         return EXIT_OK;
     }
 
     /**
-     * Gera o ASS ao lado da SRT e abre o vídeo no MPV.
+     * Generates the ASS next to the SRT and opens the video in MPV.
      */
     private int play(CliCommand command) throws IOException, InterruptedException {
         Path subtitle = command.input();
@@ -168,26 +168,26 @@ public class Application {
         Path ass = MpvPaths.furiganaSubtitle(subtitle);
         FuriganaDocument document = process(subtitle, command.stripParentheses());
         writeText(ass, renderAss(document, command));
-        System.out.println("Legenda gerada: " + ass.toAbsolutePath());
-        System.out.println("Abrindo MPV: " + video.toAbsolutePath());
+        System.out.println("Subtitle generated: " + ass.toAbsolutePath());
+        System.out.println("Opening MPV: " + video.toAbsolutePath());
 
         try {
             int exitCode = mpvIntegration.open(video, ass);
             if (exitCode != 0) {
-                System.err.println("MPV encerrou com código " + exitCode);
+                System.err.println("MPV exited with code " + exitCode);
                 return EXIT_ERROR;
             }
             return EXIT_OK;
         } catch (IOException e) {
-            System.err.println("Falha ao iniciar o MPV (verifique se 'mpv' está instalado e no PATH): "
+            System.err.println("Failed to start MPV (make sure 'mpv' is installed and on the PATH): "
                     + e.getMessage());
             return EXIT_ERROR;
         }
     }
 
     /**
-     * Monta o ASS com o furigana posicionado e, quando pedido, com a fonte
-     * embutida (e, opcionalmente, reduzida).
+     * Builds the ASS with positioned furigana and, when requested, with the font
+     * embedded (and, optionally, subset).
      */
     private String renderAss(FuriganaDocument document, CliCommand command) throws IOException {
         String ass = new AssGenerator().generate(document);
@@ -202,12 +202,12 @@ public class Application {
     }
 
     /**
-     * Reduz as fontes aos glifos usados na legenda, quando o HarfBuzz estiver
-     * disponível.
+     * Subsets the fonts to the glyphs used in the subtitle, when HarfBuzz is
+     * available.
      *
-     * <p>Se a biblioteca nativa não for encontrada — ou se a redução de uma fonte
-     * específica falhar — a fonte completa é mantida, com um aviso em
-     * {@code stderr}. O ASS nunca é gerado sem os glifos necessários.
+     * <p>If the native library is not found — or if subsetting a specific font
+     * fails — the full font is kept, with a warning on {@code stderr}. The ASS is
+     * never generated without the necessary glyphs.
      */
     private List<FontFile> subsetFonts(List<FontFile> fonts, FuriganaDocument document) {
         Optional<HarfBuzzSubsetter> subsetter = HarfBuzzSubsetter.create();
@@ -220,8 +220,8 @@ public class Application {
         for (FontFile font : fonts) {
             byte[] reduced = subsetter.get().subset(font.data(), codePoints);
             if (reduced == null) {
-                System.err.println("Aviso: não foi possível reduzir " + font.fileName()
-                        + "; embutindo a fonte completa.");
+                System.err.println("Warning: could not subset " + font.fileName()
+                        + "; embedding the full font.");
                 subsetted.add(font);
             } else {
                 subsetted.add(new FontFile(font.fileName(), reduced));
@@ -231,15 +231,16 @@ public class Application {
     }
 
     /**
-     * Resolve os arquivos das fontes declaradas no template ASS.
+     * Resolves the font files declared in the ASS template.
      *
-     * <p>Com {@code fontPath} informado, embute esse arquivo; caso contrário,
-     * localiza cada família no sistema.
+     * <p>With {@code fontPath} provided, embeds that file; otherwise, locates
+     * each family on the system.
      */
     private List<FontFile> resolveFonts(Path fontPath) throws IOException {
         List<String> families = AssTemplate.defaultTemplate().fontFamilies();
         if (families.isEmpty()) {
-            throw new IOException("O template ASS não declara estilos com fonte para embutir.");
+            throw new IOException(
+                    "The ASS template does not declare any styles with a font to embed.");
         }
         if (fontPath != null) {
             FontLocator locator = new FontLocator();
@@ -258,14 +259,14 @@ public class Application {
             }
         }
         if (!missing.isEmpty()) {
-            throw new IOException("Fonte não encontrada no sistema: " + String.join(", ", missing)
-                    + ". Informe o arquivo com --embed-font=<arquivo>.");
+            throw new IOException("Font not found on the system: " + String.join(", ", missing)
+                    + ". Provide the file with --embed-font=<file>.");
         }
         return fonts;
     }
 
     /**
-     * Lê a SRT e executa o pipeline completo de furigana.
+     * Reads the SRT and runs the complete furigana pipeline.
      */
     private FuriganaDocument process(Path input, boolean stripParentheses) throws IOException {
         String srtContent = Files.readString(input, StandardCharsets.UTF_8);
@@ -275,13 +276,13 @@ public class Application {
                 new JishoReadingProvider(),
                 new FileReadingCache(DEFAULT_CACHE_FILE));
         FuriganaPipeline pipeline = new FuriganaPipeline(tokenizer, provider, stripParentheses,
-                message -> System.err.println("Aviso: " + message));
+                message -> System.err.println("Warning: " + message));
 
         return pipeline.process(srtContent);
     }
 
     /**
-     * Grava o conteúdo em UTF-8, criando o diretório pai quando necessário.
+     * Writes the content in UTF-8, creating the parent directory when necessary.
      */
     private static void writeText(Path output, String content) throws IOException {
         Path parent = output.toAbsolutePath().getParent();

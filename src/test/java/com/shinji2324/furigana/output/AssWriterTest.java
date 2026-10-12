@@ -10,14 +10,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link AssWriter} (formatação de tempo e eventos).
+ * Tests for {@link AssWriter} (time and event formatting).
  */
 class AssWriterTest {
 
     private final AssWriter writer = new AssWriter();
 
     @Test
-    @DisplayName("Converte timestamps SRT para o formato ASS")
+    @DisplayName("Converts SRT timestamps to the ASS format")
     void convertsSrtTimestamps() {
         assertEquals("0:00:01.00", AssWriter.formatTime("00:00:01,000"));
         assertEquals("0:01:12.50", AssWriter.formatTime("00:01:12,500"));
@@ -26,46 +26,46 @@ class AssWriterTest {
     }
 
     @Test
-    @DisplayName("Arredonda milissegundos e propaga o transporte de centésimos")
+    @DisplayName("Rounds milliseconds and propagates the centisecond carry")
     void roundsAndCarriesCentiseconds() {
         assertEquals("0:00:01.00", AssWriter.formatTime("00:00:00,999"));
         assertEquals("0:01:00.00", AssWriter.formatTime("00:00:59,995"));
     }
 
     @Test
-    @DisplayName("Rejeita timestamp inválido")
+    @DisplayName("Rejects an invalid timestamp")
     void rejectsInvalidTimestamp() {
         assertThrows(IllegalArgumentException.class, () -> AssWriter.formatTime("00:00:01"));
         assertThrows(IllegalArgumentException.class, () -> AssWriter.formatTime(null));
     }
 
     @Test
-    @DisplayName("Formata um evento como linha Dialogue")
+    @DisplayName("Formats an event as a Dialogue line")
     void formatsEventLine() {
-        AssEvent event = new AssEvent(0, "0:00:01.00", "0:00:04.50", "Main", "olá");
+        AssEvent event = new AssEvent(0, "0:00:01.00", "0:00:04.50", "Main", "hello");
 
-        assertEquals("Dialogue: 0,0:00:01.00,0:00:04.50,Main,,0,0,0,,olá", writer.formatEvent(event));
+        assertEquals("Dialogue: 0,0:00:01.00,0:00:04.50,Main,,0,0,0,,hello", writer.formatEvent(event));
     }
 
     @Test
-    @DisplayName("Anexa os eventos ao cabeçalho, garantindo a quebra de linha final")
+    @DisplayName("Appends the events to the header, ensuring the final line break")
     void appendsEventsToTemplate() {
-        AssTemplate template = new AssTemplate("CABECALHO\n");
+        AssTemplate template = new AssTemplate("HEADER\n");
         String output = writer.write(template, List.of(
-                new AssEvent(0, "0:00:01.00", "0:00:02.00", "Main", "primeiro"),
-                new AssEvent(0, "0:00:01.00", "0:00:02.00", "Furigana", "segundo")));
+                new AssEvent(0, "0:00:01.00", "0:00:02.00", "Main", "first"),
+                new AssEvent(0, "0:00:01.00", "0:00:02.00", "Furigana", "second")));
 
-        assertEquals("CABECALHO\n"
-                + "Dialogue: 0,0:00:01.00,0:00:02.00,Main,,0,0,0,,primeiro\n"
-                + "Dialogue: 0,0:00:01.00,0:00:02.00,Furigana,,0,0,0,,segundo\n", output);
+        assertEquals("HEADER\n"
+                + "Dialogue: 0,0:00:01.00,0:00:02.00,Main,,0,0,0,,first\n"
+                + "Dialogue: 0,0:00:01.00,0:00:02.00,Furigana,,0,0,0,,second\n", output);
     }
 
     @Test
-    @DisplayName("Não emite eventos quando a lista está vazia")
+    @DisplayName("Does not emit events when the list is empty")
     void writesTemplateOnlyWithoutEvents() {
-        String output = writer.write(new AssTemplate("CABECALHO\n"), List.of());
+        String output = writer.write(new AssTemplate("HEADER\n"), List.of());
 
-        assertEquals("CABECALHO\n", output);
-        assertTrue(writer.write(new AssTemplate("CABECALHO"), List.of()).startsWith("CABECALHO"));
+        assertEquals("HEADER\n", output);
+        assertTrue(writer.write(new AssTemplate("HEADER"), List.of()).startsWith("HEADER"));
     }
 }

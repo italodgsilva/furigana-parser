@@ -1,16 +1,16 @@
 package com.shinji2324.furigana.output;
 
 /**
- * Um evento de diálogo de um arquivo ASS.
+ * A dialogue event of an ASS file.
  *
- * <p>Os campos {@code start} e {@code end} já devem estar no formato ASS
- * ({@code H:MM:SS.CC}), normalmente obtidos de {@link AssWriter#formatTime(String)}.
+ * <p>The {@code start} and {@code end} fields must already be in ASS format
+ * ({@code H:MM:SS.CC}), usually obtained from {@link AssWriter#formatTime(String)}.
  *
- * @param layer camada de exibição (0 é o padrão)
- * @param start timestamp de início no formato ASS
- * @param end   timestamp de fim no formato ASS
- * @param style nome do estilo ({@code Main} ou {@code Furigana})
- * @param text  texto do evento, incluindo as tags de override ({@code \pos} etc.)
+ * @param layer display layer (0 is the default)
+ * @param start start timestamp in ASS format
+ * @param end   end timestamp in ASS format
+ * @param style style name ({@code Main} or {@code Furigana})
+ * @param text  event text, including the override tags ({@code \pos} etc.)
  */
 public record AssEvent(int layer, String start, String end, String style, String text) {
 }

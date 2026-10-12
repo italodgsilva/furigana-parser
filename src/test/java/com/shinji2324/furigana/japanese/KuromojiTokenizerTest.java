@@ -10,17 +10,17 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Testes do {@link KuromojiTokenizer} (tokenização morfológica).
+ * Tests for {@link KuromojiTokenizer} (morphological tokenization).
  *
- * <p>As expectativas refletem a análise do dicionário IPADIC para as frases de
- * exemplo; mudanças de dicionário podem exigir ajuste.
+ * <p>The expectations reflect the IPADIC dictionary's analysis for the example
+ * sentences; dictionary changes may require adjustments.
  */
 class KuromojiTokenizerTest {
 
     private final JapaneseTokenizer tokenizer = new KuromojiTokenizer();
 
     @Test
-    @DisplayName("Segmenta morfologicamente uma frase japonesa")
+    @DisplayName("Segments a Japanese sentence morphologically")
     void tokenizesSentenceMorphologically() {
         List<String> surfaces = tokenizer.tokenize("今日は日本語を勉強します。").stream()
                 .map(Token::getSurface)
@@ -30,7 +30,7 @@ class KuromojiTokenizerTest {
     }
 
     @Test
-    @DisplayName("Fornece leituras normalizadas para hiragana")
+    @DisplayName("Provides readings normalized to hiragana")
     void providesHiraganaReadings() {
         List<Token> tokens = tokenizer.tokenize("今日は日本語を勉強します。");
 
@@ -41,7 +41,7 @@ class KuromojiTokenizerTest {
     }
 
     @Test
-    @DisplayName("Classifica o token pela classe gramatical")
+    @DisplayName("Classifies the token by part of speech")
     void usesPartOfSpeechAsKind() {
         List<Token> tokens = tokenizer.tokenize("日本語を");
 
@@ -50,7 +50,7 @@ class KuromojiTokenizerTest {
     }
 
     @Test
-    @DisplayName("Preserva os deslocamentos no texto tokenizado")
+    @DisplayName("Preserves the offsets in the tokenized text")
     void keepsOffsets() {
         List<Token> tokens = tokenizer.tokenize("今日は日本語");
 
@@ -60,7 +60,7 @@ class KuromojiTokenizerTest {
     }
 
     @Test
-    @DisplayName("Leitura desconhecida (números/latim) fica nula")
+    @DisplayName("Unknown reading (numbers/Latin) is null")
     void unknownReadingIsNull() {
         List<Token> tokens = tokenizer.tokenize("123円");
 
@@ -69,7 +69,7 @@ class KuromojiTokenizerTest {
     }
 
     @Test
-    @DisplayName("Separa o verbo em radical e okurigana já na tokenização")
+    @DisplayName("Splits the verb into stem and okurigana already during tokenization")
     void tokenizesConjugatedVerb() {
         List<Token> tokens = tokenizer.tokenize("食べる");
 
@@ -78,7 +78,7 @@ class KuromojiTokenizerTest {
     }
 
     @Test
-    @DisplayName("Retorna lista vazia para texto nulo ou em branco")
+    @DisplayName("Returns an empty list for null or blank text")
     void returnsEmptyForNullOrBlank() {
         assertTrue(tokenizer.tokenize(null).isEmpty());
         assertTrue(tokenizer.tokenize("   ").isEmpty());
@@ -88,6 +88,6 @@ class KuromojiTokenizerTest {
         return tokens.stream()
                 .filter(token -> surface.equals(token.getSurface()))
                 .findFirst()
-                .orElseThrow(() -> new AssertionError("token não encontrado: " + surface));
+                .orElseThrow(() -> new AssertionError("token not found: " + surface));
     }
 }

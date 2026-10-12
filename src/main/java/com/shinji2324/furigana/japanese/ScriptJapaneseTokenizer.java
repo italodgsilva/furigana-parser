@@ -6,34 +6,35 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Tokenizador provisório baseado em padrões de escrita (scripts).
+ * Provisional tokenizer based on script patterns.
  *
- * <p>Segmenta o texto por sequências consecutivas de um mesmo tipo de caractere
- * (kanji, hiragana, katakana, pontuação, latino etc.), de forma que a frase
- * "今日は日本語を勉強します。" produza, por exemplo:
+ * <p>Segments the text into consecutive runs of the same character type (kanji,
+ * hiragana, katakana, punctuation, Latin, etc.), so that the sentence
+ * "今日は日本語を勉強します。" produces, for example:
  *
  * <pre>
  * 今日 | は | 日本語 | を | 勉強 | します | 。
  * </pre>
  *
- * <p>É uma implementação provisória, mantida como alternativa offline/leve ao
- * {@link KuromojiTokenizer}. Como não faz análise morfológica, não produz
- * leituras (todos os tokens têm {@code reading == null}) nem separa okurigana
- * dentro de um mesmo token.
+ * <p>It is a provisional implementation, kept as a lightweight/offline
+ * alternative to {@link KuromojiTokenizer}. Since it does not perform
+ * morphological analysis, it produces no readings (all tokens have
+ * {@code reading == null}) and does not split okurigana within a single token.
  *
- * <p>Garante que nenhum caractere não-espaço seja descartado — caracteres não
- * reconhecidos são preservados como tokens de tipo {@code UNKNOWN}. Espaços em
- * branco são ignorados (não geram tokens).
+ * <p>Ensures that no non-whitespace character is discarded — unrecognized
+ * characters are preserved as tokens of type {@code UNKNOWN}. Whitespace is
+ * ignored (does not generate tokens).
  */
 public class ScriptJapaneseTokenizer implements JapaneseTokenizer {
 
     /**
-     * Padrão de segmentação: uma sequência de um único tipo de caractere japonês,
-     * um grupo alfanumérico latino, uma sequência de espaços (descartada) ou, como
-     * último recurso, um caractere isolado qualquer (preservado como {@code UNKNOWN}).
+     * Segmentation pattern: a run of a single type of Japanese character, a
+     * Latin alphanumeric group, a run of whitespace (discarded) or, as a last
+     * resort, any isolated character (preserved as {@code UNKNOWN}).
      *
-     * <p>{@code \p{P}} corresponde à pontuação Unicode (inclui pontuação japonesa
-     * como 。、？！・), ao contrário de {@code \p{Punct}}, que é limitada ao ASCII.
+     * <p>{@code \p{P}} matches Unicode punctuation (includes Japanese
+     * punctuation such as 。、？！・), unlike {@code \p{Punct}}, which is
+     * limited to ASCII.
      */
     private static final Pattern TOKEN_PATTERN = Pattern.compile(
             "[\\p{IsHan}]+"
