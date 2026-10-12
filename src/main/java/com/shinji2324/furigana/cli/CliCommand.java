@@ -14,17 +14,19 @@ import java.nio.file.Path;
  * quando ligado, reduz a fonte embutida aos glifos usados na legenda (exige
  * {@code embedFont}). {@code fontPath}, quando informado, aponta o arquivo de
  * fonte a embutir; quando {@code null}, a fonte é localizada pelo nome de família
- * no sistema.
+ * no sistema. {@code stripParentheses} remove os trechos entre parênteses redondos
+ * do texto antes do furigana (vale para JSON, ASS e {@code --mpv}).
  *
- * @param mode       operação a executar
- * @param input      legenda SRT de entrada
- * @param output     destino (arquivo de saída ou vídeo), conforme o modo
- * @param embedFont  se a fonte deve ser embutida no ASS
- * @param subsetFont se a fonte embutida deve ser reduzida aos glifos usados
- * @param fontPath   arquivo de fonte a embutir, ou {@code null} para localizar
+ * @param mode             operação a executar
+ * @param input            legenda SRT de entrada
+ * @param output           destino (arquivo de saída ou vídeo), conforme o modo
+ * @param embedFont        se a fonte deve ser embutida no ASS
+ * @param subsetFont       se a fonte embutida deve ser reduzida aos glifos usados
+ * @param fontPath         arquivo de fonte a embutir, ou {@code null} para localizar
+ * @param stripParentheses se os trechos entre parênteses devem ser removidos
  */
 public record CliCommand(Mode mode, Path input, Path output, boolean embedFont, boolean subsetFont,
-                         Path fontPath) {
+                         Path fontPath, boolean stripParentheses) {
 
     /** Operação pedida na linha de comando. */
     public enum Mode {
@@ -40,47 +42,52 @@ public record CliCommand(Mode mode, Path input, Path output, boolean embedFont, 
 
     /** Cria o comando de ajuda. */
     public static CliCommand help() {
-        return new CliCommand(Mode.HELP, null, null, false, false, null);
+        return new CliCommand(Mode.HELP, null, null, false, false, null, false);
     }
 
     /**
      * Cria o comando de geração de JSON.
      *
-     * @param input  legenda SRT
-     * @param output arquivo JSON de saída
+     * @param input            legenda SRT
+     * @param output           arquivo JSON de saída
+     * @param stripParentheses se os trechos entre parênteses devem ser removidos
      * @return comando configurado
      */
-    public static CliCommand generateJson(Path input, Path output) {
-        return new CliCommand(Mode.GENERATE_JSON, input, output, false, false, null);
+    public static CliCommand generateJson(Path input, Path output, boolean stripParentheses) {
+        return new CliCommand(Mode.GENERATE_JSON, input, output, false, false, null, stripParentheses);
     }
 
     /**
      * Cria o comando de geração de ASS.
      *
-     * @param input      legenda SRT
-     * @param output     arquivo ASS de saída
-     * @param embedFont  se a fonte deve ser embutida no ASS
-     * @param subsetFont se a fonte embutida deve ser reduzida aos glifos usados
-     * @param fontPath   arquivo de fonte a embutir, ou {@code null} para localizar
+     * @param input            legenda SRT
+     * @param output           arquivo ASS de saída
+     * @param embedFont        se a fonte deve ser embutida no ASS
+     * @param subsetFont       se a fonte embutida deve ser reduzida aos glifos usados
+     * @param fontPath         arquivo de fonte a embutir, ou {@code null} para localizar
+     * @param stripParentheses se os trechos entre parênteses devem ser removidos
      * @return comando configurado
      */
     public static CliCommand generateAss(Path input, Path output, boolean embedFont, boolean subsetFont,
-                                         Path fontPath) {
-        return new CliCommand(Mode.GENERATE_ASS, input, output, embedFont, subsetFont, fontPath);
+                                         Path fontPath, boolean stripParentheses) {
+        return new CliCommand(Mode.GENERATE_ASS, input, output, embedFont, subsetFont, fontPath,
+                stripParentheses);
     }
 
     /**
      * Cria o comando de reprodução no MPV.
      *
-     * @param subtitle   legenda SRT
-     * @param video      arquivo de vídeo
-     * @param embedFont  se a fonte deve ser embutida no ASS
-     * @param subsetFont se a fonte embutida deve ser reduzida aos glifos usados
-     * @param fontPath   arquivo de fonte a embutir, ou {@code null} para localizar
+     * @param subtitle         legenda SRT
+     * @param video            arquivo de vídeo
+     * @param embedFont        se a fonte deve ser embutida no ASS
+     * @param subsetFont       se a fonte embutida deve ser reduzida aos glifos usados
+     * @param fontPath         arquivo de fonte a embutir, ou {@code null} para localizar
+     * @param stripParentheses se os trechos entre parênteses devem ser removidos
      * @return comando configurado
      */
     public static CliCommand play(Path subtitle, Path video, boolean embedFont, boolean subsetFont,
-                                  Path fontPath) {
-        return new CliCommand(Mode.PLAY, subtitle, video, embedFont, subsetFont, fontPath);
+                                  Path fontPath, boolean stripParentheses) {
+        return new CliCommand(Mode.PLAY, subtitle, video, embedFont, subsetFont, fontPath,
+                stripParentheses);
     }
 }

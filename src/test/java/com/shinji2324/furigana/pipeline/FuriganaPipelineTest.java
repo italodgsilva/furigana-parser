@@ -106,6 +106,53 @@ class FuriganaPipelineTest {
     }
 
     @Test
+    @DisplayName("Remove trechos entre parênteses e descarta entradas que ficam vazias")
+    void stripsParenthesesWhenEnabled() {
+        FuriganaPipeline pipeline = new FuriganaPipeline(new ScriptJapaneseTokenizer(), null, true);
+
+        FuriganaDocument document = pipeline.process("""
+                1
+                00:00:01,000 --> 00:00:02,000
+                （太郎）やあ（笑）
+
+                2
+                00:00:03,000 --> 00:00:04,000
+                （笑）
+
+                3
+                00:00:05,000 --> 00:00:06,000
+                元気ですか？
+                """);
+
+        assertEquals(2, document.size());
+        FuriganaEntry first = document.getEntries().get(0);
+        assertEquals("1", first.id());
+        assertEquals("やあ", first.text());
+        assertEquals("3", document.getEntries().get(1).id());
+        assertEquals("元気ですか？", document.getEntries().get(1).text());
+    }
+
+    @Test
+    @DisplayName("Mantém os parênteses quando a limpeza está desligada")
+    void keepsParenthesesWhenDisabled() {
+        FuriganaDocument document = pipelineWithoutProvider()
+                .process("1\n00:00:01,000 --> 00:00:02,000\n（太郎）やあ（笑）");
+
+        assertEquals("（太郎）やあ（笑）", document.getEntries().get(0).text());
+    }
+
+    @Test
+    @DisplayName("Tokeniza o texto já limpo, sem gerar furigana para o que foi removido")
+    void tokenizesCleanedText() {
+        List<FuriganaSegment> segments =
+                new FuriganaPipeline(new ScriptJapaneseTokenizer(), null, true)
+                        .process("1\n00:00:01,000 --> 00:00:02,000\n（太郎）日本語（にほんご）")
+                        .getEntries().get(0).segments();
+
+        assertEquals(List.of(new FuriganaSegment("日本語", null)), segments);
+    }
+
+    @Test
     @DisplayName("Retorna documento vazio para conteúdo vazio ou nulo")
     void returnsEmptyDocumentForNullOrBlank() {
         FuriganaPipeline pipeline = pipelineWithoutProvider();

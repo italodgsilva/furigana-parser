@@ -54,6 +54,7 @@ Etapas concluídas:
 7. Geração de ASS com furigana posicionado (`AssGenerator` + `AssWriter` + `AssLayout`), com estilos em `src/main/resources/ass/default-style.ass`.
 8. Integração com o MPV (`--mpv`): gera o ASS ao lado da SRT e abre o vídeo com `mpv --sub-file=...` (ver `docs/mpv.md`).
 9. Embutição da fonte no próprio ASS (`--embed-font`): localiza a fonte do estilo pelo nome de família, recorta a face de coleções `.ttc` e escreve a seção `[Fonts]`, tudo em Java. Com `--subset-font`, reduz a fonte embutida aos glifos usados na legenda, por meio do HarfBuzz (ver `docs/font-embedding.md`).
+10. Limpeza de texto (`--strip-parentheses`): remove os trechos entre parênteses redondos (full-width e half-width) antes da tokenização, descartando entradas que ficam vazias.
 
 Próximas etapas (fora do escopo atual):
 
@@ -151,6 +152,7 @@ java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.ass
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font entrada.srt saida.ass
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font=fonte.otf entrada.srt saida.ass
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font --subset-font entrada.srt saida.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --strip-parentheses entrada.srt saida.ass
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --mpv entrada.srt video.mkv
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --help
 ```
@@ -168,6 +170,13 @@ fica em torno de 300 KB). A redução usa o HarfBuzz (`libharfbuzz-subset`); se 
 biblioteca não estiver disponível, o programa avisa (com a sugestão de instalação
 para o seu sistema) e embute a fonte completa.
 Veja [`docs/font-embedding.md`](docs/font-embedding.md).
+
+Com `--strip-parentheses`, os trechos entre parênteses redondos — em largura total
+(`（…）`) ou meia-largura (`(…)`) — são removidos do texto antes da tokenização.
+Isso evita gerar furigana (e consultar leituras) para nomes de personagens,
+reações e indicações de cena (ex.: `（笑）`, `(Taro)`). Se uma entrada ficar
+inteiramente vazia, como uma linha que era só `（笑）`, ela é descartada. A opção
+vale para JSON, ASS e `--mpv`.
 
 No modo `--mpv`, o ASS é gerado ao lado da SRT (`entrada.furigana.ass`) e o vídeo
 é aberto no MPV com `--sub-file`. Requer o MPV instalado no `PATH`. As limitações

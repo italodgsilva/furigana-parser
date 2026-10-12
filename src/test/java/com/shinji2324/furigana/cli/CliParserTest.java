@@ -147,4 +147,17 @@ class CliParserTest {
         assertThrows(CliUsageException.class,
                 () -> parser.parse(new String[] {"--subset-font", "entrada.srt", "saida.ass"}));
     }
+
+    @Test
+    @DisplayName("Interpreta --strip-parentheses no ASS, no JSON e no --mpv")
+    void parsesStripParentheses() {
+        assertTrue(parser.parse(new String[] {
+                "--strip-parentheses", "entrada.srt", "saida.ass"}).stripParentheses());
+        assertTrue(parser.parse(new String[] {
+                "--strip-parentheses", "entrada.srt", "saida.json"}).stripParentheses());
+        assertTrue(parser.parse(new String[] {
+                "--strip-parentheses", "--mpv", "legenda.srt", "video.mkv"}).stripParentheses());
+
+        assertFalse(parser.parse(new String[] {"entrada.srt", "saida.ass"}).stripParentheses());
+    }
 }

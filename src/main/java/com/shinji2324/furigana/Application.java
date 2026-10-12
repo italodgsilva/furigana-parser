@@ -144,7 +144,7 @@ public class Application {
      * Gera a saída solicitada (JSON ou ASS) para o arquivo informado.
      */
     private int generate(CliCommand command, boolean ass) throws IOException {
-        FuriganaDocument document = process(command.input());
+        FuriganaDocument document = process(command.input(), command.stripParentheses());
         String rendered;
         if (ass) {
             rendered = renderAss(document, command);
@@ -164,7 +164,7 @@ public class Application {
         Path subtitle = command.input();
         Path video = command.output();
         Path ass = MpvPaths.furiganaSubtitle(subtitle);
-        FuriganaDocument document = process(subtitle);
+        FuriganaDocument document = process(subtitle, command.stripParentheses());
         writeText(ass, renderAss(document, command));
         System.out.println("Legenda gerada: " + ass.toAbsolutePath());
         System.out.println("Abrindo MPV: " + video.toAbsolutePath());
@@ -265,14 +265,14 @@ public class Application {
     /**
      * Lê a SRT e executa o pipeline completo de furigana.
      */
-    private FuriganaDocument process(Path input) throws IOException {
+    private FuriganaDocument process(Path input, boolean stripParentheses) throws IOException {
         String srtContent = Files.readString(input, StandardCharsets.UTF_8);
 
         JapaneseTokenizer tokenizer = new KuromojiTokenizer();
         ReadingProvider provider = new CachingReadingProvider(
                 new JishoReadingProvider(),
                 new FileReadingCache(DEFAULT_CACHE_FILE));
-        FuriganaPipeline pipeline = new FuriganaPipeline(tokenizer, provider);
+        FuriganaPipeline pipeline = new FuriganaPipeline(tokenizer, provider, stripParentheses);
 
         return pipeline.process(srtContent);
     }

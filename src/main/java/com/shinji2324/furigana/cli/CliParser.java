@@ -10,16 +10,18 @@ import java.util.Locale;
  *
  * <p>Formas aceitas:
  * <pre>
- * furigana-parser &lt;entrada.srt&gt; &lt;saida.json|saida.ass&gt;
- * furigana-parser --mpv &lt;entrada.srt&gt; &lt;video&gt;   (alias: play)
- * furigana-parser [--embed-font[=&lt;arquivo&gt;]] [--subset-font] &lt;entrada.srt&gt; &lt;saida.ass&gt;
+ * furigana-parser [--strip-parentheses] &lt;entrada.srt&gt; &lt;saida.json|saida.ass&gt;
+ * furigana-parser [--strip-parentheses] --mpv &lt;entrada.srt&gt; &lt;video&gt;   (alias: play)
+ * furigana-parser [--strip-parentheses] [--embed-font[=&lt;arquivo&gt;]] [--subset-font] &lt;entrada.srt&gt; &lt;saida.ass&gt;
  * furigana-parser --help
  * </pre>
  *
  * <p>No modo de geração, o formato de saída é decidido pela extensão do arquivo
  * ({@code .json} ou {@code .ass}). A opção {@code --embed-font} embute a fonte da
  * legenda no próprio ASS e {@code --subset-font} (que exige a anterior) reduz a
- * fonte embutida aos glifos usados (veja {@code docs/font-embedding.md}).
+ * fonte embutida aos glifos usados (veja {@code docs/font-embedding.md}). A opção
+ * {@code --strip-parentheses} remove os trechos entre parênteses redondos do texto
+ * antes do furigana (vale para JSON, ASS e {@code --mpv}).
  */
 public class CliParser {
 
@@ -29,12 +31,16 @@ public class CliParser {
     /** Opção que liga a redução da fonte embutida aos glifos usados. */
     private static final String SUBSET_FONT = "--subset-font";
 
+    /** Opção que remove os trechos entre parênteses redondos do texto. */
+    private static final String STRIP_PARENTHESES = "--strip-parentheses";
+
     /** Texto de uso exibido em {@code --help} e em erros de argumentos. */
     public static final String USAGE = String.join("\n",
             "Uso:",
-            "  furigana-parser <entrada.srt> <saida.json|saida.ass>",
-            "  furigana-parser --mpv <entrada.srt> <video>",
-            "  furigana-parser [--embed-font[=<arquivo>]] [--subset-font] <entrada.srt> <saida.ass>",
+            "  furigana-parser [--strip-parentheses] <entrada.srt> <saida.json|saida.ass>",
+            "  furigana-parser [--strip-parentheses] --mpv <entrada.srt> <video>",
+            "  furigana-parser [--strip-parentheses] [--embed-font[=<arquivo>]] [--subset-font] "
+                    + "<entrada.srt> <saida.ass>",
             "  furigana-parser --help");
 
     private static final String PLAY_ALIAS = "play";
@@ -53,6 +59,7 @@ public class CliParser {
 
         boolean embedFont = false;
         boolean subsetFont = false;
+        boolean stripParentheses = false;
         Path fontPath = null;
         List<String> positional = new ArrayList<>();
         for (String argument : args) {
@@ -60,6 +67,8 @@ public class CliParser {
                 embedFont = true;
             } else if (argument.equals(SUBSET_FONT)) {
                 subsetFont = true;
+            } else if (argument.equals(STRIP_PARENTHESES)) {
+                stripParentheses = true;
             } else if (argument.startsWith(EMBED_FONT + "=")) {
                 embedFont = true;
                 String value = argument.substring(EMBED_FONT.length() + 1);
@@ -87,7 +96,7 @@ public class CliParser {
                 throw new CliUsageException("O modo --mpv exige a legenda SRT e o vídeo.\n" + USAGE);
             }
             return CliCommand.play(Path.of(positional.get(1)), Path.of(positional.get(2)),
-                    embedFont, subsetFont, fontPath);
+                    embedFont, subsetFont, fontPath, stripParentheses);
         }
 
         if (positional.size() != 2) {
@@ -97,8 +106,9 @@ public class CliParser {
         Path input = Path.of(positional.get(0));
         Path output = Path.of(positional.get(1));
         return switch (extensionOf(output)) {
-            case "json" -> CliCommand.generateJson(input, output);
-            case "ass" -> CliCommand.generateAss(input, output, embedFont, subsetFont, fontPath);
+            case "json" -> CliCommand.generateJson(input, output, stripParentheses);
+            case "ass" -> CliCommand.generateAss(input, output, embedFont, subsetFont, fontPath,
+                    stripParentheses);
             default -> throw new CliUsageException(
                     "Formato de saída não suportado: use .json ou .ass.\n" + USAGE);
         };
