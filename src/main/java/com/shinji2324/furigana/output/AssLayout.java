@@ -43,10 +43,10 @@ public final class AssLayout {
     public static final int FURIGANA_FONT_SIZE = 32;
 
     /** Folga vertical entre o "em" do texto principal e o "em" do furigana, em pixels. */
-    public static final int FURIGANA_GAP = -2;
+    public static final int FURIGANA_GAP = 4;
 
     /** Distância vertical entre linhas consecutivas do texto principal. */
-    public static final int LINE_HEIGHT = 120;
+    public static final int LINE_HEIGHT = 84;
 
     /** Margem inferior reservada para a última linha do texto principal. */
     public static final int MAIN_BOTTOM_MARGIN = 60;
