@@ -20,8 +20,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * Orquestrador do pipeline de processamento de legendas.
@@ -57,11 +60,18 @@ import java.util.Optional;
  */
 public class FuriganaPipeline {
 
+    /** Canal usado quando nenhum aviso é desejado. */
+    private static final Consumer<String> NO_WARNINGS = message -> { };
+
     private final SubtitleParser subtitleParser;
     private final JapaneseTokenizer tokenizer;
     private final ReadingProvider readingProvider;
     private final FuriganaSegmenter segmenter;
     private final boolean stripParentheses;
+    private final Consumer<String> warningSink;
+
+    /** Superfícies com kanji que ficaram sem leitura, na ordem de aparição. */
+    private final Set<String> missingReadings = new LinkedHashSet<>();
 
     /**
      * Cria o pipeline com o {@link SrtParser} padrão.
@@ -70,7 +80,7 @@ public class FuriganaPipeline {
      * @param readingProvider provider de leituras, ou {@code null} para processar sem leituras
      */
     public FuriganaPipeline(JapaneseTokenizer tokenizer, ReadingProvider readingProvider) {
-        this(tokenizer, readingProvider, false);
+        this(tokenizer, readingProvider, false, NO_WARNINGS);
     }
 
     /**
@@ -82,7 +92,21 @@ public class FuriganaPipeline {
      */
     public FuriganaPipeline(JapaneseTokenizer tokenizer, ReadingProvider readingProvider,
                             boolean stripParentheses) {
-        this(new SrtParser(), tokenizer, readingProvider, stripParentheses);
+        this(tokenizer, readingProvider, stripParentheses, NO_WARNINGS);
+    }
+
+    /**
+     * Cria o pipeline com o {@link SrtParser} padrão, a limpeza opcional e um
+     * canal de avisos.
+     *
+     * @param tokenizer        tokenizador de texto japonês
+     * @param readingProvider  provider de leituras, ou {@code null} para processar sem leituras
+     * @param stripParentheses se os trechos entre parênteses devem ser removidos do texto
+     * @param warningSink      recebe avisos de termos que ficaram sem leitura; pode ser {@code null}
+     */
+    public FuriganaPipeline(JapaneseTokenizer tokenizer, ReadingProvider readingProvider,
+                            boolean stripParentheses, Consumer<String> warningSink) {
+        this(new SrtParser(), tokenizer, readingProvider, stripParentheses, warningSink);
     }
 
     /**
@@ -95,7 +119,7 @@ public class FuriganaPipeline {
     public FuriganaPipeline(SubtitleParser subtitleParser,
                             JapaneseTokenizer tokenizer,
                             ReadingProvider readingProvider) {
-        this(subtitleParser, tokenizer, readingProvider, false);
+        this(subtitleParser, tokenizer, readingProvider, false, NO_WARNINGS);
     }
 
     /**
@@ -110,11 +134,30 @@ public class FuriganaPipeline {
                             JapaneseTokenizer tokenizer,
                             ReadingProvider readingProvider,
                             boolean stripParentheses) {
+        this(subtitleParser, tokenizer, readingProvider, stripParentheses, NO_WARNINGS);
+    }
+
+    /**
+     * Cria o pipeline com um parser de legendas informado, a limpeza opcional e um
+     * canal de avisos.
+     *
+     * @param subtitleParser   parser de legendas (ex.: {@link SrtParser})
+     * @param tokenizer        tokenizador de texto japonês
+     * @param readingProvider  provider de leituras, ou {@code null} para processar sem leituras
+     * @param stripParentheses se os trechos entre parênteses devem ser removidos do texto
+     * @param warningSink      recebe avisos de termos que ficaram sem leitura; pode ser {@code null}
+     */
+    public FuriganaPipeline(SubtitleParser subtitleParser,
+                            JapaneseTokenizer tokenizer,
+                            ReadingProvider readingProvider,
+                            boolean stripParentheses,
+                            Consumer<String> warningSink) {
         this.subtitleParser = subtitleParser;
         this.tokenizer = tokenizer;
         this.readingProvider = readingProvider;
         this.segmenter = new FuriganaSegmenter();
         this.stripParentheses = stripParentheses;
+        this.warningSink = warningSink == null ? NO_WARNINGS : warningSink;
     }
 
     /**
@@ -148,6 +191,7 @@ public class FuriganaPipeline {
      */
     private FuriganaDocument build(Subtitle subtitle) {
         FuriganaDocument document = new FuriganaDocument();
+        missingReadings.clear();
         for (SubtitleEntry entry : subtitle.getEntries()) {
             String text = entry.getText();
             if (stripParentheses) {
@@ -158,7 +202,21 @@ public class FuriganaPipeline {
             }
             document.addEntry(toFuriganaEntry(entry, text));
         }
+        warnMissingReadings();
         return document;
+    }
+
+    /**
+     * Emite um aviso por superfície com kanji que ficou sem leitura.
+     *
+     * <p>O aviso é útil quando nem o tokenizador nem o provider conhecem o termo
+     * (ex.: nomes próprios): a entrada não é descartada, mas fica sem furigana.
+     * Superfícies repetidas geram um único aviso, na ordem de aparição.
+     */
+    private void warnMissingReadings() {
+        for (String surface : missingReadings) {
+            warningSink.accept("sem leitura para \"" + surface + "\"; o termo ficará sem furigana.");
+        }
     }
 
     /**
@@ -193,6 +251,9 @@ public class FuriganaPipeline {
             return null;
         }
         Optional<Reading> reading = readingProvider.findReading(token);
+        if (reading.isEmpty()) {
+            missingReadings.add(token.getSurface());
+        }
         return reading.map(Reading::getReading).orElse(null);
     }
 }

@@ -76,7 +76,7 @@ public final class FuriganaSegmenter {
                     blockReading = reading.substring(Math.min(j, readingLength));
                     j = readingLength;
                 } else {
-                    int position = indexOfEquivalent(reading, okurigana, j);
+                    int position = okuriganaPosition(reading, okurigana, j, okuriganaEnd == surfaceLength);
                     if (position >= 0) {
                         blockReading = reading.substring(j, position);
                         j = position;
@@ -100,6 +100,33 @@ public final class FuriganaSegmenter {
             segments.add(new FuriganaSegment(kana.toString(), null));
         }
         return segments;
+    }
+
+    /**
+     * Determina onde o okurigana começa na leitura.
+     *
+     * <p>Quando o okurigana encerra o token, ele deve coincidir com o <em>fim</em>
+     * da leitura — o último trecho do texto corresponde ao último trecho da
+     * leitura. Isso evita confundir o kana do okurigana com um kana igual dentro
+     * da leitura do kanji: em {@code 大嫌い}/{@code だいきらい}, o {@code い} final
+     * não pode casar com o {@code い} de {@code だい}.
+     *
+     * <p>Nos demais casos, procura a primeira ocorrência a partir de {@code from}.
+     *
+     * @param reading   leitura em hiragana
+     * @param okurigana trecho de kana que segue o bloco de kanji
+     * @param from      posição a partir da qual procurar
+     * @param trailing  se o okurigana encerra o token
+     * @return índice inicial do okurigana na leitura, ou {@code -1}
+     */
+    private static int okuriganaPosition(String reading, String okurigana, int from, boolean trailing) {
+        if (trailing) {
+            int suffix = reading.length() - okurigana.length();
+            if (suffix >= from && matchesAt(reading, okurigana, suffix)) {
+                return suffix;
+            }
+        }
+        return indexOfEquivalent(reading, okurigana, from);
     }
 
     /**

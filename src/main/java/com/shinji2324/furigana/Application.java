@@ -54,7 +54,9 @@ import java.util.Set;
  * tokenizador morfológico ({@link KuromojiTokenizer}); quando ele não conhece um
  * termo com kanji, o fallback consulta o {@link JishoReadingProvider}, sempre
  * mediado pelo {@link CachingReadingProvider} (cache em
- * {@code data/cache/readings.json}).
+ * {@code data/cache/readings.json}). Termos com kanji que fiquem sem leitura —
+ * quando nem o tokenizador nem o Jisho os conhecem — geram um aviso em
+ * {@code stderr}; a entrada é mantida, apenas sem furigana.
  *
  * <p>Esta classe é apenas o ponto de composição: a lógica permanece nas camadas
  * do pipeline. Ela não contém regras de negócio.
@@ -272,7 +274,8 @@ public class Application {
         ReadingProvider provider = new CachingReadingProvider(
                 new JishoReadingProvider(),
                 new FileReadingCache(DEFAULT_CACHE_FILE));
-        FuriganaPipeline pipeline = new FuriganaPipeline(tokenizer, provider, stripParentheses);
+        FuriganaPipeline pipeline = new FuriganaPipeline(tokenizer, provider, stripParentheses,
+                message -> System.err.println("Aviso: " + message));
 
         return pipeline.process(srtContent);
     }

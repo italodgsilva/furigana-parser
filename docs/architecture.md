@@ -153,7 +153,13 @@ Cache
 
  Também concentra a segmentação de um token em kanji (com leitura) e okurigana
  (sem leitura), via `FuriganaSegmenter`, alinhando a superfície à leitura em
- hiragana.
+ hiragana. O okurigana final casa com o *fim* da leitura, evitando confundir um
+ kana do okurigana com um kana igual dentro da leitura do kanji (ex.: `大嫌い` /
+ `だいきらい`).
+
+ O `FuriganaPipeline` emite, por um canal de avisos opcional, um alerta para cada
+ termo com kanji que ficou sem leitura (nem Kuromoji nem o provider o conhecem):
+ a entrada é mantida, mas fica sem furigana.
 
  ### `output`
 

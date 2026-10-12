@@ -212,7 +212,8 @@ leitura, e okurigana, sem leitura):
 `id`, `start` e `end` preservam a sincronização original da SRT. As leituras vêm
 do Kuromoji e, quando ele não conhece um termo com kanji, do Jisho (mediado por
 cache em `data/cache/readings.json`). Entradas sem kanji não são descartadas,
-para não quebrar a sincronização da legenda.
+para não quebrar a sincronização da legenda. Quando nenhuma fonte conhece um
+termo com kanji, ele fica sem furigana e um aviso é emitido em `stderr`.
 
 O ASS gerado (estratégia `\pos` descrita em `docs/ass-format.md`) usa dois
 estilos — `Main` para o texto e `Furigana` para as leituras — e posiciona cada

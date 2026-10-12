@@ -12,6 +12,7 @@ import com.shinji2324.furigana.reading.ReadingProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -215,6 +216,65 @@ class FuriganaPipelineTest {
                 .process("1\n00:00:01,000 --> 00:00:02,000\n日本語は。");
 
         assertEquals(1, calls.get());
+    }
+
+    @Test
+    @DisplayName("Integra o Kuromoji: alinha okurigana final sem perder leitura (大嫌い)")
+    void integratesKuromojiForTrailingOkurigana() {
+        List<FuriganaSegment> segments = new FuriganaPipeline(new KuromojiTokenizer(), null)
+                .process("1\n00:00:01,000 --> 00:00:02,000\n大嫌い")
+                .getEntries().get(0).segments();
+
+        assertEquals(List.of(
+                new FuriganaSegment("大嫌", "だいきら"),
+                new FuriganaSegment("い", null)), segments);
+    }
+
+    @Test
+    @DisplayName("Avisa quando um termo com kanji fica sem leitura")
+    void warnsWhenKanjiTokenHasNoReading() {
+        List<String> warnings = new ArrayList<>();
+        JapaneseTokenizer tokenizer = text -> List.of(new Token("大嫌い", "名詞"));
+        ReadingProvider provider = token -> Optional.empty();
+
+        new FuriganaPipeline(tokenizer, provider, false, warnings::add)
+                .process("1\n00:00:01,000 --> 00:00:02,000\n大嫌い");
+
+        assertEquals(List.of("sem leitura para \"大嫌い\"; o termo ficará sem furigana."), warnings);
+    }
+
+    @Test
+    @DisplayName("Avisa uma única vez por superfície repetida na mesma legenda")
+    void warnsOncePerRepeatedSurface() {
+        List<String> warnings = new ArrayList<>();
+        JapaneseTokenizer tokenizer = text -> List.of(new Token("大嫌い", "名詞"));
+        ReadingProvider provider = token -> Optional.empty();
+
+        new FuriganaPipeline(tokenizer, provider, false, warnings::add)
+                .process("""
+                        1
+                        00:00:01,000 --> 00:00:02,000
+                        大嫌い
+
+                        2
+                        00:00:03,000 --> 00:00:04,000
+                        大嫌い
+                        """);
+
+        assertEquals(1, warnings.size(), warnings.toString());
+    }
+
+    @Test
+    @DisplayName("Não avisa quando a leitura é encontrada")
+    void doesNotWarnWhenReadingFound() {
+        List<String> warnings = new ArrayList<>();
+        JapaneseTokenizer tokenizer = text -> List.of(new Token("大嫌い", "名詞"));
+        ReadingProvider provider = token -> Optional.of(new Reading("大嫌い", "だいきらい", "teste"));
+
+        new FuriganaPipeline(tokenizer, provider, false, warnings::add)
+                .process("1\n00:00:01,000 --> 00:00:02,000\n大嫌い");
+
+        assertTrue(warnings.isEmpty(), warnings.toString());
     }
 
     // ------------------------------------------------------------------

@@ -59,6 +59,22 @@ class FuriganaSegmenterTest {
     }
 
     @Test
+    @DisplayName("Okurigana final casa com o fim da leitura (大嫌い)")
+    void trailingOkuriganaMatchesReadingSuffix() {
+        // O "い" do fim não pode casar com o "い" de "だい": a leitura do kanji
+        // é "だいきら" e o "い" final é okurigana.
+        assertEquals(List.of(new FuriganaSegment("大嫌", "だいきら"), new FuriganaSegment("い", null)),
+                segmenter.segment("大嫌い", "だいきらい"));
+    }
+
+    @Test
+    @DisplayName("Okurigana final longo também casa com o fim da leitura (大きい)")
+    void longTrailingOkuriganaMatchesReadingSuffix() {
+        assertEquals(List.of(new FuriganaSegment("大", "おお"), new FuriganaSegment("きい", null)),
+                segmenter.segment("大きい", "おおきい"));
+    }
+
+    @Test
     @DisplayName("Normaliza leitura em katakana para hiragana")
     void normalizesKatakanaReading() {
         assertEquals(List.of(new FuriganaSegment("日本語", "にほんご")),
