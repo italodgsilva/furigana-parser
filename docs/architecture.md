@@ -299,6 +299,24 @@ Token + Reading → FuriganaDocument
 FuriganaDocument → Output
 ```
 
+ ## Execução nativa (GraalVM)
+
+Além do JAR, o projeto pode ser compilado como um binário autônomo com o GraalVM
+Native Image (`mvn -Pnative package`). Como a tokenização (Kuromoji) lê o
+dicionário como recurso do classpath, o Jackson serializa os records por
+reflexão e o subsetting de fonte usa JNA/JNI, o build nativo depende de
+configurações explícitas, versionadas em
+`src/main/resources/META-INF/native-image/`:
+
+- `reflect-config.json` — reflexão (modelo do furigana, Jackson, JNA);
+- `resource-config.json` — recursos lidos em runtime (dicionário do Kuromoji,
+  estilo ASS padrão, `libjnidispatch` do JNA);
+- `jni-config.json` / `proxy-config.json` — acesso JNI e proxy dinâmico do JNA.
+
+O profile `native` também desativa o `maven-shade-plugin`, para que o uber jar
+não duplique classes e recursos no classpath entregue ao `native-image`. Os
+detalhes estão em `docs/native-image.md`.
+
  ## Decisões ainda abertas
 
  As seguintes decisões serão tomadas durante a implementação:

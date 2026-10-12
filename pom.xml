@@ -25,6 +25,7 @@
         <jackson.version>2.20.0</jackson.version>
         <kuromoji.version>0.9.0</kuromoji.version>
         <jna.version>5.17.0</jna.version>
+        <native.maven.plugin.version>0.10.6</native.maven.plugin.version>
     </properties>
 
     <dependencies>
@@ -123,5 +124,67 @@
         </plugins>
 
     </build>
+
+    <profiles>
+
+        <!--
+            Compilacao nativa com o GraalVM Native Image (opt-in).
+
+            Requer o GraalVM no PATH/JAVA_HOME (com o `native-image`) e um
+            toolchain C (gcc + cabecalhos de zlib). As configuracoes de
+            reflexao/recursos/JNI ficam em
+            src/main/resources/META-INF/native-image/.
+
+            Uso: mvn -Pnative package
+            Saida: target/furigana-parser
+        -->
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+
+                    <!--
+                        O uber jar do shade duplicaria classes e recursos no
+                        classpath entregue ao native-image: o plugin usa o jar do
+                        projeto *alem* dos jars de dependencia (o dicionario do
+                        Kuromoji entraria duas vezes, ~40 MB a mais). No build
+                        nativo ele e dispensado; o native-image le
+                        target/classes + dependencias.
+                    -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <version>${native.maven.plugin.version}</version>
+                        <extensions>true</extensions>
+                        <executions>
+                            <execution>
+                                <id>build-native</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>compile-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <mainClass>com.shinji2324.furigana.Application</mainClass>
+                            <imageName>furigana-parser</imageName>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+    </profiles>
 
 </project>

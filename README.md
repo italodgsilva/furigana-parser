@@ -55,6 +55,7 @@ Etapas concluídas:
 8. Integração com o MPV (`--mpv`): gera o ASS ao lado da SRT e abre o vídeo com `mpv --sub-file=...` (ver `docs/mpv.md`).
 9. Embutição da fonte no próprio ASS (`--embed-font`): localiza a fonte do estilo pelo nome de família, recorta a face de coleções `.ttc` e escreve a seção `[Fonts]`, tudo em Java. Com `--subset-font`, reduz a fonte embutida aos glifos usados na legenda, por meio do HarfBuzz (ver `docs/font-embedding.md`).
 10. Limpeza de texto (`--strip-parentheses`): remove os trechos entre parênteses redondos (full-width e half-width) antes da tokenização, descartando entradas que ficam vazias.
+11. Build nativo com o GraalVM (`mvn -Pnative package`): gera um executável sem JVM, com as configurações de reflexão/recursos/JNI em `src/main/resources/META-INF/native-image/` (ver `docs/native-image.md`).
 
 Próximas etapas (fora do escopo atual):
 
@@ -68,6 +69,7 @@ Próximas etapas (fora do escopo atual):
 - Jackson
 - Kuromoji (tokenização morfológica, dicionário IPADIC)
 - JNA (acesso à biblioteca nativa do HarfBuzz, para o subsetting opcional da fonte)
+- GraalVM Native Image (build nativo opcional)
 - Formato SRT
 - Formato ASS/SSA
 - MPV
@@ -98,8 +100,16 @@ furigana-parser/
 │   │   │       └── mpv/
 │   │   │
 │   │   └── resources/
-│   │       └── ass/
-│   │           └── default-style.ass
+│   │       ├── ass/
+│   │       │   └── default-style.ass
+│   │       └── META-INF/
+│   │           └── native-image/
+│   │               └── com.shinji2324/furigana-parser/
+│   │                   ├── reflect-config.json
+│   │                   ├── resource-config.json
+│   │                   ├── jni-config.json
+│   │                   ├── proxy-config.json
+│   │                   └── native-image.properties
 │   │
 │   └── test/
 │       ├── java/
@@ -113,7 +123,8 @@ furigana-parser/
     ├── architecture.md
     ├── ass-format.md
     ├── font-embedding.md
-    └── mpv.md
+    ├── mpv.md
+    └── native-image.md
 ```
 
 ## Desenvolvimento
@@ -141,6 +152,15 @@ Gerar o JAR (com as dependências embutidas, ex.: Jackson e Kuromoji):
 mvn package
 ```
 
+Gerar o executável nativo com o GraalVM (opcional; requer GraalVM e um toolchain
+C — veja [`docs/native-image.md`](docs/native-image.md)):
+
+```
+mvn -Pnative package
+```
+
+A saída é `target/furigana-parser`.
+
 ### Linha de comando
 
 O formato de saída é escolhido pela extensão do arquivo: `.json` gera o modelo
@@ -156,6 +176,9 @@ java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --strip-parentheses entrada.
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --mpv entrada.srt video.mkv
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --help
 ```
+
+Os mesmos comandos valem para o binário nativo: troque
+`java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar` por `./target/furigana-parser`.
 
 Com `--embed-font`, o ASS passa a carregar a própria fonte na seção `[Fonts]`,
 dispensando instalar a fonte na máquina de quem assiste. A opção funciona também
