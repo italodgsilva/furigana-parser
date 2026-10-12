@@ -64,9 +64,9 @@ Por que cada um é necessário:
 - o **JNA** carrega a `libharfbuzz-subset` dinamicamente, extrai a
   `libjnidispatch` do próprio jar em runtime e usa JNI.
 
-O padrão do recurso `libjnidispatch` em `resource-config.json` cobre todas as
-plataformas (`com/sun/jna/.*libjnidispatch\.(so|dylib|jnilib)`), para que o mesmo
-arquivo sirva em Linux, macOS e Windows.
+O padrão do recurso `jnidispatch` em `resource-config.json` cobre todas as
+plataformas (`com/sun/jna/.*jnidispatch\.(so|dylib|jnilib|dll)`), para que o
+mesmo arquivo sirva em Linux, macOS e Windows.
 
 ### Regenerar as configurações
 
@@ -89,8 +89,8 @@ CFG=src/main/resources/META-INF/native-image/com.shinji2324/furigana-parser
 
 Use `config-output-dir` na primeira execução e `config-merge-dir` nas seguintes
 (ou diretórios separados, mesclando depois). Ao terminar, confira se o padrão
-multiplataforma do `libjnidispatch` continua em `resource-config.json`, pois o
-agent grava o caminho específico da plataforma em que rodou.
+multiplataforma do `jnidispatch` continua em `resource-config.json`, pois o agent
+grava o caminho específico da plataforma em que rodou.
 
 ## Resultados medidos
 
@@ -114,5 +114,6 @@ byte a byte**, às da JVM.
   instalada: o binário nativo não a embute. A ausência é tratada como na versão
   JVM (aviso e embutição da fonte completa). Veja
   [`font-embedding.md`](font-embedding.md).
-- O build nativo não é executado na CI: ele exige GraalVM e um toolchain C, que
-  não fazem parte do ambiente padrão dos testes.
+- O build nativo não faz parte da CI de todo push (exigiria GraalVM e um
+  toolchain C em cada execução). Ele é gerado apenas no workflow de release,
+  em runners próprios que já trazem esses componentes.

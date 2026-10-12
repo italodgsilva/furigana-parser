@@ -1,0 +1,147 @@
+# Publica uma versão do programa.
+#
+# Ao empurrar uma tag `v*`, compila o JAR executável e os binários nativos
+# (profile `native`, via GraalVM) e anexa tudo a um GitHub Release.
+#
+# Uso:
+#   git tag v0.1.0
+#   git push origin v0.1.0
+#
+# Também funciona quando a Release é criada pela interface do GitHub: a tag
+# criada dispara o workflow, que anexa os arquivos à Release já existente.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Permissões mínimas: só o job de release precisa escrever no repositório.
+permissions:
+  contents: read
+
+jobs:
+
+  # JAR executável (uber jar). É o único job que roda a suíte de testes.
+  jar:
+    name: JAR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v7
+
+      - name: Configurar JDK 21 (Temurin)
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compilar, testar e empacotar
+        run: mvn --batch-mode --no-transfer-progress clean verify
+
+      - name: Renomear o JAR com a versão da tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cp target/furigana-parser-[0-9]*.jar "furigana-parser-${version}.jar"
+
+      - name: Publicar artefato intermediário
+        uses: actions/upload-artifact@v7
+        with:
+          name: jar
+          path: furigana-parser-*.jar
+          if-no-files-found: error
+
+  # Binários nativos, um por plataforma. Se alguma plataforma não interessar,
+  # basta remover a entrada correspondente da matriz.
+  native:
+    name: Nativo (${{ matrix.asset }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: linux-x86_64
+          - os: ubuntu-24.04-arm
+            asset: linux-aarch64
+          - os: macos-15-intel
+            asset: macos-x86_64
+          - os: macos-14
+            asset: macos-aarch64
+          - os: windows-latest
+            asset: windows-x86_64
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v7
+
+      - name: Configurar GraalVM (JDK 21)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: graalvm
+          java-version: '21'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: maven
+
+      - name: Dependências do toolchain C (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y zlib1g-dev
+
+      - name: Compilar o binário nativo
+        run: mvn --batch-mode --no-transfer-progress -Pnative -DskipTests clean package
+
+      - name: Renomear o artefato com a versão e a plataforma
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          bin="target/furigana-parser"
+          if [ -f "${bin}.exe" ]; then
+            bin="${bin}.exe"
+            out="furigana-parser-${version}-${{ matrix.asset }}.exe"
+          else
+            out="furigana-parser-${version}-${{ matrix.asset }}"
+          fi
+          cp "$bin" "$out"
+          echo "ASSET=$out" >> "$GITHUB_ENV"
+
+      - name: Publicar artefato intermediário
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-${{ matrix.asset }}
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+
+  # Agrega os artefatos e cria/atualiza a Release com todos eles.
+  release:
+    name: Publicar Release
+    needs: [ jar, native ]
+    runs-on: ubuntu-latest
+
+    # Necessário para criar a Release e enviar os arquivos.
+    permissions:
+      contents: write
+
+    steps:
+      - name: Baixar todos os artefatos
+        uses: actions/download-artifact@v7
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Gerar checksums (SHA-256)
+        working-directory: dist
+        run: |
+          find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -printf '%P\n' \
+            | sort | xargs sha256sum > SHA256SUMS.txt
+
+      - name: Criar/atualizar a Release e anexar os arquivos
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/* --clobber

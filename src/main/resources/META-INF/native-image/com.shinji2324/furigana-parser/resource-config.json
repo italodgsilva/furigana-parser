@@ -41,7 +41,7 @@
         "pattern": "\\Qass/default-style.ass\\E"
       },
       {
-        "pattern": "com/sun/jna/.*libjnidispatch\\.(so|dylib|jnilib)"
+        "pattern": "com/sun/jna/.*jnidispatch\\.(so|dylib|jnilib|dll)"
       }
     ]
   },

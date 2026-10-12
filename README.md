@@ -56,6 +56,7 @@ Etapas concluídas:
 9. Embutição da fonte no próprio ASS (`--embed-font`): localiza a fonte do estilo pelo nome de família, recorta a face de coleções `.ttc` e escreve a seção `[Fonts]`, tudo em Java. Com `--subset-font`, reduz a fonte embutida aos glifos usados na legenda, por meio do HarfBuzz (ver `docs/font-embedding.md`).
 10. Limpeza de texto (`--strip-parentheses`): remove os trechos entre parênteses redondos (full-width e half-width) antes da tokenização, descartando entradas que ficam vazias.
 11. Build nativo com o GraalVM (`mvn -Pnative package`): gera um executável sem JVM, com as configurações de reflexão/recursos/JNI em `src/main/resources/META-INF/native-image/` (ver `docs/native-image.md`).
+12. Publicação automática de versões: uma tag `v*` dispara o workflow de release, que gera o JAR e os binários nativos de cada plataforma e os anexa a um GitHub Release (ver a seção "Publicar uma versão").
 
 Próximas etapas (fora do escopo atual):
 
@@ -160,6 +161,28 @@ mvn -Pnative package
 ```
 
 A saída é `target/furigana-parser`.
+
+### Publicar uma versão
+
+As versões são publicadas automaticamente pelo workflow
+[`release.yml`](.github/workflows/release.yml): basta criar e enviar uma tag
+`v*`.
+
+```
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+O workflow compila o JAR (executando os testes) e os binários nativos de Linux
+(x86-64 e aarch64), macOS (x86-64 e arm64) e Windows, e anexa tudo a um GitHub
+Release com o nome da tag, além de um `SHA256SUMS.txt`. Também funciona criando a
+Release pela interface do GitHub: a tag criada dispara o workflow, que anexa os
+arquivos à Release existente.
+
+O número da versão nos nomes dos arquivos vem da tag (sem o `v`), de modo que
+`v0.1.0` gera `furigana-parser-0.1.0.jar`,
+`furigana-parser-0.1.0-linux-x86_64`, `furigana-parser-0.1.0-windows-x86_64.exe`
+etc.
 
 ### Linha de comando
 
