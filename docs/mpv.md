@@ -71,7 +71,9 @@ episode.ja.srt  → episode.ja.furigana.ass
   `docs/ass-format.md`).
 - **CJK font.** The alignment assumes a font with full-width characters
   (kanji/kana occupying ~1 em). If the configured font does not exist on the
-  system, MPV falls back and the metrics may vary.
+  system, MPV falls back and the metrics may vary. Use `--embed-font` so the ASS
+  carries the font itself, or install it on the system (see
+  `docs/font-embedding.md`).
 - **Subtitle tracks.** `--sub-file` adds an external subtitle, but tracks embedded
   in the video are not managed; you may need to select the track in MPV.
 - **Video provided explicitly.** There is no automatic discovery of the video from

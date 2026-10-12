@@ -17,6 +17,23 @@ The embedding is done in Java, inside the pipeline. The optional font subsetting
 (`--subset-font`) uses the HarfBuzz library, accessed through JNA — with no external
 process (see [Font subsetting](#font-subsetting)).
 
+## Font not installed
+
+`Noto Sans CJK` does not ship with Windows, and the template references the family
+`Noto Sans CJK JP`. When `--embed-font` is used without an explicit file and the
+family is not found in the usual system directories, the program downloads the
+official `NotoSansCJKjp-Regular.otf` (≈ 16 MB) from the
+[Noto CJK repository](https://github.com/notofonts/noto-cjk), caches it and embeds
+that copy — the download happens once, so later runs work offline. Cache locations:
+
+- Windows: `%LOCALAPPDATA%\furigana-parser\fonts`
+- macOS: `~/Library/Caches/furigana-parser/fonts`
+- Linux: `$XDG_CACHE_HOME/furigana-parser/fonts` (or `~/.cache/furigana-parser/fonts`)
+
+If the download also fails (for example, offline), the error message explains how
+to obtain and install the font manually or how to point to a local file with
+`--embed-font=<file>`.
+
 ## How it works
 
 ```text
@@ -117,8 +134,8 @@ java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font --subset-font i
 The options apply to ASS generation and to `--mpv` mode; in JSON generation they
 have no effect (the JSON does not carry a font).
 
-If the family is not found on the system, generation fails with a message asking for
-the path via `--embed-font=<file>`.
+If the family is not found on the system, the program tries to download and cache the
+official font automatically (see [Font not installed](#font-not-installed)).
 
 ## File size
 

@@ -169,6 +169,29 @@ Each Release includes a `SHA256SUMS.txt` to verify the integrity of the download
 sha256sum -c SHA256SUMS.txt
 ```
 
+### The subtitle font
+
+The generated ASS references the family `Noto Sans CJK JP`. If that font is not
+installed, the player (e.g. MPV) falls back to another font and the furigana may
+lose alignment. There are two ways to guarantee the font:
+
+- **Let the program download it (recommended):** with `--embed-font` and no
+  argument, the program locates the font by family name; if it is not installed,
+  it downloads the official `NotoSansCJKjp-Regular.otf` (≈ 16 MB) once, caches it
+  and embeds it. The ASS then carries the font itself, so the viewer's machine does
+  not need it installed.
+- **Install the font:** download `NotoSansCJKjp-Regular.otf` from the
+  [official Noto CJK repository](https://github.com/notofonts/noto-cjk) and install
+  it:
+  - Windows: double-click the file → **Install** (or copy it to `C:\Windows\Fonts`);
+  - macOS: double-click → **Install Font** (Font Book);
+  - Linux: copy it to `~/.local/share/fonts` and run `fc-cache -f`.
+
+The downloaded file is cached per operating system:
+`%LOCALAPPDATA%\furigana-parser\fonts` (Windows),
+`~/Library/Caches/furigana-parser/fonts` (macOS) and
+`$XDG_CACHE_HOME/furigana-parser/fonts` or `~/.cache/furigana-parser/fonts` (Linux).
+
 The full list of options is in [Command line](#command-line).
 
 ## Development
@@ -256,7 +279,9 @@ section, so there is no need to install the font on the viewer's machine. The
 option also works in `--mpv` mode. Without an argument, the font is located by the
 style's family name (`Noto Sans CJK JP`); with `--embed-font=<file>`, the given
 file is used. Because the whole file is embedded, the ASS grows considerably
-(around 22 MB with `Noto Sans CJK JP`).
+(around 22 MB with `Noto Sans CJK JP`). When the family is not installed on the
+machine generating the ASS, the program downloads and caches the official font
+automatically (see [The subtitle font](#the-subtitle-font)).
 
 With `--subset-font` (which requires `--embed-font`), only the glyphs used in the
 subtitle are written, which shrinks the file drastically (a whole episode comes to

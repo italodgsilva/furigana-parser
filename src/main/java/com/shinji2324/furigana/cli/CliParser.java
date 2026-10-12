@@ -23,6 +23,11 @@ import java.util.Locale;
  * {@code docs/font-embedding.md}). The {@code --strip-parentheses} option removes
  * the passages between round parentheses from the text before furigana
  * (applies to JSON, ASS and {@code --mpv}).
+ *
+ * <p>Without an argument, {@code --embed-font} locates the style's family on the
+ * system; when the font is not installed (e.g. {@code Noto Sans CJK JP} on
+ * Windows), it is downloaded from the official repository and cached
+ * automatically.
  */
 public class CliParser {
 

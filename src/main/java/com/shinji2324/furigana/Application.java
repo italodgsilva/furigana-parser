@@ -3,6 +3,7 @@ package com.shinji2324.furigana;
 import com.shinji2324.furigana.cli.CliCommand;
 import com.shinji2324.furigana.cli.CliParser;
 import com.shinji2324.furigana.cli.CliUsageException;
+import com.shinji2324.furigana.font.FontDownloader;
 import com.shinji2324.furigana.font.FontFile;
 import com.shinji2324.furigana.font.FontLocator;
 import com.shinji2324.furigana.font.HarfBuzzSubsetter;
@@ -194,7 +195,7 @@ public class Application {
         if (!command.embedFont()) {
             return ass;
         }
-        List<FontFile> fonts = resolveFonts(command.fontPath());
+        List<FontFile> fonts = resolveFonts(command.fontPath(), new FontDownloader());
         if (command.subsetFont()) {
             fonts = subsetFonts(fonts, document);
         }
@@ -236,7 +237,7 @@ public class Application {
      * <p>With {@code fontPath} provided, embeds that file; otherwise, locates
      * each family on the system.
      */
-    private List<FontFile> resolveFonts(Path fontPath) throws IOException {
+    private List<FontFile> resolveFonts(Path fontPath, FontDownloader downloader) throws IOException {
         List<String> families = AssTemplate.defaultTemplate().fontFamilies();
         if (families.isEmpty()) {
             throw new IOException(
@@ -258,9 +259,52 @@ public class Application {
                 missing.add(family);
             }
         }
-        if (!missing.isEmpty()) {
-            throw new IOException("Font not found on the system: " + String.join(", ", missing)
-                    + ". Provide the file with --embed-font=<file>.");
+
+        // The template font (Noto Sans CJK JP) is not always installed — Windows
+        // does not ship it. Instead of failing right away, download the official
+        // file once and cache it; guide the user when the download also fails.
+        boolean defaultMissing = missing.stream().anyMatch(FontDownloader::isDefaultFamily);
+        List<String> stillMissing = new ArrayList<>();
+        for (String family : missing) {
+            Optional<FontFile> downloaded;
+            if (defaultMissing && FontDownloader.isDefaultFamily(family)) {
+                boolean cached = downloader.isCached();
+                if (cached) {
+                    System.err.println("Font '" + family + "' not installed; using the cached copy in "
+                            + downloader.cacheDirectory() + ".");
+                } else {
+                    System.err.println("Font '" + family + "' not installed; downloading the official "
+                            + FontDownloader.DEFAULT_FAMILY + " (~16 MB, one time) to "
+                            + downloader.cacheDirectory() + " ...");
+                }
+                downloaded = downloader.obtain(family);
+                if (downloaded.isPresent()) {
+                    System.err.println(cached
+                            ? "Embedded the cached " + FontDownloader.FILE_NAME + "."
+                            : "Downloaded and embedded " + FontDownloader.FILE_NAME + ".");
+                }
+            } else {
+                downloaded = Optional.empty();
+            }
+            if (downloaded.isPresent()) {
+                fonts.add(downloaded.get());
+            } else {
+                stillMissing.add(family);
+            }
+        }
+
+        if (!stillMissing.isEmpty()) {
+            String message = "Font not found on the system: " + String.join(", ", stillMissing) + ".";
+            if (defaultMissing) {
+                message += " The automatic download failed (check your internet connection "
+                        + "and retry). You can download the font from " + FontDownloader.DEFAULT_URL
+                        + " and install it (on Windows, double-click the file and choose "
+                        + "'Install'), or point to the font file directly with "
+                        + "--embed-font=<file>.";
+            } else {
+                message += " Provide the file with --embed-font=<file>.";
+            }
+            throw new IOException(message);
         }
         return fonts;
     }
