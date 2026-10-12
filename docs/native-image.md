@@ -112,7 +112,9 @@ The outputs — JSON, ASS and ASS with `--embed-font --subset-font` — are
   `libpthread`).
 - Subsetting (`--subset-font`) still requires `libharfbuzz-subset` installed: the
   native binary does not embed it. Its absence is handled as in the JVM version
-  (warning and embedding the full font). See
+  (warning and embedding the full font). On Windows the core and subset DLLs are
+  loaded separately and looked up in the PATH and the usual MSYS2/vcpkg
+  directories. See
   [`font-embedding.md`](font-embedding.md).
 - The native build is not part of the CI on every push (it would require GraalVM
   and a C toolchain on every run). It is generated only in the release workflow, on

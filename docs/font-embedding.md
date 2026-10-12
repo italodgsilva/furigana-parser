@@ -102,6 +102,13 @@ tries JNA's standard resolution and then scans the usual directories
 use the `FURIGANA_HARFBUZZ_SUBSET` environment variable or the
 `-Dfurigana.harfbuzz.subset=<file>` property.
 
+On Windows the subsetting routines (`hb_subset_*`) live in the subset DLL and the
+others (`hb_blob_*`, `hb_face_*`, `hb_set_*`) in the core DLL (`libharfbuzz`), which
+is a separate file — the search loads the two separately and also scans the PATH and
+the usual MSYS2/vcpkg directories. A library that is found but does not expose the
+expected symbols is rejected: subsetting then falls back to embedding the full font,
+never failing.
+
 If the library is not found — or if subsetting a font fails — the program warns on
 `stderr` and embeds the full font. The ASS is never generated without the necessary
 glyphs. When the library is missing, the warning already brings the installation

@@ -42,6 +42,13 @@ public final class HarfBuzzSubsetter implements FontSubsetter {
      * @return the subsetter, or empty if the library is not available
      */
     public static Optional<HarfBuzzSubsetter> create() {
+        // JNA derives its default string encoding from the `native.encoding`
+        // system property. On Windows that value (e.g. Cp1252) is not always
+        // registered in the runtime — in native images the charset support is
+        // limited — which makes JNA print a warning (or, in some builds, fail).
+        // This program passes no strings to HarfBuzz, so forcing UTF-8 here has
+        // no functional effect.
+        System.setProperty("native.encoding", "UTF-8");
         return HarfBuzzSubsetLibrary.load().map(HarfBuzzSubsetter::new);
     }
 
@@ -59,8 +66,10 @@ public final class HarfBuzzSubsetter implements FontSubsetter {
         lines.add("Warning: the native HarfBuzz library (libharfbuzz-subset) was not "
                 + "found; the font will be embedded without size reduction.");
         if (os.contains("win")) {
-            lines.add("To reduce the ASS size, install HarfBuzz "
-                    + "(e.g. via MSYS2, package mingw-w64-ucrt-x86_64-harfbuzz).");
+            lines.add("To reduce the ASS size, install HarfBuzz with its subsetting library "
+                    + "(e.g. via MSYS2, package mingw-w64-ucrt-x86_64-harfbuzz) and keep its "
+                    + "bin directory on the PATH, or provide the subsetting file with "
+                    + HarfBuzzSubsetLibrary.OVERRIDE_ENV + "=<file>.");
         } else if (os.contains("mac") || os.contains("darwin")) {
             lines.add("To reduce the ASS size, install HarfBuzz: brew install harfbuzz.");
         } else {
@@ -79,7 +88,17 @@ public final class HarfBuzzSubsetter implements FontSubsetter {
         if (data == null || data.length == 0 || codePoints == null || codePoints.isEmpty()) {
             return null;
         }
+        try {
+            return subsetWithLibrary(data, codePoints);
+        } catch (UnsatisfiedLinkError e) {
+            // A native function could not be resolved at call time (for example
+            // a Windows DLL that does not export everything it should). Means
+            // "subsetting unavailable": the caller embeds the full font.
+            return null;
+        }
+    }
 
+    private byte[] subsetWithLibrary(byte[] data, Set<Integer> codePoints) {
         Memory memory = new Memory(data.length);
         memory.write(0, data, 0, data.length);
 

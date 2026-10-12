@@ -62,6 +62,46 @@ class HarfBuzzSubsetterTest {
     }
 
     @Test
+    @DisplayName("Returns null when a native symbol cannot be resolved at call time")
+    void returnsNullWhenNativeSymbolMissing() {
+        FakeHarfBuzz fake = new FakeHarfBuzz(new byte[] {1});
+        fake.throwOnBlobCreate = true;
+        HarfBuzzSubsetter subsetter = new HarfBuzzSubsetter(fake);
+
+        assertNull(subsetter.subset(new byte[] {1, 2, 3}, Set.of(65)));
+    }
+
+    @Test
+    @DisplayName("Routes each function to the core or the subset library (Windows split)")
+    void combinesCoreAndSubsetLibraries() {
+        byte[] output = {1, 2, 3, 4, 5};
+        FakeCore core = new FakeCore(output);
+        FakeSubset subset = new FakeSubset();
+        HarfBuzzSubsetLibrary.HarfBuzz harfBuzz = HarfBuzzSubsetLibrary.combine(core, subset);
+
+        HarfBuzzSubsetter subsetter = new HarfBuzzSubsetter(harfBuzz);
+        byte[] result = subsetter.subset(new byte[] {9, 9, 9}, Set.of(0x65E5, 0x672C));
+
+        assertArrayEquals(output, result);
+        assertEquals(1, core.blobCreates);
+        assertEquals(1, subset.subsetCalls);
+        assertEquals(Set.of(0x65E5, 0x672C), core.unicodes);
+        assertEquals(NO_HINTING, subset.flags);
+        assertTrue(core.destroyed.containsAll(List.of("blob", "face", "resultBlob", "subsetFace")));
+        assertTrue(subset.destroyed.contains("input"));
+    }
+
+    @Test
+    @DisplayName("Combined loading only accepts libraries that expose the required symbols")
+    void loadRejectsDllPairsWithoutCoreFunctions() {
+        // A subsetting candidate whose core routine cannot be resolved must be
+        // rejected (the Windows case), not returned for later calls to fail on.
+        Optional<HarfBuzzSubsetLibrary.HarfBuzz> library = HarfBuzzSubsetLibrary.load(
+                List.of(), List.of());
+        assertTrue(library.isEmpty());
+    }
+
+    @Test
     @DisplayName("Empty inputs do not call the library")
     void skipsEmptyInput() {
         FakeHarfBuzz fake = new FakeHarfBuzz(new byte[] {1});
@@ -138,6 +178,7 @@ class HarfBuzzSubsetterTest {
         private final Set<String> destroyed = new LinkedHashSet<>();
 
         private boolean failSubset;
+        private boolean throwOnBlobCreate;
         private int blobCreates;
         private int flags = -1;
 
@@ -149,6 +190,9 @@ class HarfBuzzSubsetterTest {
         public Pointer hb_blob_create(Pointer data, int length, int mode, Pointer userData,
                                       Pointer destroy) {
             blobCreates++;
+            if (throwOnBlobCreate) {
+                throw new UnsatisfiedLinkError("hb_blob_create not found");
+            }
             return blob;
         }
 
@@ -208,6 +252,101 @@ class HarfBuzzSubsetterTest {
         @Override
         public void hb_set_add(Pointer set, int codePoint) {
             unicodes.add(codePoint);
+        }
+    }
+
+    /** Fake core library (blob/face/set functions of {@code libharfbuzz}). */
+    private static final class FakeCore implements HarfBuzzSubsetLibrary.CoreHarfBuzz {
+
+        private final Memory blob = new Memory(1);
+        private final Memory face = new Memory(1);
+        private final Memory resultBlob = new Memory(1);
+        private final byte[] output;
+        private final Set<Integer> unicodes = new LinkedHashSet<>();
+        private final Set<String> destroyed = new LinkedHashSet<>();
+
+        private int blobCreates;
+
+        FakeCore(byte[] output) {
+            this.output = output;
+        }
+
+        @Override
+        public Pointer hb_blob_create(Pointer data, int length, int mode, Pointer userData,
+                                      Pointer destroy) {
+            blobCreates++;
+            return blob;
+        }
+
+        @Override
+        public Pointer hb_blob_get_data(Pointer blob, IntByReference length) {
+            Memory memory = new Memory(output.length);
+            memory.write(0, output, 0, output.length);
+            length.setValue(output.length);
+            return memory;
+        }
+
+        @Override
+        public void hb_blob_destroy(Pointer target) {
+            destroyed.add(target == blob ? "blob" : "resultBlob");
+        }
+
+        @Override
+        public Pointer hb_face_create(Pointer blob, int index) {
+            return face;
+        }
+
+        @Override
+        public Pointer hb_face_reference_blob(Pointer face) {
+            return resultBlob;
+        }
+
+        @Override
+        public void hb_face_destroy(Pointer target) {
+            destroyed.add(target == face ? "face" : "subsetFace");
+        }
+
+        @Override
+        public void hb_set_add(Pointer set, int codePoint) {
+            unicodes.add(codePoint);
+        }
+    }
+
+    /** Fake subset library ({@code hb_subset_*} functions). */
+    private static final class FakeSubset implements HarfBuzzSubsetLibrary.HarfBuzzSubsetApi {
+
+        private final Memory input = new Memory(1);
+        private final Memory subsetFace = new Memory(1);
+        private final Memory unicodeSet = new Memory(1);
+        private final Set<String> destroyed = new LinkedHashSet<>();
+
+        private int subsetCalls;
+        private int flags = -1;
+
+        @Override
+        public Pointer hb_subset_input_create_or_fail() {
+            return input;
+        }
+
+        @Override
+        public Pointer hb_subset_input_unicode_set(Pointer input) {
+            return unicodeSet;
+        }
+
+        @Override
+        public void hb_subset_input_set_flags(Pointer input, int flags) {
+            this.flags = flags;
+        }
+
+        @Override
+        public void hb_subset_input_destroy(Pointer input) {
+            destroyed.add("input");
+        }
+
+        @Override
+        public Pointer hb_subset_or_fail(Pointer face, Pointer input) {
+            subsetCalls++;
+            return subsetFace;
         }
     }
 }

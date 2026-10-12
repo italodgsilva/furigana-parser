@@ -1,0 +1,17 @@
+[
+  {
+    "interfaces": [
+      "com.shinji2324.furigana.font.HarfBuzzSubsetLibrary$HarfBuzz"
+    ]
+  },
+  {
+    "interfaces": [
+      "com.shinji2324.furigana.font.HarfBuzzSubsetLibrary$CoreHarfBuzz"
+    ]
+  },
+  {
+    "interfaces": [
+      "com.shinji2324.furigana.font.HarfBuzzSubsetLibrary$HarfBuzzSubsetApi"
+    ]
+  }
+]

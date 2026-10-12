@@ -287,7 +287,9 @@ With `--subset-font` (which requires `--embed-font`), only the glyphs used in th
 subtitle are written, which shrinks the file drastically (a whole episode comes to
 around 300 KB). The subsetting uses HarfBuzz (`libharfbuzz-subset`); if the
 library is not available, the program warns (with the installation suggestion for
-your system) and embeds the full font.
+your system) and embeds the full font. On Windows the program loads the core and
+subset DLLs separately (scanning the PATH and the usual MSYS2/vcpkg directories)
+so subsetting works when HarfBuzz is installed.
 See [`docs/font-embedding.md`](docs/font-embedding.md).
 
 With `--strip-parentheses`, the passages between round parentheses — full-width
