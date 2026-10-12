@@ -53,13 +53,11 @@ Etapas concluídas:
 6. Leituras externas: `JishoReadingProvider` real, mediado por `CachingReadingProvider` com cache em disco (`data/cache/readings.json`).
 7. Geração de ASS com furigana posicionado (`AssGenerator` + `AssWriter` + `AssLayout`), com estilos em `src/main/resources/ass/default-style.ass`.
 8. Integração com o MPV (`--mpv`): gera o ASS ao lado da SRT e abre o vídeo com `mpv --sub-file=...` (ver `docs/mpv.md`).
-9. Embutição da fonte no próprio ASS (`--embed-font`): localiza a fonte do estilo pelo nome de família, recorta a face de coleções `.ttc` e escreve a seção `[Fonts]`, tudo em Java e sem depender de ferramentas externas (ver `docs/font-embedding.md`).
+9. Embutição da fonte no próprio ASS (`--embed-font`): localiza a fonte do estilo pelo nome de família, recorta a face de coleções `.ttc` e escreve a seção `[Fonts]`, tudo em Java. Com `--subset-font`, reduz a fonte embutida aos glifos usados na legenda, por meio do HarfBuzz (ver `docs/font-embedding.md`).
 
 Próximas etapas (fora do escopo atual):
 
 - integração dinâmica com o MPV (scripts Lua, atualização em tempo real).
-- redução do tamanho do ASS com fonte embutida (subsetting da fonte): hoje o
-  arquivo inteiro é gravado, o que gera um ASS pesado (ver `docs/font-embedding.md`).
 
 ## Tecnologias
 
@@ -68,6 +66,7 @@ Próximas etapas (fora do escopo atual):
 - JUnit 5
 - Jackson
 - Kuromoji (tokenização morfológica, dicionário IPADIC)
+- JNA (acesso à biblioteca nativa do HarfBuzz, para o subsetting opcional da fonte)
 - Formato SRT
 - Formato ASS/SSA
 - MPV
@@ -151,6 +150,7 @@ java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.json
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar entrada.srt saida.ass
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font entrada.srt saida.ass
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font=fonte.otf entrada.srt saida.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font --subset-font entrada.srt saida.ass
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --mpv entrada.srt video.mkv
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --help
 ```
@@ -159,8 +159,14 @@ Com `--embed-font`, o ASS passa a carregar a própria fonte na seção `[Fonts]`
 dispensando instalar a fonte na máquina de quem assiste. A opção funciona também
 no modo `--mpv`. Sem argumento, a fonte é localizada pelo nome de família do
 estilo (`Noto Sans CJK JP`); com `--embed-font=<arquivo>`, o arquivo informado é
-usado. Como o arquivo inteiro é embutido, o ASS cresce bastante (ver
-[`docs/font-embedding.md`](docs/font-embedding.md)).
+usado. Como o arquivo inteiro é embutido, o ASS cresce bastante (cerca de 22 MB
+com a `Noto Sans CJK JP`).
+
+Com `--subset-font` (que exige `--embed-font`), apenas os glifos usados na
+legenda são gravados, o que reduz drasticamente o arquivo (um episódio inteiro
+fica em torno de 300 KB). A redução usa o HarfBuzz (`libharfbuzz-subset`); se a
+biblioteca não estiver disponível, o programa avisa e embute a fonte completa.
+Veja [`docs/font-embedding.md`](docs/font-embedding.md).
 
 No modo `--mpv`, o ASS é gerado ao lado da SRT (`entrada.furigana.ass`) e o vídeo
 é aberto no MPV com `--sub-file`. Requer o MPV instalado no `PATH`. As limitações

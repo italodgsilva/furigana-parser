@@ -116,4 +116,35 @@ class CliParserTest {
         assertThrows(CliUsageException.class,
                 () -> parser.parse(new String[] {"--embed-font=", "entrada.srt", "saida.ass"}));
     }
+
+    @Test
+    @DisplayName("Interpreta --subset-font junto de --embed-font")
+    void parsesSubsetFont() {
+        CliCommand command = parser.parse(new String[] {
+                "--embed-font", "--subset-font", "entrada.srt", "saida.ass"});
+
+        assertEquals(CliCommand.Mode.GENERATE_ASS, command.mode());
+        assertTrue(command.embedFont());
+        assertTrue(command.subsetFont());
+
+        CliCommand plain = parser.parse(new String[] {"--embed-font", "entrada.srt", "saida.ass"});
+        assertFalse(plain.subsetFont());
+    }
+
+    @Test
+    @DisplayName("--subset-font também vale no modo --mpv")
+    void parsesSubsetFontInPlayMode() {
+        CliCommand command = parser.parse(new String[] {
+                "--embed-font", "--subset-font", "--mpv", "legenda.srt", "video.mkv"});
+
+        assertEquals(CliCommand.Mode.PLAY, command.mode());
+        assertTrue(command.subsetFont());
+    }
+
+    @Test
+    @DisplayName("Rejeita --subset-font sem --embed-font")
+    void rejectsSubsetFontWithoutEmbed() {
+        assertThrows(CliUsageException.class,
+                () -> parser.parse(new String[] {"--subset-font", "entrada.srt", "saida.ass"}));
+    }
 }

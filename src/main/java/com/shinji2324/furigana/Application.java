@@ -5,7 +5,9 @@ import com.shinji2324.furigana.cli.CliParser;
 import com.shinji2324.furigana.cli.CliUsageException;
 import com.shinji2324.furigana.font.FontFile;
 import com.shinji2324.furigana.font.FontLocator;
+import com.shinji2324.furigana.font.HarfBuzzSubsetter;
 import com.shinji2324.furigana.furigana.FuriganaDocument;
+import com.shinji2324.furigana.furigana.UsedCodePoints;
 import com.shinji2324.furigana.japanese.JapaneseTokenizer;
 import com.shinji2324.furigana.japanese.KuromojiTokenizer;
 import com.shinji2324.furigana.mpv.MpvIntegration;
@@ -28,6 +30,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Ponto de entrada da aplicação (CLI).
@@ -182,14 +185,48 @@ public class Application {
 
     /**
      * Monta o ASS com o furigana posicionado e, quando pedido, com a fonte
-     * embutida.
+     * embutida (e, opcionalmente, reduzida).
      */
     private String renderAss(FuriganaDocument document, CliCommand command) throws IOException {
         String ass = new AssGenerator().generate(document);
         if (!command.embedFont()) {
             return ass;
         }
-        return new AssFontEmbedder().embed(ass, resolveFonts(command.fontPath()));
+        List<FontFile> fonts = resolveFonts(command.fontPath());
+        if (command.subsetFont()) {
+            fonts = subsetFonts(fonts, document);
+        }
+        return new AssFontEmbedder().embed(ass, fonts);
+    }
+
+    /**
+     * Reduz as fontes aos glifos usados na legenda, quando o HarfBuzz estiver
+     * disponível.
+     *
+     * <p>Se a biblioteca nativa não for encontrada — ou se a redução de uma fonte
+     * específica falhar — a fonte completa é mantida, com um aviso em
+     * {@code stderr}. O ASS nunca é gerado sem os glifos necessários.
+     */
+    private List<FontFile> subsetFonts(List<FontFile> fonts, FuriganaDocument document) {
+        Optional<HarfBuzzSubsetter> subsetter = HarfBuzzSubsetter.create();
+        if (subsetter.isEmpty()) {
+            System.err.println("Aviso: libharfbuzz-subset não encontrada; "
+                    + "a fonte será embutida sem redução de tamanho.");
+            return fonts;
+        }
+        Set<Integer> codePoints = UsedCodePoints.from(document);
+        List<FontFile> subsetted = new ArrayList<>();
+        for (FontFile font : fonts) {
+            byte[] reduced = subsetter.get().subset(font.data(), codePoints);
+            if (reduced == null) {
+                System.err.println("Aviso: não foi possível reduzir " + font.fileName()
+                        + "; embutindo a fonte completa.");
+                subsetted.add(font);
+            } else {
+                subsetted.add(new FontFile(font.fileName(), reduced));
+            }
+        }
+        return subsetted;
     }
 
     /**

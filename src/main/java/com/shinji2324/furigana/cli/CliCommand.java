@@ -10,17 +10,21 @@ import java.nio.file.Path;
  * {@code output} é o arquivo de vídeo. Para {@link Mode#HELP}, ambos são
  * {@code null}.
  *
- * <p>{@code embedFont} liga a embedação da fonte no ASS. {@code fontPath}, quando
- * informado, aponta o arquivo de fonte a embutir; quando {@code null}, a fonte é
- * localizada pelo nome de família no sistema.
+ * <p>{@code embedFont} liga a embedação da fonte no ASS. {@code subsetFont},
+ * quando ligado, reduz a fonte embutida aos glifos usados na legenda (exige
+ * {@code embedFont}). {@code fontPath}, quando informado, aponta o arquivo de
+ * fonte a embutir; quando {@code null}, a fonte é localizada pelo nome de família
+ * no sistema.
  *
- * @param mode      operação a executar
- * @param input     legenda SRT de entrada
- * @param output    destino (arquivo de saída ou vídeo), conforme o modo
- * @param embedFont se a fonte deve ser embutida no ASS
- * @param fontPath  arquivo de fonte a embutir, ou {@code null} para localizar
+ * @param mode       operação a executar
+ * @param input      legenda SRT de entrada
+ * @param output     destino (arquivo de saída ou vídeo), conforme o modo
+ * @param embedFont  se a fonte deve ser embutida no ASS
+ * @param subsetFont se a fonte embutida deve ser reduzida aos glifos usados
+ * @param fontPath   arquivo de fonte a embutir, ou {@code null} para localizar
  */
-public record CliCommand(Mode mode, Path input, Path output, boolean embedFont, Path fontPath) {
+public record CliCommand(Mode mode, Path input, Path output, boolean embedFont, boolean subsetFont,
+                         Path fontPath) {
 
     /** Operação pedida na linha de comando. */
     public enum Mode {
@@ -36,7 +40,7 @@ public record CliCommand(Mode mode, Path input, Path output, boolean embedFont, 
 
     /** Cria o comando de ajuda. */
     public static CliCommand help() {
-        return new CliCommand(Mode.HELP, null, null, false, null);
+        return new CliCommand(Mode.HELP, null, null, false, false, null);
     }
 
     /**
@@ -47,32 +51,36 @@ public record CliCommand(Mode mode, Path input, Path output, boolean embedFont, 
      * @return comando configurado
      */
     public static CliCommand generateJson(Path input, Path output) {
-        return new CliCommand(Mode.GENERATE_JSON, input, output, false, null);
+        return new CliCommand(Mode.GENERATE_JSON, input, output, false, false, null);
     }
 
     /**
      * Cria o comando de geração de ASS.
      *
-     * @param input     legenda SRT
-     * @param output    arquivo ASS de saída
-     * @param embedFont se a fonte deve ser embutida no ASS
-     * @param fontPath  arquivo de fonte a embutir, ou {@code null} para localizar
+     * @param input      legenda SRT
+     * @param output     arquivo ASS de saída
+     * @param embedFont  se a fonte deve ser embutida no ASS
+     * @param subsetFont se a fonte embutida deve ser reduzida aos glifos usados
+     * @param fontPath   arquivo de fonte a embutir, ou {@code null} para localizar
      * @return comando configurado
      */
-    public static CliCommand generateAss(Path input, Path output, boolean embedFont, Path fontPath) {
-        return new CliCommand(Mode.GENERATE_ASS, input, output, embedFont, fontPath);
+    public static CliCommand generateAss(Path input, Path output, boolean embedFont, boolean subsetFont,
+                                         Path fontPath) {
+        return new CliCommand(Mode.GENERATE_ASS, input, output, embedFont, subsetFont, fontPath);
     }
 
     /**
      * Cria o comando de reprodução no MPV.
      *
-     * @param subtitle  legenda SRT
-     * @param video     arquivo de vídeo
-     * @param embedFont se a fonte deve ser embutida no ASS
-     * @param fontPath  arquivo de fonte a embutir, ou {@code null} para localizar
+     * @param subtitle   legenda SRT
+     * @param video      arquivo de vídeo
+     * @param embedFont  se a fonte deve ser embutida no ASS
+     * @param subsetFont se a fonte embutida deve ser reduzida aos glifos usados
+     * @param fontPath   arquivo de fonte a embutir, ou {@code null} para localizar
      * @return comando configurado
      */
-    public static CliCommand play(Path subtitle, Path video, boolean embedFont, Path fontPath) {
-        return new CliCommand(Mode.PLAY, subtitle, video, embedFont, fontPath);
+    public static CliCommand play(Path subtitle, Path video, boolean embedFont, boolean subsetFont,
+                                  Path fontPath) {
+        return new CliCommand(Mode.PLAY, subtitle, video, embedFont, subsetFont, fontPath);
     }
 }

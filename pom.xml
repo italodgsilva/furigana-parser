@@ -24,6 +24,7 @@
         <junit.version>5.13.4</junit.version>
         <jackson.version>2.20.0</jackson.version>
         <kuromoji.version>0.9.0</kuromoji.version>
+        <jna.version>5.17.0</jna.version>
     </properties>
 
     <dependencies>
@@ -40,6 +41,13 @@
             <groupId>com.atilika.kuromoji</groupId>
             <artifactId>kuromoji-ipadic</artifactId>
             <version>${kuromoji.version}</version>
+        </dependency>
+
+        <!-- Acesso à biblioteca nativa do HarfBuzz para reduzir a fonte embutida -->
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>${jna.version}</version>
         </dependency>
 
         <!-- Testes -->
