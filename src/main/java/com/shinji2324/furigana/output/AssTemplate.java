@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Static header of an ASS file (Script Info, styles and event format).
@@ -21,6 +22,12 @@ public final class AssTemplate {
 
     /** Path of the default template on the classpath. */
     public static final String DEFAULT_RESOURCE = "/ass/default-style.ass";
+
+    /**
+     * Index of {@code PrimaryColour} inside a {@code Style:} line
+     * ({@code "Style: Name"}, Fontname, Fontsize, PrimaryColour, …).
+     */
+    private static final int PRIMARY_COLOUR_INDEX = 3;
 
     private final String content;
 
@@ -57,6 +64,86 @@ public final class AssTemplate {
      */
     public String content() {
         return content;
+    }
+
+    /**
+     * Returns a template whose {@code PrimaryColour} of every style is set to the
+     * given color.
+     *
+     * <p>The color may be a name ({@code red}, {@code yellow}, …), a {@code #RRGGBB}
+     * / {@code RRGGBB} value or an ASS {@code AABBGGRR} value. An unrecognized color
+     * (or a template without styles) returns the original template unchanged.
+     *
+     * @param template source template (may be {@code null})
+     * @param color    color to apply (name, RGB or ASS color)
+     * @return template with the new primary color
+     */
+    public static AssTemplate withColor(AssTemplate template, String color) {
+        if (template == null || color == null || color.isBlank()) {
+            return template;
+        }
+        String bgr = parseColor(color.trim());
+        if (bgr == null) {
+            return template;
+        }
+        String content = template.content();
+        StringBuilder builder = new StringBuilder();
+        boolean changed = false;
+        String[] lines = content.split("\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            if (line.startsWith("Style:")) {
+                String[] fields = line.split(",", -1);
+                if (fields.length > PRIMARY_COLOUR_INDEX) {
+                    fields[PRIMARY_COLOUR_INDEX] = bgr;
+                    line = String.join(",", fields);
+                    changed = true;
+                }
+            }
+            builder.append(line);
+            if (i < lines.length - 1) {
+                builder.append('\n');
+            }
+        }
+        return changed ? new AssTemplate(builder.toString()) : template;
+    }
+
+    /**
+     * Converts a color specification into an ASS color ({@code &HAABBGGRR}).
+     *
+     * @param color name, {@code #RRGGBB}/{@code RRGGBB} or {@code AABBGGRR} value
+     * @return the ASS color, or {@code null} when the value is not recognized
+     */
+    private static String parseColor(String color) {
+        String c = color.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+        if (c.startsWith("#")) {
+            c = c.substring(1);
+        }
+        // Named colors (common)
+        switch (c) {
+            case "yellow": return "&H0000FFFF";
+            case "gold": return "&H0000D7FF";
+            case "orange": return "&H00008CFF";
+            case "red": return "&H000000FF";
+            case "white": return "&H00FFFFFF";
+            case "cyan": return "&H00FFFF00";
+            case "magenta": return "&H00FF00FF";
+            case "lime": return "&H0000FF00";
+            case "blue": return "&H00FF0000";
+            case "black": return "&H00000000";
+        }
+        // 6-digit RGB (RRGGBB) -> ASS AABBGGRR
+        if (c.matches("[0-9a-f]{6}")) {
+            String r = c.substring(0, 2);
+            String g = c.substring(2, 4);
+            String b = c.substring(4, 6);
+            return ("&H00" + b + g + r).toUpperCase(Locale.ROOT);
+        }
+        // 8-digit ASS value (AABBGGRR), used as is
+        if (c.matches("[0-9a-f]{8}")) {
+            return ("&H" + c).toUpperCase(Locale.ROOT);
+        }
+        return null;
     }
 
     /**

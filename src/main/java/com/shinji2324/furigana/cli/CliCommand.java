@@ -16,7 +16,8 @@ import java.nio.file.Path;
  * font file to embed; when {@code null}, the font is located by family name on
  * the system. {@code stripParentheses} removes the passages between round
  * parentheses from the text before furigana (applies to JSON, ASS and
- * {@code --mpv}).
+ * {@code --mpv}). {@code color}, when provided, sets the primary color of the
+ * {@code Main} and {@code Furigana} styles.
  *
  * @param mode             operation to execute
  * @param input            input SRT subtitle
@@ -25,9 +26,15 @@ import java.nio.file.Path;
  * @param subsetFont       whether the embedded font should be subset to the glyphs used
  * @param fontPath         font file to embed, or {@code null} to locate it
  * @param stripParentheses whether the passages between parentheses should be removed
+ * @param color            primary color of the styles, or {@code null} for the default
  */
 public record CliCommand(Mode mode, Path input, Path output, boolean embedFont, boolean subsetFont,
-                         Path fontPath, boolean stripParentheses) {
+                         Path fontPath, boolean stripParentheses, String color) {
+
+    public CliCommand(Mode mode, Path input, Path output, boolean embedFont, boolean subsetFont,
+                      Path fontPath, boolean stripParentheses) {
+        this(mode, input, output, embedFont, subsetFont, fontPath, stripParentheses, null);
+    }
 
     /** Operation requested on the command line. */
     public enum Mode {
@@ -67,12 +74,18 @@ public record CliCommand(Mode mode, Path input, Path output, boolean embedFont, 
      * @param subsetFont       whether the embedded font should be subset to the glyphs used
      * @param fontPath         font file to embed, or {@code null} to locate it
      * @param stripParentheses whether the passages between parentheses should be removed
+     * @param color            primary color of the styles, or {@code null} for the default
      * @return configured command
      */
     public static CliCommand generateAss(Path input, Path output, boolean embedFont, boolean subsetFont,
-                                         Path fontPath, boolean stripParentheses) {
+                                         Path fontPath, boolean stripParentheses, String color) {
         return new CliCommand(Mode.GENERATE_ASS, input, output, embedFont, subsetFont, fontPath,
-                stripParentheses);
+                stripParentheses, color);
+    }
+
+    public static CliCommand generateAss(Path input, Path output, boolean embedFont, boolean subsetFont,
+                                         Path fontPath, boolean stripParentheses) {
+        return generateAss(input, output, embedFont, subsetFont, fontPath, stripParentheses, null);
     }
 
     /**
@@ -84,11 +97,17 @@ public record CliCommand(Mode mode, Path input, Path output, boolean embedFont, 
      * @param subsetFont       whether the embedded font should be subset to the glyphs used
      * @param fontPath         font file to embed, or {@code null} to locate it
      * @param stripParentheses whether the passages between parentheses should be removed
+     * @param color            primary color of the styles, or {@code null} for the default
      * @return configured command
      */
     public static CliCommand play(Path subtitle, Path video, boolean embedFont, boolean subsetFont,
-                                  Path fontPath, boolean stripParentheses) {
+                                  Path fontPath, boolean stripParentheses, String color) {
         return new CliCommand(Mode.PLAY, subtitle, video, embedFont, subsetFont, fontPath,
-                stripParentheses);
+                stripParentheses, color);
+    }
+
+    public static CliCommand play(Path subtitle, Path video, boolean embedFont, boolean subsetFont,
+                                  Path fontPath, boolean stripParentheses) {
+        return play(subtitle, video, embedFont, subsetFont, fontPath, stripParentheses, null);
     }
 }

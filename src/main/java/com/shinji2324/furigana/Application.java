@@ -191,11 +191,15 @@ public class Application {
      * embedded (and, optionally, subset).
      */
     private String renderAss(FuriganaDocument document, CliCommand command) throws IOException {
-        String ass = new AssGenerator().generate(document);
+        AssTemplate template = AssTemplate.defaultTemplate();
+        if (command.color() != null && !command.color().isBlank()) {
+            template = AssTemplate.withColor(template, command.color());
+        }
+        String ass = new AssGenerator(template).generate(document);
         if (!command.embedFont()) {
             return ass;
         }
-        List<FontFile> fonts = resolveFonts(command.fontPath(), new FontDownloader());
+        List<FontFile> fonts = resolveFonts(command.fontPath(), new FontDownloader(), template);
         if (command.subsetFont()) {
             fonts = subsetFonts(fonts, document);
         }
@@ -237,8 +241,8 @@ public class Application {
      * <p>With {@code fontPath} provided, embeds that file; otherwise, locates
      * each family on the system.
      */
-    private List<FontFile> resolveFonts(Path fontPath, FontDownloader downloader) throws IOException {
-        List<String> families = AssTemplate.defaultTemplate().fontFamilies();
+    private List<FontFile> resolveFonts(Path fontPath, FontDownloader downloader, AssTemplate template) throws IOException {
+        List<String> families = (template == null) ? AssTemplate.defaultTemplate().fontFamilies() : template.fontFamilies();
         if (families.isEmpty()) {
             throw new IOException(
                     "The ASS template does not declare any styles with a font to embed.");

@@ -161,4 +161,29 @@ class CliParserTest {
 
         assertFalse(parser.parse(new String[] {"input.srt", "output.ass"}).stripParentheses());
     }
+
+    @Test
+    @DisplayName("Parses --color in ASS and --mpv modes")
+    void parsesColor() {
+        CliCommand ass = parser.parse(new String[] {
+                "--color=yellow", "input.srt", "output.ass"});
+        assertEquals(CliCommand.Mode.GENERATE_ASS, ass.mode());
+        assertEquals("yellow", ass.color());
+
+        CliCommand mpv = parser.parse(new String[] {
+                "--color=#FF0000", "--mpv", "subtitle.srt", "video.mkv"});
+        assertEquals(CliCommand.Mode.PLAY, mpv.mode());
+        assertEquals("#FF0000", mpv.color());
+
+        CliCommand hex8 = parser.parse(new String[] {
+                "--color=FF00FFFF", "input.srt", "output.ass"});
+        assertEquals("FF00FFFF", hex8.color());
+    }
+
+    @Test
+    @DisplayName("Rejects --color= without value")
+    void rejectsEmptyColor() {
+        assertThrows(CliUsageException.class,
+                () -> parser.parse(new String[] {"--color=", "input.srt", "output.ass"}));
+    }
 }

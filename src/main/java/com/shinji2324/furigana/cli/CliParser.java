@@ -40,6 +40,9 @@ public class CliParser {
     /** Option that removes the passages between round parentheses from the text. */
     private static final String STRIP_PARENTHESES = "--strip-parentheses";
 
+    /** Option that sets the primary color for Main and Furigana styles. */
+    private static final String COLOR_OPTION = "--color";
+
     /** Usage text shown on {@code --help} and on argument errors. */
     public static final String USAGE = String.join("\n",
             "Usage:",
@@ -47,6 +50,7 @@ public class CliParser {
             "  furigana-parser [--strip-parentheses] --mpv <input.srt> <video>",
             "  furigana-parser [--strip-parentheses] [--embed-font[=<file>]] [--subset-font] "
                     + "<input.srt> <output.ass>",
+            "  furigana-parser [--color=<color>] [--strip-parentheses] [--embed-font[=<file>]] [--subset-font] <input.srt> <output.ass>",
             "  furigana-parser --help");
 
     private static final String PLAY_ALIAS = "play";
@@ -67,6 +71,7 @@ public class CliParser {
         boolean subsetFont = false;
         boolean stripParentheses = false;
         Path fontPath = null;
+        String color = null;
         List<String> positional = new ArrayList<>();
         for (String argument : args) {
             if (argument.equals(EMBED_FONT)) {
@@ -75,6 +80,12 @@ public class CliParser {
                 subsetFont = true;
             } else if (argument.equals(STRIP_PARENTHESES)) {
                 stripParentheses = true;
+            } else if (argument.startsWith(COLOR_OPTION + "=")) {
+                String value = argument.substring(COLOR_OPTION.length() + 1);
+                if (value.isBlank()) {
+                    throw new CliUsageException("Provide a color as " + COLOR_OPTION + "=<color>.\n" + USAGE);
+                }
+                color = value;
             } else if (argument.startsWith(EMBED_FONT + "=")) {
                 embedFont = true;
                 String value = argument.substring(EMBED_FONT.length() + 1);
@@ -103,7 +114,7 @@ public class CliParser {
                         "The --mpv mode requires the SRT subtitle and the video.\n" + USAGE);
             }
             return CliCommand.play(Path.of(positional.get(1)), Path.of(positional.get(2)),
-                    embedFont, subsetFont, fontPath, stripParentheses);
+                    embedFont, subsetFont, fontPath, stripParentheses, color);
         }
 
         if (positional.size() != 2) {
@@ -115,7 +126,7 @@ public class CliParser {
         return switch (extensionOf(output)) {
             case "json" -> CliCommand.generateJson(input, output, stripParentheses);
             case "ass" -> CliCommand.generateAss(input, output, embedFont, subsetFont, fontPath,
-                    stripParentheses);
+                    stripParentheses, color);
             default -> throw new CliUsageException(
                     "Unsupported output format: use .json or .ass.\n" + USAGE);
         };
