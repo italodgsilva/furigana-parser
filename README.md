@@ -62,6 +62,7 @@ Completed steps:
 10. Text cleanup (`--strip-parentheses`): removes the passages between round parentheses (full-width and half-width) before tokenization, discarding entries that become empty.
 11. Native build with GraalVM (`mvn -Pnative package`): generates an executable without a JVM, with the reflection/resource/JNI configurations in `src/main/resources/META-INF/native-image/` (see `docs/native-image.md`).
 12. Automatic release publishing: a `v*` tag triggers the release workflow, which builds the JAR and the native binaries for each platform and attaches them to a GitHub Release (see the "Publishing a release" section).
+13. Color customization (`--color`): changes the primary color of the `Main` and `Furigana` styles, accepting a name, `#RRGGBB` or an ASS `AABBGGRR` value. Furigana that would overlap on the same line is spread apart automatically.
 
 Next steps (outside the current scope):
 
@@ -267,6 +268,8 @@ java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font input.srt outpu
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font=font.otf input.srt output.ass
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font --subset-font input.srt output.ass
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --strip-parentheses input.srt output.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --color=yellow input.srt output.ass
+java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --color=#1122FF input.srt output.ass
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --mpv input.srt video.mkv
 java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --help
 ```
@@ -298,6 +301,14 @@ This avoids generating furigana (and looking up readings) for character names,
 reactions and scene directions (e.g. `（笑）`, `(Taro)`). If an entry becomes
 entirely empty, such as a line that was only `（笑）`, it is discarded. The option
 applies to JSON, ASS and `--mpv`.
+
+With `--color`, the primary color of both styles (`Main` and `Furigana`) is
+replaced. The value may be one of the names `yellow`, `gold`, `orange`, `red`,
+`white`, `cyan`, `magenta`, `lime`, `blue`, `black`, a `#RRGGBB` (or `RRGGBB`)
+value, or an ASS `AABBGGRR` value. An unrecognized value leaves the default
+(white) untouched. The option applies to ASS and `--mpv`. Independently of the
+color, furigana readings that would overlap on the same line are spread apart
+before the ASS is written.
 
 In `--mpv` mode, the ASS is generated next to the SRT (`input.furigana.ass`) and
 the video is opened in MPV with `--sub-file`. It requires MPV installed on the

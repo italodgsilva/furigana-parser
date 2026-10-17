@@ -184,6 +184,31 @@ Furigana   — reading (white, 32px), displayed above the main text
 This makes it possible to change the font, size, color, margin and style without
 modifying the logic responsible for composing the text.
 
+## Colors
+
+The `--color` option of the CLI replaces the `PrimaryColour` of every style
+(`Main` and `Furigana`), leaving the other color fields (`SecondaryColour`,
+`OutlineColour`, `BackColour`) untouched. The value may be:
+
+- a name — `yellow`, `gold`, `orange`, `red`, `white`, `cyan`, `magenta`, `lime`,
+  `blue`, `black`;
+- an RGB value — `#RRGGBB` or `RRGGBB` (converted to the ASS `AABBGGRR` order);
+- an ASS value — `AABBGGRR`.
+
+An unrecognized value leaves the template unchanged (the default white). The rest
+of the composition is unaffected: the color only changes the styles' text, not the
+furigana geometry.
+
+## Furigana collision
+
+When the readings of adjacent kanji on the same line are wider than the kanji
+themselves, their furigana boxes may overlap. Before writing the events,
+`AssGenerator` detects the overlap of adjacent readings (by their `\pos` center and
+estimated width) and shifts them apart — distributing the shift between the two
+neighbours and keeping each reading as close as possible to the original position
+(within a maximum offset and the screen bounds). This is a horizontal adjustment
+on a single line; collisions between different lines are not handled.
+
 ## Synchronization
 
 The original subtitle timestamp is preserved.
@@ -217,7 +242,8 @@ Points that may still need refinement:
 - characters outside ASCII and CJK (e.g. accented Latin letters, other alphabets)
   still use one "em" by default, with no real measurement;
 - kerning between glyph pairs is not considered;
-- collision between lines with furigana in texts with many lines;
+- collision between furigana of *different* lines in texts with many lines
+  (same-line horizontal collisions are handled, see [Furigana collision](#furigana-collision));
 - very long texts (automatic wrapping).
 
 ## Conceptual transformation example
