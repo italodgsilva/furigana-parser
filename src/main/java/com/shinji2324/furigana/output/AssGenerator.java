@@ -95,9 +95,9 @@ public class AssGenerator {
             runningOffset += lines[i].length() + 1; // +1 refers to the '\n' separator
         }
 
-        List<List<AssEvent>> furiganaByLine = new ArrayList<>();
+        List<List<FuriganaItem>> furiganaItemsByLine = new ArrayList<>();
         for (int i = 0; i < lines.length; i++) {
-            furiganaByLine.add(new ArrayList<>());
+            furiganaItemsByLine.add(new ArrayList<>());
         }
 
         int cursor = 0;
@@ -127,8 +127,26 @@ public class AssGenerator {
             double centerCell = startCell + AssLayout.cells(segmentText) / 2.0;
             double x = AssLayout.xForCenterCell(centerCell, totalCells);
             double y = AssLayout.furiganaCenterY(lines.length - 1 - lineIndex);
-            furiganaByLine.get(lineIndex).add(new AssEvent(
-                    0, start, end, FURIGANA_STYLE, position(x, y) + segment.reading()));
+            furiganaItemsByLine.get(lineIndex).add(new FuriganaItem(x, y, segment.reading()));
+        }
+
+        // Resolve horizontal collisions between furigana in the same line,
+        // distributing the shift between adjacent items to keep them more centered.
+        for (List<FuriganaItem> items : furiganaItemsByLine) {
+            if (items.size() > 1) {
+                resolveCollisions(items);
+            }
+        }
+
+        List<List<AssEvent>> furiganaByLine = new ArrayList<>();
+        for (int i = 0; i < lines.length; i++) {
+            List<FuriganaItem> items = furiganaItemsByLine.get(i);
+            List<AssEvent> eventsForLine = new ArrayList<>(items.size());
+            for (FuriganaItem item : items) {
+                eventsForLine.add(new AssEvent(
+                        0, start, end, FURIGANA_STYLE, position(item.x, item.y) + item.reading));
+            }
+            furiganaByLine.add(eventsForLine);
         }
 
         List<AssEvent> events = new ArrayList<>();
@@ -159,6 +177,102 @@ public class AssGenerator {
             }
         }
         return result;
+    }
+
+    /** Minimum horizontal gap between adjacent furigana events, in pixels. */
+    private static final double FURIGANA_COLLISION_GAP = 6.0;
+
+    /** Maximum number of relaxation iterations when resolving collisions. */
+    private static final int COLLISION_ITERATIONS = 5;
+
+    /** Maximum horizontal distance a furigana can be shifted from its original position, in pixels. */
+    private static final double MAX_SHIFT_FROM_ORIGINAL = 200.0;
+
+    private static class FuriganaItem {
+        double x;
+        final double y;
+        final double xOrig;
+        final String reading;
+
+        FuriganaItem(double x, double y, String reading) {
+            this.x = x;
+            this.y = y;
+            this.xOrig = x;
+            this.reading = reading;
+        }
+
+        double widthPx() {
+            return AssLayout.cells(reading) * (double) AssLayout.FURIGANA_FONT_SIZE * AssLayout.EM_PER_FONT_SIZE;
+        }
+
+        double left() {
+            return x - widthPx() / 2.0;
+        }
+
+        double right() {
+            return x + widthPx() / 2.0;
+        }
+    }
+
+    private static void resolveCollisions(List<FuriganaItem> items) {
+        if (items.size() <= 1) {
+            return;
+        }
+        items.sort((a, b) -> Double.compare(a.x, b.x));
+        for (int iter = 0; iter < COLLISION_ITERATIONS; iter++) {
+            boolean moved = false;
+            // Left to right: distribute shift between adjacent items
+            for (int i = 0; i < items.size() - 1; i++) {
+                FuriganaItem left = items.get(i);
+                FuriganaItem right = items.get(i + 1);
+                if (right.left() < left.right() + FURIGANA_COLLISION_GAP) {
+                    double overlap = (left.right() + FURIGANA_COLLISION_GAP) - right.left();
+                    double half = overlap / 2.0;
+                    // Shift left item slightly left, right item slightly right
+                    left.x -= half;
+                    right.x += half;
+                    clamp(left);
+                    clamp(right);
+                    moved = true;
+                }
+            }
+            // Right to left: balance
+            for (int i = items.size() - 1; i > 0; i--) {
+                FuriganaItem right = items.get(i);
+                FuriganaItem left = items.get(i - 1);
+                if (right.left() < left.right() + FURIGANA_COLLISION_GAP) {
+                    double overlap = (left.right() + FURIGANA_COLLISION_GAP) - right.left();
+                    double half = overlap / 2.0;
+                    left.x -= half;
+                    right.x += half;
+                    clamp(left);
+                    clamp(right);
+                    moved = true;
+                }
+            }
+            if (!moved) {
+                break;
+            }
+        }
+        // Re-sort after adjustments
+        items.sort((a, b) -> Double.compare(a.x, b.x));
+    }
+
+    private static void clamp(FuriganaItem item) {
+        double maxShift = MAX_SHIFT_FROM_ORIGINAL;
+        if (item.x > item.xOrig + maxShift) {
+            item.x = item.xOrig + maxShift;
+        }
+        if (item.x < item.xOrig - maxShift) {
+            item.x = item.xOrig - maxShift;
+        }
+        double half = item.widthPx() / 2.0;
+        if (item.x - half < 0) {
+            item.x = half;
+        }
+        if (item.x + half > AssLayout.PLAY_RES_X) {
+            item.x = AssLayout.PLAY_RES_X - half;
+        }
     }
 
     /**

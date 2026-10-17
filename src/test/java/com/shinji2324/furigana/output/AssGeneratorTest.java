@@ -6,7 +6,10 @@ import com.shinji2324.furigana.furigana.FuriganaSegment;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -153,6 +156,65 @@ class AssGeneratorTest {
 
         assertTrue(output.contains("[Script Info]"));
         assertFalse(output.contains("Dialogue:"));
+    }
+
+    @Test
+    @DisplayName("Spreads apart furigana that would overlap on the same line")
+    void separatesOverlappingFurigana() {
+        FuriganaDocument document = new FuriganaDocument(List.of(new FuriganaEntry(
+                "1", "00:00:01,000", "00:00:02,000",
+                "東京",
+                List.of(
+                        new FuriganaSegment("東", "ひがし"),
+                        new FuriganaSegment("京", "きょう")))));
+
+        List<Long> xs = furiganaXs(generator.generate(document));
+        assertEquals(2, xs.size());
+
+        // The two kanji are one cell apart, so the naive centers are 938 and 982.
+        // Each reading is three cells wide, so the boxes would overlap; the
+        // generator must push them apart.
+        long left = xs.get(0);
+        long right = xs.get(1);
+        assertTrue(left < 938, "left reading should move left: " + left);
+        assertTrue(right > 982, "right reading should move right: " + right);
+
+        double halfWidth = AssLayout.cells("ひがし") * AssLayout.FURIGANA_FONT_SIZE
+                * AssLayout.EM_PER_FONT_SIZE / 2.0;
+        assertTrue(right - halfWidth >= left + halfWidth,
+                "the readings should no longer overlap: left=" + left + ", right=" + right);
+    }
+
+    @Test
+    @DisplayName("Leaves furigana in place when there is no overlap")
+    void keepsFuriganaWhenThereIsNoOverlap() {
+        FuriganaDocument document = new FuriganaDocument(List.of(new FuriganaEntry(
+                "1", "00:00:01,000", "00:00:02,000",
+                "日語",
+                List.of(
+                        new FuriganaSegment("日", "ひ"),
+                        new FuriganaSegment("語", "ご")))));
+
+        // One-cell readings over one-cell kanji do not overlap: the positions stay
+        // exactly at the grid centers.
+        assertEquals(List.of(938L, 982L), furiganaXs(generator.generate(document)));
+    }
+
+    private static final Pattern POS = Pattern.compile("\\\\pos\\((\\d+),\\d+\\)");
+
+    /** Returns the x coordinate of each furigana event, in event order. */
+    private static List<Long> furiganaXs(String output) {
+        List<Long> xs = new ArrayList<>();
+        for (String line : output.split("\n")) {
+            if (!line.contains(",Furigana,")) {
+                continue;
+            }
+            Matcher matcher = POS.matcher(line);
+            if (matcher.find()) {
+                xs.add(Long.parseLong(matcher.group(1)));
+            }
+        }
+        return xs;
     }
 
     private static int countOccurrences(String text, String needle) {
