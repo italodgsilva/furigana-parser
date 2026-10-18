@@ -206,6 +206,35 @@ It remains a future scope:
 
 The limitations of the current integration are in `docs/mpv.md`.
 
+### `core`
+
+Headless facade shared by every user interface:
+
+```
+FuriganaOptions — interface-independent generation options
+FuriganaService — process → render JSON/ASS → write (reads the SRT, runs the
+                  pipeline, applies the color, embeds/subsets the font)
+```
+
+`FuriganaService` contains no user-interface logic: the caller supplies a warning
+sink and decides how to present the result. The CLI (`Application`) and the GUI
+(`gui`) both go through it, so the pipeline is never duplicated.
+
+### `gui`
+
+Single-window Swing interface (the `gui` entry point, `GuiMain`):
+
+```
+GuiMain       — entry point: headless guard, look-and-feel, opens the window
+MainWindow    — collects the paths and options, runs the job off the EDT
+GuiController — validation + calls FuriganaService (no Swing; unit-testable)
+GuiSettings   — small properties-file store (last directory)
+```
+
+`GuiController` knows nothing about Swing, so the job logic is tested headlessly.
+The controller reuses `FuriganaService` and `MpvIntegration`; the window only
+presents fields and messages. The GUI takes no arguments.
+
 ## Data flow
 
 The main flow should be:
@@ -303,7 +332,10 @@ FuriganaDocument → Output
 ## Native execution (GraalVM)
 
 Besides the JAR, the project can be compiled as a standalone binary with GraalVM
-Native Image (`mvn -Pnative package`). Because tokenization (Kuromoji) reads the
+Native Image (`mvn -Pnative package`). Two binaries are produced from the same
+classes: `furigana-parser` (CLI) and `furigana-parser-gui` (GUI, no arguments).
+Because the CLI entry point does not reference the GUI, AWT/Swing stays out of the
+CLI binary. Because tokenization (Kuromoji) reads the
 dictionary as a classpath resource, Jackson serializes the records by reflection
 and font subsetting uses JNA/JNI, the native build depends on explicit
 configurations, versioned under

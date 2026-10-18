@@ -31,16 +31,39 @@ the same as the JAR version:
 ./target/furigana-parser --help
 ```
 
+A second binary, `target/furigana-parser-gui`, is the graphical interface. It takes
+no arguments: running it opens the window (see [`gui.md`](gui.md)).
+
+```
+./target/furigana-parser-gui
+```
+
 The `native` profile does two things:
 
-1. **Disables the `maven-shade-plugin`.** The uber jar would be handed to
-   `native-image` *in addition* to the dependency jars, duplicating classes and,
-   what really weighs, the resources — the Kuromoji dictionary (~33 MB) would be
-   included twice, inflating the binary by about 35 MB. In the native build,
-   `native-image` reads `target/classes` + the dependencies. As a consequence, this
-   profile generates only the "thin" jar (not the uber jar).
-2. **Runs the `native-maven-plugin`** (`native:compile-no-fork`) in the `package`
-   phase.
+1. **Disables the `maven-shade-plugin`** (both the CLI and the GUI executions).
+   The uber jar would be handed to `native-image` *in addition* to the dependency
+   jars, duplicating classes and, what really weighs, the resources — the Kuromoji
+   dictionary (~33 MB) would be included twice, inflating the binary by about 35 MB.
+   In the native build, `native-image` reads `target/classes` + the dependencies.
+   As a consequence, this profile generates only the "thin" jar (not the uber jar).
+2. **Runs the `native-maven-plugin`** (`native:compile-no-fork`) twice, once per
+   entry point, in the `package` phase: the CLI (`Application`) and the GUI
+   (`GuiMain`). The CLI binary does not reference the GUI, so AWT/Swing stays out
+   of it.
+
+### GUI binary (AWT/Swing)
+
+The GUI image is built from the same classes, with `-H:+AddAllCharsets` (non-ASCII
+file paths). Two points deserve attention:
+
+- **Look-and-feel.** `GuiMain` instantiates Nimbus directly and falls back to
+  Metal when Nimbus cannot initialize. In the native image Nimbus can fail while
+  reading its font configuration (GraalVM does not set `java.home` there), in which
+  case the window uses Metal, whose classes GraalVM registers out of the box. To
+  use Nimbus (or GTK) in the native image, run the tracing agent on the GUI route
+  and commit the result (see below).
+- **Fonts and `Desktop`.** Text rendering uses the system fonts (freetype/fontconfig
+  on Linux). "Open folder" uses `java.awt.Desktop` when it is supported.
 
 ## native-image configuration
 
@@ -85,7 +108,17 @@ CFG=src/main/resources/META-INF/native-image/com.shinji2324/furigana-parser
 "$GRAALVM/bin/java" -agentlib:native-image-agent=config-merge-dir=$CFG \
   -jar target/furigana-parser-0.1.0-SNAPSHOT.jar \
   --embed-font --subset-font input.srt output.ass
+
+# 3) GUI route (Swing) — needs a display (on Linux, wrap in `xvfb-run`)
+#    Interact with the window (buttons, combo boxes, file/color choosers) so the
+#    reflective UI delegates are captured.
+"$GRAALVM/bin/java" -agentlib:native-image-agent=config-merge-dir=$CFG \
+  -cp target/furigana-parser-0.1.0-SNAPSHOT.jar com.shinji2324.furigana.gui.GuiMain
 ```
+
+The GUI route captures the reflections Swing uses to build the look-and-feel. It is
+only needed when the native GUI must use Nimbus or GTK; the Metal fallback works
+with GraalVM's built-in registrations.
 
 Use `config-output-dir` on the first run and `config-merge-dir` on the following
 ones (or separate directories, merging afterwards). When you finish, check that the
