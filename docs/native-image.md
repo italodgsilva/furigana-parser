@@ -70,10 +70,14 @@ headless one). A few points deserve attention:
   its `JNI_OnLoad` to load the next library. Without the matching registration
   Native Image aborts at startup with a misleading `Fatal error reported via JNI:
   Could not allocate library name` — which is what the build recommends with
-  *"AWT: Use the tracing agent to collect metadata for AWT"*. The metadata is
-  collected with the tracing agent and committed under `native-image/gui/`, then
-  handed to the GUI build with `-H:ConfigurationFileDirectories`. It is kept out of
-  `src/main/resources` so it never reaches the CLI image.
+  *"AWT: Use the tracing agent to collect metadata for AWT"*. Beyond that callback,
+  AWT resolves Java classes, methods and fields from C, and each of them has to be
+  registered or it fails at run time with `NoSuchMethodError` /
+  `NoClassDefFoundError`. Two directories are committed and handed to the GUI build
+  with `-H:ConfigurationFileDirectories`: `native-image/gui/` (collected with the
+  tracing agent) and `native-image/awt/` (generated from the OpenJDK sources, see
+  *Regenerating the configurations*). They are kept out of `src/main/resources` so
+  they never reach the CLI image.
 - **The AWT JNI libraries travel with the executable** (see the note in *Usage*
   above); the GUI is distributed as an archive for that reason.
 - **Look-and-feel.** `GuiMain` instantiates Nimbus directly and falls back to
@@ -134,6 +138,21 @@ The GUI has its own metadata, in `native-image/gui/`:
 It sits *outside* `src/main/resources`, so it is not packaged into the jar and does
 not reach the CLI image; the `build-native-gui` execution passes it with
 `-H:ConfigurationFileDirectories`.
+
+The second directory is `native-image/awt/`:
+
+| File | What for |
+| --- | --- |
+| `jni-config.json` | The JNI surface of the AWT/Swing native libraries on every platform: every java.desktop class the native code passes to `FindClass()`, implements a native method of, or mentions in a JNI signature, registered with all of its declared constructors, methods and fields. |
+
+The tracing agent only records the lookups the native libraries of the machine it
+runs on actually perform, so `native-image/gui/jni-config.json` (collected on Linux)
+covers the X11 code paths and nothing else: on Windows the very first AWT call
+fails with `NoSuchMethodError: java.awt.Toolkit.getDefaultToolkit()Ljava/awt/Toolkit;`
+— and the missing entries are not the same on macOS. `native-image/awt/` closes that
+gap by deriving the metadata from the OpenJDK sources instead of tracing, so it is
+platform-independent. Registering a superset is harmless: Native Image silently skips
+the classes that do not exist on the platform being built.
 
 The GUI additionally bundles the font mapping that a Windows/macOS JDK installs as
 `lib/fontconfig.bfc`, as two resources under
@@ -209,12 +228,32 @@ The agent does not know about the bundled font mappings either, so
 `native-image/gui/resource-config.json` has to keep the two
 `com/shinji2324/furigana/gui/awt/fontconfig-*.properties` patterns.
 
-The GUI JNI metadata is Linux-specific (it names X11/AWT classes), so it is only
-correct for the Linux binary. The Windows/macOS entries could not be collected here
-and are the part of those builds that still has to be verified on those systems:
-run the tracing agent there and merge the result into `native-image/gui/`, or split
-the directory per platform if the entries disagree. The bundled font mappings, on
-the other hand, come from OpenJDK and already cover Windows and macOS.
+The GUI JNI metadata in `native-image/gui/` is Linux-specific (it names X11/AWT
+classes), which is why the platform-independent `native-image/awt/` metadata exists:
+
+```
+python3 tools/generate-awt-jni-config.py          # regenerate native-image/awt/
+python3 tools/generate-awt-jni-config.py --check   # fail when it is out of date
+```
+
+It downloads the `src/java.desktop/**/native` sources of the pinned OpenJDK revision
+(`DEFAULT_REF`, keep it in step with the GraalVM version), collects every class they
+use over JNI and writes the result as "register all declared members". The output
+only changes when the pin changes, so the script and its output are committed
+together; re-run it (and rebuild) when the `native` profile is moved to another
+GraalVM/JDK version. It needs network access and is therefore not part of the build.
+
+If a Windows/macOS binary still fails with a `NoSuchMethodError`/`NoClassDefFoundError`
+that the two directories do not cover — the native event loop resolves some classes
+dynamically — collect a trace on that platform and merge it in:
+
+```
+java -agentlib:native-image-agent=config-output-dir=config -jar furigana-parser-gui-0.2.0-SNAPSHOT.jar
+# click through the window (move it, type, open the file and colour choosers), then
+# merge config/*.json into native-image/gui/ and rebuild.
+```
+
+The bundled font mappings come from OpenJDK and already cover Windows and macOS.
 
 ## Measured results
 
@@ -245,8 +284,9 @@ The outputs — JSON, ASS and ASS with `--embed-font --subset-font` — are
 - The native build is not part of the CI on every push (it would require GraalVM
   and a C toolchain on every run). It is generated only in the release workflow, on
   dedicated runners that already bring these components.
-- The committed GUI metadata (`native-image/gui/`) was collected on Linux. Linux is
-  the verified target; the Windows/macOS builds are best effort. Their font mapping
-  is bundled (see above), but their JNI metadata still has to be collected with the
-  tracing agent on those systems, so validate those two binaries before relying on
-  them.
+- The committed GUI metadata (`native-image/gui/`) was collected on Linux, so it
+  only describes the X11 code paths; the platform-independent metadata in
+  `native-image/awt/` covers the Windows and macOS ones. **Linux is the verified
+  target**; the Windows/macOS GUI binaries are best effort, because Native Image's
+  AWT support is itself incomplete there and the native event loop resolves some
+  classes at run time, after the build (see *Regenerating the configurations*).

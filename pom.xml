@@ -161,8 +161,10 @@
             C toolchain (gcc + zlib headers). The reflection/resources/JNI
             configurations live in
             src/main/resources/META-INF/native-image/. The AWT/Swing metadata
-            collected for the GUI with the tracing agent lives in
-            native-image/gui/ (passed only to the GUI image, see below).
+            for the GUI lives in native-image/gui/ (collected with the tracing
+            agent) and native-image/awt/ (generated from the OpenJDK sources,
+            see tools/generate-awt-jni-config.py). Both are passed only to the
+            GUI image, see below.
 
             Usage: mvn -Pnative package
             Output: target/furigana-parser (CLI) and target/furigana-parser-gui (GUI)
@@ -237,16 +239,23 @@
                                         -->
                                         <buildArg>-Djava.awt.headless=false</buildArg>
                                         <!--
-                                            AWT/Swing metadata collected with the
-                                            tracing agent (see docs/native-image.md).
-                                            The AWT native library calls back into
-                                            Java (System.load) from its JNI_OnLoad,
-                                            and that callback only works with this
+                                            AWT/Swing metadata (see
+                                            docs/native-image.md). `gui` was
+                                            collected with the tracing agent on
+                                            Linux and covers the X11 code paths;
+                                            `awt` is generated from the OpenJDK
+                                            native sources and covers the Windows
+                                            and macOS code paths too. Native Image
+                                            skips the classes that are absent from
+                                            the platform being built. The AWT
+                                            native library calls back into Java
+                                            (System.load) from its JNI_OnLoad, and
+                                            that callback only works with this
                                             registration. It is kept out of the
                                             classpath so the CLI image never pulls
                                             AWT in.
                                         -->
-                                        <buildArg>-H:ConfigurationFileDirectories=${project.basedir}/native-image/gui</buildArg>
+                                        <buildArg>-H:ConfigurationFileDirectories=${project.basedir}/native-image/gui,${project.basedir}/native-image/awt</buildArg>
                                     </buildArgs>
                                 </configuration>
                             </execution>
