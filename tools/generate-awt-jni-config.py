@@ -61,11 +61,20 @@ CLASS_ROOTS = (
     "src/java.desktop/macosx/classes",
     "src/java.desktop/unix/classes",
 )
+# java.base native code is also reached from AWT (e.g., java.lang.Thread in GDIWindowSurfaceData).
+BASE_CLASS_ROOTS = (
+    "src/java.base/share/classes",
+    "src/java.base/windows/classes",
+)
 NATIVE_ROOTS = (
     "src/java.desktop/share/native",
     "src/java.desktop/windows/native",
     "src/java.desktop/macosx/native",
     "src/java.desktop/unix/native",
+)
+BASE_NATIVE_ROOTS = (
+    "src/java.base/share/native",
+    "src/java.base/windows/native",
 )
 
 NATIVE_FILE = re.compile(r"\.(c|cpp|m|mm)$")
@@ -168,6 +177,11 @@ def awt_classes(ref: str) -> list[str]:
         for path in listing(ref, root):
             if path.endswith(".java") and not path.endswith(("module-info.java", "package-info.java")):
                 known.add(path[: -len(".java")].replace("/", "."))
+    # java.base classes that AWT native code looks up (e.g., java.lang.Thread)
+    for root in BASE_CLASS_ROOTS:
+        for path in listing(ref, root):
+            if path.endswith(".java") and not path.endswith(("module-info.java", "package-info.java")):
+                known.add(path[: -len(".java")].replace("/", "."))
 
     def declared(name: str) -> bool:
         # Nested classes have no source file of their own: the native code looks
@@ -182,8 +196,30 @@ def awt_classes(ref: str) -> list[str]:
             if not NATIVE_FILE.search(path) or SKIP_NATIVE.search(path):
                 continue
             wanted.update(classes_in(fetch(f"https://raw.githubusercontent.com/{REPOSITORY}/{ref}/{root}/{path}")))
+    # Also scan java.base native code for classes AWT reaches (e.g., Thread)
+    for root in BASE_NATIVE_ROOTS:
+        for path in listing(ref, root):
+            if not NATIVE_FILE.search(path) or SKIP_NATIVE.search(path):
+                continue
+            wanted.update(classes_in(fetch(f"https://raw.githubusercontent.com/{REPOSITORY}/{ref}/{root}/{path}")))
 
-    # Only classes that really exist in java.desktop: the heuristics above
+    # Anonymous inner classes that the Windows native code explicitly looks up
+    # via GetMethodID for run() etc. These are compiler-generated and don't
+    # appear in source files, so we add them manually.
+    EXTRA_ANON_CLASSES = {
+        "sun.java2d.d3d.D3DRenderQueue$1",
+        "sun.java2d.d3d.D3DGraphicsDevice$1",
+        "sun.java2d.d3d.D3DGraphicsDevice$2",
+        "sun.java2d.d3d.D3DGraphicsDevice$3",
+        "sun.java2d.d3d.D3DGraphicsDevice$4",
+        "sun.java2d.d3d.D3DGraphicsDevice$5",
+        "sun.java2d.d3d.D3DGraphicsDevice$6",
+        "sun.java2d.d3d.D3DGraphicsDevice$7",
+        "sun.java2d.windows.GDIWindowSurfaceData$1",
+    }
+    wanted.update(EXTRA_ANON_CLASSES)
+
+    # Only classes that really exist in java.desktop/java.base: the heuristics above
     # cannot always tell a class name from a method name with escaped
     # underscores, and bogus entries would only produce build warnings.
     return sorted(name for name in wanted if declared(name))
