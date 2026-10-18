@@ -1,0 +1,32 @@
+# Builds the two executable JARs and smoke-tests them under Xvfb (the GUI needs
+# a display). This is the "without natives" counterpart of Dockerfile.native.
+#
+#   docker build -f docker/Dockerfile.jar -t furigana-parser-jar .
+#   docker run --rm furigana-parser-jar
+
+FROM maven:3.9-eclipse-temurin-21 AS build
+
+WORKDIR /build
+COPY pom.xml .
+COPY src ./src
+RUN mvn --batch-mode --no-transfer-progress -DskipTests clean package \
+ && ls -l target/furigana-parser-*.jar
+
+FROM eclipse-temurin:21-jre AS test
+
+# Xvfb + the X/font libraries Swing needs at runtime.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      xvfb xauth \
+      libx11-6 libxext6 libxrender1 libxtst6 libxi6 \
+      libfreetype6 fontconfig fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=build /build/target/furigana-parser-*.jar /app/
+COPY docker/sample.ja.srt /app/sample.ja.srt
+COPY docker/smoke-test.sh /app/smoke-test.sh
+RUN chmod +x /app/smoke-test.sh
+
+ENTRYPOINT ["/app/smoke-test.sh"]
+CMD ["jar"]

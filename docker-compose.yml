@@ -1,0 +1,23 @@
+# Builds and smoke-tests the release artifacts in containers, so the tests do not
+# depend on the host having GraalVM, a C toolchain or a display.
+#
+#   docker compose build native && docker compose run --rm native
+#   docker compose build jar    && docker compose run --rm jar
+#
+# See docker/README.md.
+
+services:
+
+  # Native binaries, built with GraalVM, tested on a clean Debian under Xvfb.
+  native:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.native
+    image: furigana-parser-native
+
+  # Executable JARs, tested on a JRE under Xvfb.
+  jar:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.jar
+    image: furigana-parser-jar

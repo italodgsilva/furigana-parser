@@ -1,0 +1,48 @@
+# Helper that runs the GUI under Xvfb with the native-image tracing agent to
+# collect the AWT/Swing metadata the native GUI needs. Native Image asks for it
+# explicitly with:
+#
+#   Recommendations:
+#    AWT: Use the tracing agent to collect metadata for AWT.
+#
+# The AWT native library calls back into Java (System.load) from its JNI_OnLoad,
+# and that callback only works when the metadata is registered.
+#
+#   docker build -f docker/Dockerfile.trace -t furigana-parser-trace .
+#   docker run --name furigana-trace furigana-parser-trace
+#   docker cp furigana-trace:/config/. native-image/gui/
+#   docker rm furigana-trace
+#
+# The result is committed under native-image/gui and passed to the GUI build with
+# -H:ConfigurationFileDirectories, so the CLI image stays free of AWT.
+
+FROM ghcr.io/graalvm/native-image-community:21 AS build
+
+ARG MAVEN_VERSION=3.9.9
+WORKDIR /build
+RUN curl -fsSL \
+      "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" \
+      | tar -xz -C /opt \
+ && ln -s "/opt/apache-maven-${MAVEN_VERSION}/bin/mvn" /usr/bin/mvn
+
+COPY pom.xml .
+COPY src ./src
+RUN mvn --batch-mode --no-transfer-progress -DskipTests package
+
+FROM ghcr.io/graalvm/native-image-community:21
+
+RUN microdnf install -y \
+      xorg-x11-server-Xvfb xauth \
+      libX11 libXext libXrender libXtst \
+      fontconfig freetype dejavu-sans-fonts \
+ && microdnf clean all
+
+WORKDIR /app
+COPY --from=build /build/target/*-gui.jar /app/gui.jar
+
+# Start a virtual display, let the agent watch the GUI come up — once with the
+# default (Nimbus) and once pinned to Metal — then stop it so the agent flushes
+# its configuration. Both look-and-feels must be covered: the native build falls
+# back to Metal, whose per-component UI delegates are looked up reflectively.
+ENTRYPOINT ["sh", "-c"]
+CMD ["Xvfb :99 -screen 0 1024x768x24 >/tmp/xvfb.log 2>&1 & sleep 2; export DISPLAY=:99; timeout --signal=TERM 20 java -agentlib:native-image-agent=config-output-dir=/config -jar /app/gui.jar; echo \"nimbus-exit=$?\"; timeout --signal=TERM 20 java -Dfurigana.gui.lookAndFeel=metal -agentlib:native-image-agent=config-merge-dir=/config -jar /app/gui.jar; echo \"metal-exit=$?\"; ls -R /config 2>/dev/null || true"]
