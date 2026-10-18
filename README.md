@@ -181,8 +181,8 @@ libraries shipped next to the executable — extract it before running.
 On Linux and macOS, mark the binary as executable before running:
 
 ```
-chmod +x furigana-parser-0.1.0-linux-x86_64
-./furigana-parser-0.1.0-linux-x86_64 input.srt output.ass
+chmod +x furigana-parser-0.2.0-linux-x86_64
+./furigana-parser-0.2.0-linux-x86_64 input.srt output.ass
 ```
 
 On Windows, just run the `.exe` (the first time, SmartScreen may ask for
@@ -250,8 +250,8 @@ It produces two executable jars: the CLI (`furigana-parser-<version>.jar`) and t
 GUI (`furigana-parser-<version>-gui.jar`):
 
 ```
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --help
-java -jar target/furigana-parser-0.1.0-SNAPSHOT-gui.jar
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --help
+java -jar target/furigana-parser-0.2.0-SNAPSHOT-gui.jar
 ```
 
 Build the native executable with GraalVM (optional; requires GraalVM and a C
@@ -272,8 +272,8 @@ Versions are published automatically by the
 `v*` tag.
 
 ```
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 The workflow builds the JARs (CLI and GUI, running the tests) and the native
@@ -284,9 +284,9 @@ interface: the created tag triggers the workflow, which attaches the files to th
 existing Release.
 
 The version number in the file names comes from the tag (without the `v`), so
-`v0.1.0` produces `furigana-parser-0.1.0.jar`, `furigana-parser-gui-0.1.0.jar`,
-`furigana-parser-0.1.0-linux-x86_64`, `furigana-parser-0.1.0-windows-x86_64.exe`
-and, as the GUI archive, `furigana-parser-gui-0.1.0-linux-x86_64.tar.gz` (`.zip` on
+`v0.2.0` produces `furigana-parser-0.2.0.jar`, `furigana-parser-gui-0.2.0.jar`,
+`furigana-parser-0.2.0-linux-x86_64`, `furigana-parser-0.2.0-windows-x86_64.exe`
+and, as the GUI archive, `furigana-parser-gui-0.2.0-linux-x86_64.tar.gz` (`.zip` on
 Windows).
 
 ### Command line
@@ -294,25 +294,25 @@ Windows).
 The output format is chosen by the file extension: `.json` produces the
 intermediate model and `.ass` produces the subtitle with positioned furigana.
 
-In the examples below, replace `java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar`
-with the path to the downloaded JAR (e.g. `java -jar furigana-parser-0.1.0.jar`) or
-to the native binary (e.g. `./furigana-parser-0.1.0-linux-x86_64`).
+In the examples below, replace `java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar`
+with the path to the downloaded JAR (e.g. `java -jar furigana-parser-0.2.0.jar`) or
+to the native binary (e.g. `./furigana-parser-0.2.0-linux-x86_64`).
 
 ```
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar input.srt output.json
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar input.srt output.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font input.srt output.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font=font.otf input.srt output.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font --subset-font input.srt output.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --strip-parentheses input.srt output.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --color=yellow input.srt output.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --color=#1122FF input.srt output.ass
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --mpv input.srt video.mkv
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --help
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar input.srt output.json
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar input.srt output.ass
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --embed-font input.srt output.ass
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --embed-font=font.otf input.srt output.ass
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --embed-font --subset-font input.srt output.ass
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --strip-parentheses input.srt output.ass
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --color=yellow input.srt output.ass
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --color=#1122FF input.srt output.ass
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --mpv input.srt video.mkv
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --help
 ```
 
 The same commands work for the native binary: replace
-`java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar` with `./target/furigana-parser`.
+`java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar` with `./target/furigana-parser`.
 
 With `--embed-font`, the ASS starts carrying the font itself in the `[Fonts]`
 section, so there is no need to install the font on the viewer's machine. The

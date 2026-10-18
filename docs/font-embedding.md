@@ -122,20 +122,20 @@ Without an argument, the font is located by the family name declared in the styl
 (`Noto Sans CJK JP`):
 
 ```
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font input.srt output.ass
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --embed-font input.srt output.ass
 ```
 
 With an explicit file, the given file is embedded (useful when the font is not in
 the usual directories or when you want to use another font):
 
 ```
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font=font.otf input.srt output.ass
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --embed-font=font.otf input.srt output.ass
 ```
 
 To subset the embedded font to the glyphs used (requires `--embed-font`):
 
 ```
-java -jar target/furigana-parser-0.1.0-SNAPSHOT.jar --embed-font --subset-font input.srt output.ass
+java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --embed-font --subset-font input.srt output.ass
 ```
 
 The options apply to ASS generation and to `--mpv` mode; in JSON generation they

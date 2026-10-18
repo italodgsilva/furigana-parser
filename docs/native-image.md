@@ -163,11 +163,11 @@ CFG=src/main/resources/META-INF/native-image/com.shinji2324/furigana-parser
 
 # 1) JSON route (Jackson) — config-output-dir overwrites
 "$GRAALVM/bin/java" -agentlib:native-image-agent=config-output-dir=$CFG \
-  -jar target/furigana-parser-0.1.0-SNAPSHOT.jar input.srt output.json
+  -jar target/furigana-parser-0.2.0-SNAPSHOT.jar input.srt output.json
 
 # 2) ASS + subset route (JNA) — config-merge-dir accumulates
 "$GRAALVM/bin/java" -agentlib:native-image-agent=config-merge-dir=$CFG \
-  -jar target/furigana-parser-0.1.0-SNAPSHOT.jar \
+  -jar target/furigana-parser-0.2.0-SNAPSHOT.jar \
   --embed-font --subset-font input.srt output.ass
 ```
 

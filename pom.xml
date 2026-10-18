@@ -8,7 +8,7 @@
 
     <groupId>com.shinji2324</groupId>
     <artifactId>furigana-parser</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.2.0-SNAPSHOT</version>
 
     <name>Furigana Parser</name>
     <description>

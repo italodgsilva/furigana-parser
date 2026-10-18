@@ -14,13 +14,13 @@ reimplement any processing. Both go through `FuriganaService` (see
 The GUI is a separate entry point that takes **no arguments**:
 
 ```
-java -cp target/furigana-parser-0.1.0-SNAPSHOT.jar com.shinji2324.furigana.gui.GuiMain
+java -cp target/furigana-parser-0.2.0-SNAPSHOT.jar com.shinji2324.furigana.gui.GuiMain
 ```
 
 or, from the release artifacts, the GUI jar and the GUI binary:
 
 ```
-java -jar furigana-parser-gui-0.1.0.jar
+java -jar furigana-parser-gui-0.2.0.jar
 ```
 
 There is one artifact for the CLI and one for the GUI (see the release page):
