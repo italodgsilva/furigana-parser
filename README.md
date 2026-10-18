@@ -113,6 +113,9 @@ furigana-parser/
 │   │   └── resources/
 │   │       ├── ass/
 │   │       │   └── default-style.ass
+│   │       ├── com/shinji2324/furigana/gui/awt/
+│   │       │   ├── fontconfig-windows.properties
+│   │       │   └── fontconfig-macos.properties
 │   │       └── META-INF/
 │   │           └── native-image/
 │   │               └── com.shinji2324/furigana-parser/
@@ -476,3 +479,7 @@ is represented internally in a form similar to:
 ## License
 
 This project is distributed under the [MIT License](LICENSE).
+
+The two font mappings under `src/main/resources/com/shinji2324/furigana/gui/awt/`
+are the ones OpenJDK ships, copied verbatim and kept under their original
+GPLv2-with-Classpath-exception license (see [`docs/native-image.md`](docs/native-image.md)).

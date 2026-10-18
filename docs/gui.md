@@ -38,8 +38,9 @@ the CLI there.
 
 In the native image `GuiMain` also creates a small `java.home` directory before AWT
 starts, because Native Image does not provide one and AWT refuses to load fonts
-without it; see the GUI section of [`native-image.md`](native-image.md). The JAR
-version runs on a regular JVM and needs none of that.
+without it; on Windows and macOS it also unpacks the font mapping the JDK normally
+installs there. See the GUI section of [`native-image.md`](native-image.md). The
+JAR version runs on a regular JVM and needs none of that.
 
 ## The window
 

@@ -64,7 +64,7 @@ The `native` profile does two things:
 
 The GUI image is built from the same classes, with `-H:+AddAllCharsets` (non-ASCII
 file paths) and `-Djava.awt.headless=false` (links the X11 AWT instead of the
-headless one). Three points deserve attention:
+headless one). A few points deserve attention:
 
 - **AWT metadata.** AWT's native library calls back into Java (`System.load`) from
   its `JNI_OnLoad` to load the next library. Without the matching registration
@@ -81,14 +81,21 @@ headless one). Three points deserve attention:
   native image too; the fallback remains as a safety net.
 - **`java.home` and the AWT font manager.** A native image does not set the
   `java.home` system property, and AWT's `FontConfiguration` refuses to start
-  without it. It also probes `${java.home}/lib` for a `fontconfig.properties` file
+  without it. It also probes `${java.home}/lib` for a fontconfig configuration file
   and only enables its system-fontconfig fallback when that directory exists, so a
   `java.home` whose `lib` is missing ends in `RuntimeException: Fontconfig head is
-  null`. `GuiMain.prepareNativeImageRuntime()` therefore points `java.home` at a
-  throw-away directory holding an empty `lib` directory, before any AWT class is
-  touched. On a regular JVM `java.home` is already set and the method does nothing.
-- **Fonts and `Desktop`.** Text rendering uses the system fonts (freetype/fontconfig
-  on Linux). "Open folder" uses `java.awt.Desktop` when it is supported.
+  null`. `GuiMain.prepareNativeImageRuntime()`, before any AWT class is touched,
+  points `java.home` at a throw-away directory with a `lib` directory and:
+  - on **Linux/BSD** leaves `lib` empty, so AWT asks the system fontconfig for the
+    installed fonts;
+  - on **Windows/macOS** unpacks the matching bundled mapping (see the table in
+    *native-image configuration*) as `lib/fontconfig.properties`, because those
+    platforms have no such fallback and expect the file a regular JDK installs.
+
+  On a regular JVM `java.home` is already set and none of this runs.
+- **Fonts and `Desktop`.** On Linux text rendering uses the system fonts
+  (freetype/fontconfig); on Windows/macOS it uses the fonts named by the mapping
+  above. "Open folder" uses `java.awt.Desktop` when it is supported.
 
 ## native-image configuration
 
@@ -122,11 +129,28 @@ The GUI has its own metadata, in `native-image/gui/`:
 | --- | --- |
 | `jni-config.json` | The AWT/X11/font JNI callbacks: `java.lang.System.load(String)` (the AWT native library loads the next one through it) plus the font-manager callbacks `GraphicsEnvironment.getLocalGraphicsEnvironment()`, `SunGraphicsEnvironment` and its `isDisplayLocal()`. The tracing agent does not capture the last three, so they are added by hand — keep them when regenerating (see below). |
 | `reflect-config.json` | Swing/Nimbus painter classes, key-event fields, the colour chooser. |
-| `resource-config.json` | The Basic/Synth look-and-feel bundles and `sun.awt.resources.awt`. |
+| `resource-config.json` | The Basic/Synth look-and-feel bundles, `sun.awt.resources.awt` and the platform font mappings below. |
 
 It sits *outside* `src/main/resources`, so it is not packaged into the jar and does
 not reach the CLI image; the `build-native-gui` execution passes it with
 `-H:ConfigurationFileDirectories`.
+
+The GUI additionally bundles the font mapping that a Windows/macOS JDK installs as
+`lib/fontconfig.bfc`, as two resources under
+`src/main/resources/com/shinji2324/furigana/gui/awt/`:
+
+| Resource | Platform |
+| --- | --- |
+| `fontconfig-windows.properties` | Windows |
+| `fontconfig-macos.properties` | macOS |
+
+They are copied verbatim from OpenJDK
+(`src/java.desktop/{windows,macosx}/data/fontconfig/fontconfig.properties`) and keep
+Oracle's GPLv2-with-Classpath-exception header, so the project is MIT except for
+these two data files. `resource-config.json` embeds them in the GUI image and
+`GuiMain` unpacks the matching one into `${java.home}/lib/fontconfig.properties`.
+Linux and the BSDs get nothing: they read the fonts from the system fontconfig
+instead (see *`java.home` and the AWT font manager* above).
 
 ### Regenerating the configurations
 
@@ -181,8 +205,16 @@ Two entries that the agent does **not** produce must survive a regeneration of
   "methods": [ { "name": "isDisplayLocal", "parameterTypes": [] } ] }
 ```
 
-The GUI metadata is Linux-specific (it names X11/AWT classes). The other platforms
-need their own set, collected with the tracing agent on that platform.
+The agent does not know about the bundled font mappings either, so
+`native-image/gui/resource-config.json` has to keep the two
+`com/shinji2324/furigana/gui/awt/fontconfig-*.properties` patterns.
+
+The GUI JNI metadata is Linux-specific (it names X11/AWT classes), so it is only
+correct for the Linux binary. The Windows/macOS entries could not be collected here
+and are the part of those builds that still has to be verified on those systems:
+run the tracing agent there and merge the result into `native-image/gui/`, or split
+the directory per platform if the entries disagree. The bundled font mappings, on
+the other hand, come from OpenJDK and already cover Windows and macOS.
 
 ## Measured results
 
@@ -213,6 +245,8 @@ The outputs — JSON, ASS and ASS with `--embed-font --subset-font` — are
 - The native build is not part of the CI on every push (it would require GraalVM
   and a C toolchain on every run). It is generated only in the release workflow, on
   dedicated runners that already bring these components.
-- The committed GUI metadata (`native-image/gui/`) was collected on Linux and is
-  used for every platform; the Windows and macOS GUI builds still have to be
-  validated (and their metadata regenerated) on those systems.
+- The committed GUI metadata (`native-image/gui/`) was collected on Linux. Linux is
+  the verified target; the Windows/macOS builds are best effort. Their font mapping
+  is bundled (see above), but their JNI metadata still has to be collected with the
+  tracing agent on those systems, so validate those two binaries before relying on
+  them.
