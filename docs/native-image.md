@@ -264,7 +264,7 @@ input):
 | --- | --- | --- |
 | Startup | ~0.75 s | ~1.7 s |
 | Memory (RSS) | ~112 MB | ~255 MB |
-| Artifact | ~85 MB (CLI) / ~131 MB plus the AWT libraries (GUI) | ~18 MB (jar) |
+| Artifact | ~85 MB (CLI) / ~132 MB plus the AWT libraries (GUI) | ~18 MB (jar) |
 
 The outputs — JSON, ASS and ASS with `--embed-font --subset-font` — are
 **identical, byte for byte**, to those of the JVM.

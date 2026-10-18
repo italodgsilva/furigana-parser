@@ -24,7 +24,9 @@ A class is included when the native code
 
   * passes its name to ``FindClass()``,
   * implements one of its native methods, or
-  * mentions it in the signature of a JNI lookup.
+  * writes its name as a string literal or in a JNI signature (the macOS code
+    resolves classes through the JavaNativeFoundation helpers, which never put
+    the name next to a ``FindClass`` call).
 
 Every such class is registered with all of its declared constructors, methods
 and fields (plus the public ones it inherits).  Over-registering is harmless --
@@ -76,7 +78,12 @@ FIND_CLASS = re.compile(r"FindClass\s*\(\s*(?:env\s*,\s*)?\"([^\"]+)\"")
 GET_ID = re.compile(
     r"Get(?:Static)?(?:Method|Field)ID\s*\(\s*[^,]+,\s*(?:[^,]+,\s*)?\"([^\"]*)\""
 )
-CLASS_DESCRIPTOR = re.compile(r"L([\w/$]+);")
+# Any class name written as a string, whatever API consumes it: the macOS code
+# looks classes up with the JavaNativeFoundation helpers ("sun/lwawt/LWWindowPeer"),
+# never next to a FindClass call.
+CLASS_LITERAL = re.compile(r"\"((?:[a-z][A-Za-z0-9_]*/)+[A-Z][A-Za-z0-9_$]*)\"")
+# ... as well as any class used in a JNI signature, e.g. "(Ljava/awt/Foo;)V".
+CLASS_DESCRIPTOR = re.compile(r"L((?:[a-z][A-Za-z0-9_]*/)+[A-Z][A-Za-z0-9_$]*);")
 
 FLAGS = {
     "allDeclaredConstructors": True,
@@ -146,8 +153,12 @@ def classes_in(source: str) -> set[str]:
     for signature in GET_ID.findall(source):
         # Signatures hold the parameter and return types the native code passes
         # around: `(Ljava/awt/Component;IJIICI)V` mentions java.awt.Component.
-        found.update(name.replace("/", ".") for name in CLASS_DESCRIPTOR.findall(signature))
-    return found
+        found.update(name for name in CLASS_DESCRIPTOR.findall(signature))
+    for name in CLASS_LITERAL.findall(source):
+        found.add(name)
+    for name in CLASS_DESCRIPTOR.findall(source):
+        found.add(name)
+    return {name.replace("/", ".") for name in found}
 
 
 def awt_classes(ref: str) -> list[str]:

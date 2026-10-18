@@ -28,3 +28,6 @@ Thumbs.db
 
 # Furigana subtitles generated next to the SRT (--mpv mode)
 *.furigana.ass
+# Python bytecode (tools/)
+__pycache__/
+*.pyc
