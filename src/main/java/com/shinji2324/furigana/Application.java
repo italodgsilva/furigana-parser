@@ -3,35 +3,16 @@ package com.shinji2324.furigana;
 import com.shinji2324.furigana.cli.CliCommand;
 import com.shinji2324.furigana.cli.CliParser;
 import com.shinji2324.furigana.cli.CliUsageException;
-import com.shinji2324.furigana.font.FontDownloader;
-import com.shinji2324.furigana.font.FontFile;
-import com.shinji2324.furigana.font.FontLocator;
-import com.shinji2324.furigana.font.HarfBuzzSubsetter;
+import com.shinji2324.furigana.core.FuriganaOptions;
+import com.shinji2324.furigana.core.FuriganaService;
 import com.shinji2324.furigana.furigana.FuriganaDocument;
-import com.shinji2324.furigana.furigana.UsedCodePoints;
-import com.shinji2324.furigana.japanese.JapaneseTokenizer;
-import com.shinji2324.furigana.japanese.KuromojiTokenizer;
 import com.shinji2324.furigana.mpv.MpvIntegration;
 import com.shinji2324.furigana.mpv.MpvPaths;
-import com.shinji2324.furigana.output.AssFontEmbedder;
-import com.shinji2324.furigana.output.AssGenerator;
-import com.shinji2324.furigana.output.AssTemplate;
-import com.shinji2324.furigana.output.JsonWriter;
-import com.shinji2324.furigana.pipeline.FuriganaPipeline;
-import com.shinji2324.furigana.reading.CachingReadingProvider;
-import com.shinji2324.furigana.reading.FileReadingCache;
-import com.shinji2324.furigana.reading.ReadingProvider;
-import com.shinji2324.furigana.reading.jisho.JishoReadingProvider;
 import com.shinji2324.furigana.subtitle.SubtitleParseException;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * Application entry point (CLI).
@@ -51,16 +32,8 @@ import java.util.Set;
  * {@code .furigana.ass}) and the video is opened in MPV with
  * {@code --sub-file}. See the limitations in {@code docs/mpv.md}.
  *
- * <p>Reads the SRT subtitle in UTF-8 and runs the pipeline. Readings come from
- * the morphological tokenizer ({@link KuromojiTokenizer}); when it does not know
- * a term with kanji, the fallback queries the {@link JishoReadingProvider},
- * always mediated by the {@link CachingReadingProvider} (on-disk cache at
- * {@code data/cache/readings.json}). Terms with kanji that remain without a
- * reading — when neither the tokenizer nor Jisho knows them — generate a warning
- * on {@code stderr}; the entry is kept, only without furigana.
- *
- * <p>This class is only the composition point: the logic remains in the pipeline
- * layers. It contains no business rules.
+ * <p>This class is only the composition point: the logic lives in
+ * {@link FuriganaService} and the pipeline layers. It contains no business rules.
  */
 public class Application {
 
@@ -73,11 +46,9 @@ public class Application {
     /** Exit code for argument error. */
     static final int EXIT_USAGE = 2;
 
-    /** Default location of the reading cache, relative to the working directory. */
-    private static final Path DEFAULT_CACHE_FILE = Path.of("data", "cache", "readings.json");
-
     private final CliParser cliParser = new CliParser();
     private final MpvIntegration mpvIntegration = new MpvIntegration();
+    private final FuriganaService service = new FuriganaService();
 
     /**
      * CLI entry point.
@@ -147,14 +118,11 @@ public class Application {
      * Generates the requested output (JSON or ASS) to the given file.
      */
     private int generate(CliCommand command, boolean ass) throws IOException {
-        FuriganaDocument document = process(command.input(), command.stripParentheses());
-        String rendered;
-        if (ass) {
-            rendered = renderAss(document, command);
-        } else {
-            rendered = new JsonWriter().write(document);
-        }
-        writeText(command.output(), rendered);
+        FuriganaDocument document = service.process(command.input(), command.stripParentheses(), warningSink());
+        String rendered = ass
+                ? service.renderAss(document, optionsOf(command), warningSink())
+                : service.renderJson(document);
+        FuriganaService.writeText(command.output(), rendered);
         System.out.println("Furigana generated (" + (ass ? "ass" : "json") + "): "
                 + command.output().toAbsolutePath());
         return EXIT_OK;
@@ -167,8 +135,8 @@ public class Application {
         Path subtitle = command.input();
         Path video = command.output();
         Path ass = MpvPaths.furiganaSubtitle(subtitle);
-        FuriganaDocument document = process(subtitle, command.stripParentheses());
-        writeText(ass, renderAss(document, command));
+        FuriganaDocument document = service.process(subtitle, command.stripParentheses(), warningSink());
+        FuriganaService.writeText(ass, service.renderAss(document, optionsOf(command), warningSink()));
         System.out.println("Subtitle generated: " + ass.toAbsolutePath());
         System.out.println("Opening MPV: " + video.toAbsolutePath());
 
@@ -187,156 +155,17 @@ public class Application {
     }
 
     /**
-     * Builds the ASS with positioned furigana and, when requested, with the font
-     * embedded (and, optionally, subset).
+     * Maps the parsed CLI command onto the interface-independent options.
      */
-    private String renderAss(FuriganaDocument document, CliCommand command) throws IOException {
-        AssTemplate template = AssTemplate.defaultTemplate();
-        if (command.color() != null && !command.color().isBlank()) {
-            template = AssTemplate.withColor(template, command.color());
-        }
-        String ass = new AssGenerator(template).generate(document);
-        if (!command.embedFont()) {
-            return ass;
-        }
-        List<FontFile> fonts = resolveFonts(command.fontPath(), new FontDownloader(), template);
-        if (command.subsetFont()) {
-            fonts = subsetFonts(fonts, document);
-        }
-        return new AssFontEmbedder().embed(ass, fonts);
+    private static FuriganaOptions optionsOf(CliCommand command) {
+        return new FuriganaOptions(command.stripParentheses(), command.embedFont(), command.subsetFont(),
+                command.fontPath(), command.color());
     }
 
     /**
-     * Subsets the fonts to the glyphs used in the subtitle, when HarfBuzz is
-     * available.
-     *
-     * <p>If the native library is not found — or if subsetting a specific font
-     * fails — the full font is kept, with a warning on {@code stderr}. The ASS is
-     * never generated without the necessary glyphs.
+     * Sink for the non-fatal messages, printed on {@code stderr}.
      */
-    private List<FontFile> subsetFonts(List<FontFile> fonts, FuriganaDocument document) {
-        Optional<HarfBuzzSubsetter> subsetter = HarfBuzzSubsetter.create();
-        if (subsetter.isEmpty()) {
-            System.err.println(HarfBuzzSubsetter.installationHint());
-            return fonts;
-        }
-        Set<Integer> codePoints = UsedCodePoints.from(document);
-        List<FontFile> subsetted = new ArrayList<>();
-        for (FontFile font : fonts) {
-            byte[] reduced = subsetter.get().subset(font.data(), codePoints);
-            if (reduced == null) {
-                System.err.println("Warning: could not subset " + font.fileName()
-                        + "; embedding the full font.");
-                subsetted.add(font);
-            } else {
-                subsetted.add(new FontFile(font.fileName(), reduced));
-            }
-        }
-        return subsetted;
-    }
-
-    /**
-     * Resolves the font files declared in the ASS template.
-     *
-     * <p>With {@code fontPath} provided, embeds that file; otherwise, locates
-     * each family on the system.
-     */
-    private List<FontFile> resolveFonts(Path fontPath, FontDownloader downloader, AssTemplate template) throws IOException {
-        List<String> families = (template == null) ? AssTemplate.defaultTemplate().fontFamilies() : template.fontFamilies();
-        if (families.isEmpty()) {
-            throw new IOException(
-                    "The ASS template does not declare any styles with a font to embed.");
-        }
-        if (fontPath != null) {
-            FontLocator locator = new FontLocator();
-            return List.of(locator.read(fontPath, families.get(0)));
-        }
-
-        FontLocator locator = new FontLocator();
-        List<FontFile> fonts = new ArrayList<>();
-        List<String> missing = new ArrayList<>();
-        for (String family : families) {
-            Optional<FontFile> font = locator.find(family);
-            if (font.isPresent()) {
-                fonts.add(font.get());
-            } else {
-                missing.add(family);
-            }
-        }
-
-        // The template font (Noto Sans CJK JP) is not always installed — Windows
-        // does not ship it. Instead of failing right away, download the official
-        // file once and cache it; guide the user when the download also fails.
-        boolean defaultMissing = missing.stream().anyMatch(FontDownloader::isDefaultFamily);
-        List<String> stillMissing = new ArrayList<>();
-        for (String family : missing) {
-            Optional<FontFile> downloaded;
-            if (defaultMissing && FontDownloader.isDefaultFamily(family)) {
-                boolean cached = downloader.isCached();
-                if (cached) {
-                    System.err.println("Font '" + family + "' not installed; using the cached copy in "
-                            + downloader.cacheDirectory() + ".");
-                } else {
-                    System.err.println("Font '" + family + "' not installed; downloading the official "
-                            + FontDownloader.DEFAULT_FAMILY + " (~16 MB, one time) to "
-                            + downloader.cacheDirectory() + " ...");
-                }
-                downloaded = downloader.obtain(family);
-                if (downloaded.isPresent()) {
-                    System.err.println(cached
-                            ? "Embedded the cached " + FontDownloader.FILE_NAME + "."
-                            : "Downloaded and embedded " + FontDownloader.FILE_NAME + ".");
-                }
-            } else {
-                downloaded = Optional.empty();
-            }
-            if (downloaded.isPresent()) {
-                fonts.add(downloaded.get());
-            } else {
-                stillMissing.add(family);
-            }
-        }
-
-        if (!stillMissing.isEmpty()) {
-            String message = "Font not found on the system: " + String.join(", ", stillMissing) + ".";
-            if (defaultMissing) {
-                message += " The automatic download failed (check your internet connection "
-                        + "and retry). You can download the font from " + FontDownloader.DEFAULT_URL
-                        + " and install it (on Windows, double-click the file and choose "
-                        + "'Install'), or point to the font file directly with "
-                        + "--embed-font=<file>.";
-            } else {
-                message += " Provide the file with --embed-font=<file>.";
-            }
-            throw new IOException(message);
-        }
-        return fonts;
-    }
-
-    /**
-     * Reads the SRT and runs the complete furigana pipeline.
-     */
-    private FuriganaDocument process(Path input, boolean stripParentheses) throws IOException {
-        String srtContent = Files.readString(input, StandardCharsets.UTF_8);
-
-        JapaneseTokenizer tokenizer = new KuromojiTokenizer();
-        ReadingProvider provider = new CachingReadingProvider(
-                new JishoReadingProvider(),
-                new FileReadingCache(DEFAULT_CACHE_FILE));
-        FuriganaPipeline pipeline = new FuriganaPipeline(tokenizer, provider, stripParentheses,
-                message -> System.err.println("Warning: " + message));
-
-        return pipeline.process(srtContent);
-    }
-
-    /**
-     * Writes the content in UTF-8, creating the parent directory when necessary.
-     */
-    private static void writeText(Path output, String content) throws IOException {
-        Path parent = output.toAbsolutePath().getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
-        }
-        Files.writeString(output, content, StandardCharsets.UTF_8);
+    private static Consumer<String> warningSink() {
+        return System.err::println;
     }
 }
