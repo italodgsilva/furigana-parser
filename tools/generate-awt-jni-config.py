@@ -169,6 +169,13 @@ def awt_classes(ref: str) -> list[str]:
             if path.endswith(".java") and not path.endswith(("module-info.java", "package-info.java")):
                 known.add(path[: -len(".java")].replace("/", "."))
 
+    def declared(name: str) -> bool:
+        # Nested classes have no source file of their own: the native code looks
+        # up java.awt.desktop.UserSessionEvent$Reason with FindClass, but
+        # Reason is declared inside UserSessionEvent.java, so only the outer
+        # class can be checked against the file list.
+        return name in known or name.split("$")[0] in known
+
     wanted: set[str] = set()
     for root in NATIVE_ROOTS:
         for path in listing(ref, root):
@@ -179,7 +186,7 @@ def awt_classes(ref: str) -> list[str]:
     # Only classes that really exist in java.desktop: the heuristics above
     # cannot always tell a class name from a method name with escaped
     # underscores, and bogus entries would only produce build warnings.
-    return sorted(wanted & known)
+    return sorted(name for name in wanted if declared(name))
 
 
 def build(ref: str) -> str:
