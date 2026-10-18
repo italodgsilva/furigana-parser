@@ -139,10 +139,15 @@ furigana-parser/
 │   └── Dockerfile.trace
 │
 ├── native-image/
-│   └── gui/
-│       ├── reflect-config.json
-│       ├── jni-config.json
-│       └── resource-config.json
+│   ├── gui/                        # traced with the tracing agent (Linux)
+│   │   ├── reflect-config.json
+│   │   ├── jni-config.json
+│   │   └── resource-config.json
+│   └── awt/                        # generated from the OpenJDK sources
+│       └── jni-config.json
+│
+├── tools/
+│   └── generate-awt-jni-config.py
 │
 └── docs/
     ├── architecture.md
