@@ -160,7 +160,9 @@
             Requires GraalVM on the PATH/JAVA_HOME (with `native-image`) and a
             C toolchain (gcc + zlib headers). The reflection/resources/JNI
             configurations live in
-            src/main/resources/META-INF/native-image/.
+            src/main/resources/META-INF/native-image/. The AWT/Swing metadata
+            collected for the GUI with the tracing agent lives in
+            native-image/gui/ (passed only to the GUI image, see below).
 
             Usage: mvn -Pnative package
             Output: target/furigana-parser (CLI) and target/furigana-parser-gui (GUI)
@@ -227,6 +229,24 @@
                                     <buildArgs>
                                         <!-- All the charsets, for non-ASCII file paths. -->
                                         <buildArg>-H:+AddAllCharsets</buildArg>
+                                        <!--
+                                            Link the X11 AWT (libawt_xawt) instead of
+                                            the headless one, so the window can be
+                                            shown. Without it the image defaults to
+                                            headless and cannot open a window.
+                                        -->
+                                        <buildArg>-Djava.awt.headless=false</buildArg>
+                                        <!--
+                                            AWT/Swing metadata collected with the
+                                            tracing agent (see docs/native-image.md).
+                                            The AWT native library calls back into
+                                            Java (System.load) from its JNI_OnLoad,
+                                            and that callback only works with this
+                                            registration. It is kept out of the
+                                            classpath so the CLI image never pulls
+                                            AWT in.
+                                        -->
+                                        <buildArg>-H:ConfigurationFileDirectories=${project.basedir}/native-image/gui</buildArg>
                                     </buildArgs>
                                 </configuration>
                             </execution>

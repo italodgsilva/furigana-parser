@@ -93,33 +93,43 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y zlib1g-dev
 
-      - name: Compile the native binary
+      - name: Compile the native binaries
         run: mvn --batch-mode --no-transfer-progress -Pnative -DskipTests clean package
 
-      - name: Rename the artifacts with the version and platform
+      # The CLI image is a single, self-contained file. The GUI image pulls in
+      # AWT, and Native Image emits the AWT/font JNI libraries next to the
+      # executable (libawt*, libfontmanager, the java/jvm shims, ...), so the GUI
+      # is distributed as an archive that keeps them together.
+      - name: Package the CLI binary and the GUI bundle
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
+          asset="${{ matrix.asset }}"
           ext=""
           if [ -f target/furigana-parser.exe ]; then
             ext=".exe"
           fi
-          cli="furigana-parser-${version}-${{ matrix.asset }}${ext}"
-          gui="furigana-parser-gui-${version}-${{ matrix.asset }}${ext}"
-          cp "target/furigana-parser${ext}" "$cli"
-          cp "target/furigana-parser-gui${ext}" "$gui"
-          {
-            echo "ASSET_CLI=$cli"
-            echo "ASSET_GUI=$gui"
-          } >> "$GITHUB_ENV"
+
+          cp "target/furigana-parser${ext}" "furigana-parser-${version}-${asset}${ext}"
+
+          mkdir -p gui-bundle
+          cp "target/furigana-parser-gui${ext}" gui-bundle/
+          find target -maxdepth 1 -type f \
+            \( -name '*.so' -o -name '*.dylib' -o -name '*.dll' \) \
+            -exec cp {} gui-bundle/ \;
+
+          if [ "$ext" = ".exe" ]; then
+            powershell.exe -NoProfile -Command \
+              "Compress-Archive -Path 'gui-bundle/*' -DestinationPath 'furigana-parser-gui-${version}-${asset}.zip' -Force"
+          else
+            tar -czf "furigana-parser-gui-${version}-${asset}.tar.gz" -C gui-bundle .
+          fi
 
       - name: Upload intermediate artifact
         uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.asset }}
-          path: |
-            ${{ env.ASSET_CLI }}
-            ${{ env.ASSET_GUI }}
+          path: furigana-parser-*
           if-no-files-found: error
 
   # Aggregates the artifacts and creates/updates the Release with all of them.
