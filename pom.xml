@@ -104,7 +104,34 @@
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.6.0</version>
                 <executions>
+                    <!--
+                        GUI uber jar, attached with the `gui` classifier. It is
+                        declared before the CLI one on purpose: an attached
+                        execution shades the thin jar (from maven-jar-plugin),
+                        while the CLI execution below replaces the main artifact.
+                        Shading the CLI jar first would make this one shade the
+                        already-shaded jar, duplicating every class.
+                    -->
                     <execution>
+                        <id>gui</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>gui</shadedClassifierName>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.shinji2324.furigana.gui.GuiMain</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                    <!-- CLI uber jar: replaces the main artifact (kept for compatibility). -->
+                    <execution>
+                        <id>default</id>
                         <phase>package</phase>
                         <goals>
                             <goal>shade</goal>
@@ -136,7 +163,7 @@
             src/main/resources/META-INF/native-image/.
 
             Usage: mvn -Pnative package
-            Output: target/furigana-parser
+            Output: target/furigana-parser (CLI) and target/furigana-parser-gui (GUI)
         -->
         <profile>
             <id>native</id>
@@ -149,7 +176,8 @@
                         the project jar *in addition* to the dependency jars (the
                         Kuromoji dictionary would be included twice, ~40 MB more).
                         In the native build it is skipped; native-image reads
-                        target/classes + dependencies.
+                        target/classes + dependencies. Both executions (the CLI
+                        and the GUI uber jars) are disabled.
                     -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -159,9 +187,17 @@
                                 <id>default</id>
                                 <phase>none</phase>
                             </execution>
+                            <execution>
+                                <id>gui</id>
+                                <phase>none</phase>
+                            </execution>
                         </executions>
                     </plugin>
 
+                    <!--
+                        Two images from the same classes: the CLI one does not
+                        reference the GUI, so AWT/Swing stays out of it.
+                    -->
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>
@@ -169,17 +205,32 @@
                         <extensions>true</extensions>
                         <executions>
                             <execution>
-                                <id>build-native</id>
+                                <id>build-native-cli</id>
                                 <phase>package</phase>
                                 <goals>
                                     <goal>compile-no-fork</goal>
                                 </goals>
+                                <configuration>
+                                    <mainClass>com.shinji2324.furigana.Application</mainClass>
+                                    <imageName>furigana-parser</imageName>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>build-native-gui</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>compile-no-fork</goal>
+                                </goals>
+                                <configuration>
+                                    <mainClass>com.shinji2324.furigana.gui.GuiMain</mainClass>
+                                    <imageName>furigana-parser-gui</imageName>
+                                    <buildArgs>
+                                        <!-- All the charsets, for non-ASCII file paths. -->
+                                        <buildArg>-H:+AddAllCharsets</buildArg>
+                                    </buildArgs>
+                                </configuration>
                             </execution>
                         </executions>
-                        <configuration>
-                            <mainClass>com.shinji2324.furigana.Application</mainClass>
-                            <imageName>furigana-parser</imageName>
-                        </configuration>
                     </plugin>
                 </plugins>
             </build>

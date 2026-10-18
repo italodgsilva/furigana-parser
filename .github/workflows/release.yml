@@ -1,7 +1,7 @@
 # Publishes a version of the program.
 #
-# When a `v*` tag is pushed, it builds the executable JAR and the native
-# binaries (profile `native`, via GraalVM) and attaches everything to a GitHub Release.
+# When a `v*` tag is pushed, it builds the executable JARs (CLI and GUI) and the
+# native binaries (profile `native`, via GraalVM) and attaches everything to a GitHub Release.
 #
 # Usage:
 #   git tag v0.1.0
@@ -41,10 +41,13 @@ jobs:
       - name: Compile, test and package
         run: mvn --batch-mode --no-transfer-progress clean verify
 
-      - name: Rename the JAR with the tag version
+      - name: Rename the JARs with the tag version
         run: |
           version="${GITHUB_REF_NAME#v}"
-          cp target/furigana-parser-[0-9]*.jar "furigana-parser-${version}.jar"
+          cp "$(ls target/furigana-parser-[0-9]*.jar | grep -v -- '-gui\.jar$' | head -n1)" \
+             "furigana-parser-${version}.jar"
+          cp "$(ls target/furigana-parser-[0-9]*-gui.jar | head -n1)" \
+             "furigana-parser-gui-${version}.jar"
 
       - name: Upload intermediate artifact
         uses: actions/upload-artifact@v7
@@ -53,8 +56,8 @@ jobs:
           path: furigana-parser-*.jar
           if-no-files-found: error
 
-  # Native binaries, one per platform. If a platform is not wanted,
-  # just remove the corresponding entry from the matrix.
+  # Native binaries, one pair (CLI + GUI) per platform. If a platform is not
+  # wanted, just remove the corresponding entry from the matrix.
   native:
     name: Native (${{ matrix.asset }})
     runs-on: ${{ matrix.os }}
@@ -93,25 +96,30 @@ jobs:
       - name: Compile the native binary
         run: mvn --batch-mode --no-transfer-progress -Pnative -DskipTests clean package
 
-      - name: Rename the artifact with the version and platform
+      - name: Rename the artifacts with the version and platform
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
-          bin="target/furigana-parser"
-          if [ -f "${bin}.exe" ]; then
-            bin="${bin}.exe"
-            out="furigana-parser-${version}-${{ matrix.asset }}.exe"
-          else
-            out="furigana-parser-${version}-${{ matrix.asset }}"
+          ext=""
+          if [ -f target/furigana-parser.exe ]; then
+            ext=".exe"
           fi
-          cp "$bin" "$out"
-          echo "ASSET=$out" >> "$GITHUB_ENV"
+          cli="furigana-parser-${version}-${{ matrix.asset }}${ext}"
+          gui="furigana-parser-gui-${version}-${{ matrix.asset }}${ext}"
+          cp "target/furigana-parser${ext}" "$cli"
+          cp "target/furigana-parser-gui${ext}" "$gui"
+          {
+            echo "ASSET_CLI=$cli"
+            echo "ASSET_GUI=$gui"
+          } >> "$GITHUB_ENV"
 
       - name: Upload intermediate artifact
         uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.asset }}
-          path: ${{ env.ASSET }}
+          path: |
+            ${{ env.ASSET_CLI }}
+            ${{ env.ASSET_GUI }}
           if-no-files-found: error
 
   # Aggregates the artifacts and creates/updates the Release with all of them.
