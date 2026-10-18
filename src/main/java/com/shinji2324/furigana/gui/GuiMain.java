@@ -7,8 +7,10 @@ import javax.swing.plaf.metal.MetalLookAndFeel;
 import javax.swing.plaf.nimbus.NimbusLookAndFeel;
 import java.awt.GraphicsEnvironment;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 
 /**
  * Entry point of the graphical interface.
@@ -55,8 +57,15 @@ public final class GuiMain {
      * AWT's {@code FontConfiguration} refuses to start without it. It also
      * probes {@code ${java.home}/lib} for a fontconfig configuration file and
      * only enables its system-fontconfig fallback when that directory exists,
-     * so the property is pointed at a throw-away directory that contains an
-     * empty {@code lib} directory.
+     * so the property is pointed at a throw-away directory that contains a
+     * {@code lib} directory.
+     *
+     * <p>On Linux the empty directory is enough: AWT then asks the system
+     * fontconfig for the installed fonts. On Windows and macOS there is no such
+     * fallback and AWT insists on the {@code lib/fontconfig.properties} that a
+     * regular JDK installs, so the matching copy bundled in this class's
+     * package is unpacked into the directory (see
+     * {@code fontConfigResource()}).
      *
      * <p>On a regular JVM {@code java.home} is always set and this method does
      * nothing.
@@ -67,17 +76,63 @@ public final class GuiMain {
         }
         try {
             Path home = Files.createTempDirectory("furigana-parser-java-home");
-            // Registered before the nested directory so that it is removed
-            // last (delete-on-exit runs in reverse registration order).
+            // Registered before the nested entries so that it is removed last
+            // (delete-on-exit runs in reverse registration order).
             home.toFile().deleteOnExit();
             Path lib = Files.createDirectories(home.resolve("lib"));
             lib.toFile().deleteOnExit();
+            unpackFontConfig(lib);
             System.setProperty("java.home", home.toString());
         } catch (IOException unavailable) {
             throw new IllegalStateException(
                     "Could not create a java.home directory for the native image",
                     unavailable);
         }
+    }
+
+    /**
+     * Unpacks the platform font mapping into {@code lib}, if the platform needs
+     * one.
+     *
+     * <p>The files come from OpenJDK (GPLv2 with the Classpath exception) and
+     * are the ones a regular Windows/macOS JDK ships as
+     * {@code lib/fontconfig.bfc}; they are bundled verbatim, only the name
+     * changes. Linux and the BSDs use the system fontconfig instead and get
+     * nothing.
+     *
+     * @param lib the {@code lib} directory of the {@code java.home} in use
+     * @throws IOException if the file cannot be copied
+     */
+    private static void unpackFontConfig(Path lib) throws IOException {
+        String resource = fontConfigResource();
+        if (resource == null) {
+            return;
+        }
+        try (InputStream fontConfig = GuiMain.class.getResourceAsStream(resource)) {
+            if (fontConfig == null) {
+                // The resource is only in the native image; without it AWT will
+                // report the missing configuration itself.
+                return;
+            }
+            Path target = lib.resolve("fontconfig.properties");
+            Files.copy(fontConfig, target);
+            target.toFile().deleteOnExit();
+        }
+    }
+
+    /**
+     * Path of the bundled font mapping for the current platform, or {@code null}
+     * when the platform reads its fonts from the system instead.
+     */
+    private static String fontConfigResource() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        if (os.startsWith("windows")) {
+            return "/com/shinji2324/furigana/gui/awt/fontconfig-windows.properties";
+        }
+        if (os.startsWith("mac")) {
+            return "/com/shinji2324/furigana/gui/awt/fontconfig-macos.properties";
+        }
+        return null;
     }
 
     /**
