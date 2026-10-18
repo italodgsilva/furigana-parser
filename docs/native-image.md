@@ -38,6 +38,15 @@ no arguments: running it opens the window (see [`gui.md`](gui.md)).
 ./target/furigana-parser-gui
 ```
 
+Unlike the CLI, the GUI image also pulls in AWT, and Native Image emits the
+AWT/font JNI libraries next to the executable (`libawt*.so`, `libfontmanager.so`,
+the `libjava.so`/`libjvm.so` shims, ... on Linux; `.dylib` on macOS, `.dll` on
+Windows). They **must be shipped and run together with the binary**, so the release
+publishes the GUI as an archive
+(`furigana-parser-gui-<version>-<platform>.tar.gz`, `.zip` on Windows) rather than
+as a single file: extract it and run the executable from inside the extracted
+directory.
+
 The `native` profile does two things:
 
 1. **Disables the `maven-shade-plugin`** (both the CLI and the GUI executions).
@@ -54,14 +63,30 @@ The `native` profile does two things:
 ### GUI binary (AWT/Swing)
 
 The GUI image is built from the same classes, with `-H:+AddAllCharsets` (non-ASCII
-file paths). Two points deserve attention:
+file paths) and `-Djava.awt.headless=false` (links the X11 AWT instead of the
+headless one). Three points deserve attention:
 
+- **AWT metadata.** AWT's native library calls back into Java (`System.load`) from
+  its `JNI_OnLoad` to load the next library. Without the matching registration
+  Native Image aborts at startup with a misleading `Fatal error reported via JNI:
+  Could not allocate library name` — which is what the build recommends with
+  *"AWT: Use the tracing agent to collect metadata for AWT"*. The metadata is
+  collected with the tracing agent and committed under `native-image/gui/`, then
+  handed to the GUI build with `-H:ConfigurationFileDirectories`. It is kept out of
+  `src/main/resources` so it never reaches the CLI image.
+- **The AWT JNI libraries travel with the executable** (see the note in *Usage*
+  above); the GUI is distributed as an archive for that reason.
 - **Look-and-feel.** `GuiMain` instantiates Nimbus directly and falls back to
-  Metal when Nimbus cannot initialize. In the native image Nimbus can fail while
-  reading its font configuration (GraalVM does not set `java.home` there), in which
-  case the window uses Metal, whose classes GraalVM registers out of the box. To
-  use Nimbus (or GTK) in the native image, run the tracing agent on the GUI route
-  and commit the result (see below).
+  Metal when it cannot initialize. With the metadata above Nimbus works in the
+  native image too; the fallback remains as a safety net.
+- **`java.home` and the AWT font manager.** A native image does not set the
+  `java.home` system property, and AWT's `FontConfiguration` refuses to start
+  without it. It also probes `${java.home}/lib` for a `fontconfig.properties` file
+  and only enables its system-fontconfig fallback when that directory exists, so a
+  `java.home` whose `lib` is missing ends in `RuntimeException: Fontconfig head is
+  null`. `GuiMain.prepareNativeImageRuntime()` therefore points `java.home` at a
+  throw-away directory holding an empty `lib` directory, before any AWT class is
+  touched. On a regular JVM `java.home` is already set and the method does nothing.
 - **Fonts and `Desktop`.** Text rendering uses the system fonts (freetype/fontconfig
   on Linux). "Open folder" uses `java.awt.Desktop` when it is supported.
 
@@ -91,6 +116,18 @@ The `jnidispatch` resource pattern in `resource-config.json` covers all platform
 (`com/sun/jna/.*jnidispatch\.(so|dylib|jnilib|dll)`), so that the same file works on
 Linux, macOS and Windows.
 
+The GUI has its own metadata, in `native-image/gui/`:
+
+| File | What for |
+| --- | --- |
+| `jni-config.json` | The AWT/X11/font JNI callbacks: `java.lang.System.load(String)` (the AWT native library loads the next one through it) plus the font-manager callbacks `GraphicsEnvironment.getLocalGraphicsEnvironment()`, `SunGraphicsEnvironment` and its `isDisplayLocal()`. The tracing agent does not capture the last three, so they are added by hand — keep them when regenerating (see below). |
+| `reflect-config.json` | Swing/Nimbus painter classes, key-event fields, the colour chooser. |
+| `resource-config.json` | The Basic/Synth look-and-feel bundles and `sun.awt.resources.awt`. |
+
+It sits *outside* `src/main/resources`, so it is not packaged into the jar and does
+not reach the CLI image; the `build-native-gui` execution passes it with
+`-H:ConfigurationFileDirectories`.
+
 ### Regenerating the configurations
 
 If the model or the dependencies change (new reflective serialization, new resource
@@ -108,22 +145,44 @@ CFG=src/main/resources/META-INF/native-image/com.shinji2324/furigana-parser
 "$GRAALVM/bin/java" -agentlib:native-image-agent=config-merge-dir=$CFG \
   -jar target/furigana-parser-0.1.0-SNAPSHOT.jar \
   --embed-font --subset-font input.srt output.ass
-
-# 3) GUI route (Swing) — needs a display (on Linux, wrap in `xvfb-run`)
-#    Interact with the window (buttons, combo boxes, file/color choosers) so the
-#    reflective UI delegates are captured.
-"$GRAALVM/bin/java" -agentlib:native-image-agent=config-merge-dir=$CFG \
-  -cp target/furigana-parser-0.1.0-SNAPSHOT.jar com.shinji2324.furigana.gui.GuiMain
 ```
 
-The GUI route captures the reflections Swing uses to build the look-and-feel. It is
-only needed when the native GUI must use Nimbus or GTK; the Metal fallback works
-with GraalVM's built-in registrations.
+The GUI route needs a display and a running window, so it is easier through the
+helper image in [`../docker/Dockerfile.trace`](../docker/Dockerfile.trace): it
+builds the GUI jar, opens the window under Xvfb with the agent attached and leaves
+the result in `/config`.
+
+```
+docker build -f docker/Dockerfile.trace -t furigana-parser-trace .
+docker run --name furigana-trace furigana-parser-trace
+docker cp furigana-trace:/config/reflect-config.json native-image/gui/
+docker cp furigana-trace:/config/jni-config.json     native-image/gui/
+docker cp furigana-trace:/config/resource-config.json native-image/gui/
+docker rm furigana-trace
+```
+
+Only those three files are kept; the agent also writes empty
+`proxy-config`/`serialization-config`/`predefined-classes-config` files that add
+nothing. Rebuild the native images afterwards to pick the metadata up.
 
 Use `config-output-dir` on the first run and `config-merge-dir` on the following
 ones (or separate directories, merging afterwards). When you finish, check that the
 multiplatform `jnidispatch` pattern is still in `resource-config.json`, because the
 agent writes the specific path of the platform on which it ran.
+
+Two entries that the agent does **not** produce must survive a regeneration of
+`native-image/gui/jni-config.json`, otherwise the native GUI fails at startup with
+`NoSuchMethodError`/`NoClassDefFoundError` while the font manager is loaded:
+
+```json
+{ "name": "java.awt.GraphicsEnvironment",
+  "methods": [ { "name": "getLocalGraphicsEnvironment", "parameterTypes": [] } ] },
+{ "name": "sun.java2d.SunGraphicsEnvironment",
+  "methods": [ { "name": "isDisplayLocal", "parameterTypes": [] } ] }
+```
+
+The GUI metadata is Linux-specific (it names X11/AWT classes). The other platforms
+need their own set, collected with the tracing agent on that platform.
 
 ## Measured results
 
@@ -134,7 +193,7 @@ input):
 | --- | --- | --- |
 | Startup | ~0.75 s | ~1.7 s |
 | Memory (RSS) | ~112 MB | ~255 MB |
-| Artifact | ~85 MB | ~18 MB (jar) |
+| Artifact | ~85 MB (CLI) / ~120 MB plus the AWT libraries (GUI) | ~18 MB (jar) |
 
 The outputs — JSON, ASS and ASS with `--embed-font --subset-font` — are
 **identical, byte for byte**, to those of the JVM.
@@ -143,6 +202,8 @@ The outputs — JSON, ASS and ASS with `--embed-font --subset-font` — are
 
 - The binary depends, at runtime, on common system libraries (`libz`, `libc`,
   `libpthread`).
+- The **GUI** binary additionally needs the AWT/font libraries emitted next to it
+  at build time, so it is shipped as an archive (see *Usage*).
 - Subsetting (`--subset-font`) still requires `libharfbuzz-subset` installed: the
   native binary does not embed it. Its absence is handled as in the JVM version
   (warning and embedding the full font). On Windows the core and subset DLLs are
@@ -152,3 +213,6 @@ The outputs — JSON, ASS and ASS with `--embed-font --subset-font` — are
 - The native build is not part of the CI on every push (it would require GraalVM
   and a C toolchain on every run). It is generated only in the release workflow, on
   dedicated runners that already bring these components.
+- The committed GUI metadata (`native-image/gui/`) was collected on Linux and is
+  used for every platform; the Windows and macOS GUI builds still have to be
+  validated (and their metadata regenerated) on those systems.

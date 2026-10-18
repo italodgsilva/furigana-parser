@@ -21,15 +21,25 @@ or, from the release artifacts, the GUI jar and the GUI binary:
 
 ```
 java -jar furigana-parser-gui-0.1.0.jar
-./furigana-parser-gui-0.1.0-linux-x86_64
 ```
 
 There is one artifact for the CLI and one for the GUI (see the release page):
 `furigana-parser-*` runs the command line, `furigana-parser-gui-*` opens the
 window. The GUI binary ignores any arguments.
 
+The native GUI is published as an archive
+(`furigana-parser-gui-<version>-<platform>.tar.gz`, `.zip` on Windows), because it
+needs the AWT libraries Native Image places next to the executable: extract it and
+run `furigana-parser-gui[.exe]` from inside the extracted directory. The CLI binary,
+in contrast, is a single self-contained file.
+
 The GUI needs a display. On a headless machine it prints a message and exits; use
 the CLI there.
+
+In the native image `GuiMain` also creates a small `java.home` directory before AWT
+starts, because Native Image does not provide one and AWT refuses to load fonts
+without it; see the GUI section of [`native-image.md`](native-image.md). The JAR
+version runs on a regular JVM and needs none of that.
 
 ## The window
 
@@ -63,9 +73,10 @@ the message area.
 
 ## Look-and-feel
 
-The window prefers Nimbus and falls back to Metal when it cannot be initialized —
-which happens in the native image, where Nimbus cannot read its font
-configuration. See [`native-image.md`](native-image.md).
+The window prefers Nimbus and falls back to Metal when it cannot be initialized.
+Nimbus works in the native image too, thanks to the AWT/Swing metadata collected
+with the tracing agent; the Metal fallback remains as a safety net. See
+[`native-image.md`](native-image.md).
 
 ## Settings
 

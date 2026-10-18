@@ -60,7 +60,7 @@ Completed steps:
 8. MPV integration (`--mpv`): generates the ASS next to the SRT and opens the video with `mpv --sub-file=...` (see `docs/mpv.md`).
 9. Font embedding into the ASS itself (`--embed-font`): locates the style's font by family name, extracts the face from `.ttc` collections and writes the `[Fonts]` section, all in Java. With `--subset-font`, it subsets the embedded font to the glyphs used in the subtitle, using HarfBuzz (see `docs/font-embedding.md`).
 10. Text cleanup (`--strip-parentheses`): removes the passages between round parentheses (full-width and half-width) before tokenization, discarding entries that become empty.
-11. Native build with GraalVM (`mvn -Pnative package`): generates the CLI and GUI executables without a JVM, with the reflection/resource/JNI configurations in `src/main/resources/META-INF/native-image/` (see `docs/native-image.md`).
+11. Native build with GraalVM (`mvn -Pnative package`): generates the CLI and GUI executables without a JVM, with the reflection/resource/JNI configurations in `src/main/resources/META-INF/native-image/` and the GUI-only AWT/Swing metadata in `native-image/gui/` (see `docs/native-image.md`).
 12. Automatic release publishing: a `v*` tag triggers the release workflow, which builds the JARs (CLI and GUI) and the native binaries (CLI and GUI) for each platform and attaches them to a GitHub Release (see the "Publishing a release" section).
 13. Color customization (`--color`): changes the primary color of the `Main` and `Furigana` styles, accepting a name, `#RRGGBB` or an ASS `AABBGGRR` value. Furigana that would overlap on the same line is spread apart automatically.
 14. Graphical interface (`gui`): a single window to choose the input/output and the options, with a color picker and a "Play in MPV" button. It is a separate entry point (`furigana-parser-gui` binary and `-gui.jar`, no arguments) that reuses the same pipeline through `core.FuriganaService` (see [`docs/gui.md`](docs/gui.md)).
@@ -130,6 +130,17 @@ furigana-parser/
 │   ├── cache/
 │   └── output/
 │
+├── docker/
+│   ├── Dockerfile.jar
+│   ├── Dockerfile.native
+│   └── Dockerfile.trace
+│
+├── native-image/
+│   └── gui/
+│       ├── reflect-config.json
+│       ├── jni-config.json
+│       └── resource-config.json
+│
 └── docs/
     ├── architecture.md
     ├── ass-format.md
@@ -156,12 +167,13 @@ the file for your platform:
 
 Every file above is the command-line version. Each also has a graphical
 counterpart — the same name with `gui` after `furigana-parser`, e.g.
-`furigana-parser-gui-<version>-linux-x86_64` or `furigana-parser-gui-<version>.jar`.
-The GUI binaries and the GUI jar take **no arguments**: running them opens the
-window (see [`docs/gui.md`](docs/gui.md)).
+`furigana-parser-gui-<version>-linux-x86_64.tar.gz` or
+`furigana-parser-gui-<version>.jar`. The GUI binaries and the GUI jar take **no
+arguments**: running them opens the window (see [`docs/gui.md`](docs/gui.md)).
 
-The native binaries need nothing installed besides the file itself; the JAR needs
-Java 21 or higher.
+The CLI native binaries need nothing installed besides the file itself; the JAR
+needs Java 21 or higher. The native GUI is an archive because it needs the AWT
+libraries shipped next to the executable — extract it before running.
 
 On Linux and macOS, mark the binary as executable before running:
 
@@ -246,8 +258,9 @@ toolchain — see [`docs/native-image.md`](docs/native-image.md)):
 mvn -Pnative package
 ```
 
-The output is `target/furigana-parser` (CLI) and `target/furigana-parser-gui`
-(GUI, no arguments).
+The output is `target/furigana-parser` (CLI, a single file) and
+`target/furigana-parser-gui` (GUI, no arguments; it needs the AWT libraries that
+Native Image writes to `target/` next to it).
 
 ### Publishing a release
 
@@ -269,8 +282,9 @@ existing Release.
 
 The version number in the file names comes from the tag (without the `v`), so
 `v0.1.0` produces `furigana-parser-0.1.0.jar`, `furigana-parser-gui-0.1.0.jar`,
-`furigana-parser-0.1.0-linux-x86_64`, `furigana-parser-gui-0.1.0-linux-x86_64`,
-`furigana-parser-0.1.0-windows-x86_64.exe` and so on.
+`furigana-parser-0.1.0-linux-x86_64`, `furigana-parser-0.1.0-windows-x86_64.exe`
+and, as the GUI archive, `furigana-parser-gui-0.1.0-linux-x86_64.tar.gz` (`.zip` on
+Windows).
 
 ### Command line
 
