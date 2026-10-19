@@ -33,10 +33,28 @@ and fields (plus the public ones it inherits).  Over-registering is harmless --
 Native Image skips classes that do not exist on the platform being built -- and
 it keeps the metadata independent of the build machine.
 
+The render loops need a second kind of metadata.  ``GraphicsPrimitiveMgr``
+registers most of its primitives as ``GraphicsPrimitiveProxy`` objects, which
+keep only the *name* of the real class and load it lazily with
+
+    Class.forName(name).getDeclaredConstructor().newInstance()
+
+(``GraphicsPrimitiveProxy.instantiate``).  A native image cannot load a class by
+name unless it was registered for reflection, so ``sun.java2d.loops.SetDrawLineANY``
+and the other proxies are missing and painting fails with
+
+    java.lang.RuntimeException: java.lang.ClassNotFoundException:
+        sun.java2d.loops.SetDrawLineANY
+
+The proxy class names live in the ``GeneralRenderer``/``CustomComponent``
+sources (the classes themselves are secondary types declared in those files), so
+the generator reads them out of the ``sun/java2d`` sources of every platform and
+writes ``native-image/awt/reflect-config.json`` next to the JNI metadata.
+
 Usage
 -----
-    python3 tools/generate-awt-jni-config.py           # write the file
-    python3 tools/generate-awt-jni-config.py --check   # fail if it is stale
+    python3 tools/generate-awt-jni-config.py           # write both files
+    python3 tools/generate-awt-jni-config.py --check   # fail if either is stale
 """
 
 from __future__ import annotations
@@ -90,6 +108,23 @@ GET_ID = re.compile(
 CLASS_LITERAL = re.compile(r"\"((?:[a-z][A-Za-z0-9_]*/)+[A-Z][A-Za-z0-9_$]*)\"")
 # ... as well as any class used in a JNI signature, e.g. "(Ljava/awt/Foo;)V".
 CLASS_DESCRIPTOR = re.compile(r"L((?:[a-z][A-Za-z0-9_]*/)+[A-Z][A-Za-z0-9_$]*);")
+
+# Every platform directory under which GraphicsPrimitiveProxy objects are built.
+# The proxy targets always live in the package of their owner, so the sources
+# have to be read per platform.
+JAVA2D_DIRS = tuple(f"{root}/sun/java2d" for root in CLASS_ROOTS)
+# `Class<?> owner = GeneralRenderer.class;` and the proxies that use it.  The
+# relative name is resolved against the owner's package (GraphicsPrimitiveProxy
+# does the same with `getPackageName(owner.getName())`).
+OWNER_DECL = re.compile(r"\b(\w+)\s*=\s*(\w+)\.class\b")
+PROXY_CALL = re.compile(
+    r"new\s+GraphicsPrimitiveProxy\s*\(\s*(\w+)\s*,\s*\"([A-Za-z0-9_$]+)\""
+)
+# The proxies are only reached through Class.forName + getDeclaredConstructor,
+# so the constructors are all the reflection metadata they need.
+REFLECT_FLAGS = {
+    "allDeclaredConstructors": True,
+}
 
 FLAGS = {
     "allDeclaredConstructors": True,
@@ -160,6 +195,7 @@ CALLBACK_CLASSES = (
 )
 
 OUTPUT = Path(__file__).resolve().parent.parent / "native-image" / "awt" / "jni-config.json"
+REFLECT_OUTPUT = Path(__file__).resolve().parent.parent / "native-image" / "awt" / "reflect-config.json"
 
 
 def fetch(url: str) -> str:
@@ -275,6 +311,51 @@ def declarations(ref: str) -> tuple[list[str], set[str]]:
     return names, base_names
 
 
+def proxy_classes(ref: str) -> list[str]:
+    """The classes ``GraphicsPrimitiveProxy`` loads at run time with ``Class.forName``.
+
+    ``GraphicsPrimitiveProxy`` keeps only the *name* of the real primitive and
+    resolves it lazily against the package of its owner.  The proxies are
+    secondary (package-private) classes declared inside the file that builds
+    them, so no file listing can find them; the names have to be read out of the
+    ``sun/java2d`` sources of every platform instead.
+    """
+
+    def package_of(path: str) -> str:
+        relative = path.rsplit("/", 1)[0] if "/" in path else ""
+        return "sun.java2d" + (f".{relative.replace('/', '.')}" if relative else "")
+
+    files: list[tuple[str, str]] = []  # (class root, path below its sun/java2d)
+    packages: dict[str, set[str]] = {}  # simple file name -> packages that declare it
+    for base in JAVA2D_DIRS:
+        for path in listing(ref, base):
+            if not path.endswith(".java"):
+                continue
+            files.append((base, path))
+            simple = path.rsplit("/", 1)[-1][: -len(".java")]
+            packages.setdefault(simple, set()).add(package_of(path))
+
+    names: set[str] = set()
+    for base, path in files:
+        source = fetch(f"https://raw.githubusercontent.com/{REPOSITORY}/{ref}/{base}/{path}")
+        owners = dict(OWNER_DECL.findall(source))
+        fallback = package_of(path)
+        for variable, relative in PROXY_CALL.findall(source):
+            candidates = packages.get(owners.get(variable, ""), {fallback})
+            if fallback in candidates or len(candidates) != 1:
+                package = fallback
+            else:
+                package = next(iter(candidates))
+            names.add(f"{package}.{relative}")
+    return sorted(names)
+
+
+def build_reflect(ref: str) -> str:
+    entries = [{"name": name, **REFLECT_FLAGS} for name in proxy_classes(ref)]
+    body = ",\n".join("  " + json.dumps(entry) for entry in entries)
+    return f"[\n{body}\n]\n"
+
+
 def build(ref: str) -> str:
     names, base_names = declarations(ref)
     entries = [
@@ -291,18 +372,23 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="do not write, exit with 1 when the file is out of date")
     options = parser.parse_args()
 
-    generated = build(options.ref)
+    generated = {OUTPUT: build(options.ref), REFLECT_OUTPUT: build_reflect(options.ref)}
     if options.check:
-        current = OUTPUT.read_text() if OUTPUT.exists() else ""
-        if current != generated:
-            print(f"{OUTPUT} is out of date, run tools/generate-awt-jni-config.py", file=sys.stderr)
+        stale = False
+        for path, content in generated.items():
+            current = path.read_text() if path.exists() else ""
+            if current != content:
+                print(f"{path} is out of date, run tools/generate-awt-jni-config.py", file=sys.stderr)
+                stale = True
+        if stale:
             return 1
-        print(f"{OUTPUT} is up to date")
+        print(", ".join(str(path) for path in generated) + " are up to date")
         return 0
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(generated)
-    print(f"wrote {OUTPUT} ({generated.count(chr(10)) - 1} classes)")
+    for path, content in generated.items():
+        path.write_text(content)
+        print(f"wrote {path} ({content.count('\"name\"')} classes)")
     return 0
 
 

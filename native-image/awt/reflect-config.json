@@ -1,0 +1,21 @@
+[
+  {"name": "sun.java2d.loops.OpaqueCopyAnyToArgb", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.OpaqueCopyArgbToAny", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.SetDrawLineANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.SetDrawPathANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.SetDrawPolygonsANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.SetDrawRectANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.SetFillPathANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.SetFillRectANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.SetFillSpansANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.XorCopyArgbToAny", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.XorDrawGlyphListAAANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.XorDrawGlyphListANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.XorDrawLineANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.XorDrawPathANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.XorDrawPolygonsANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.XorDrawRectANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.XorFillPathANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.XorFillRectANY", "allDeclaredConstructors": true},
+  {"name": "sun.java2d.loops.XorFillSpansANY", "allDeclaredConstructors": true}
+]

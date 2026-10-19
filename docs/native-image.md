@@ -144,6 +144,7 @@ The second directory is `native-image/awt/`:
 | File | What for |
 | --- | --- |
 | `jni-config.json` | The JNI surface of the AWT/Swing native libraries on every platform: every java.desktop class the native code passes to `FindClass()`, implements a native method of, or mentions in a JNI signature, registered with all of its declared constructors, methods and fields (java.base classes and the compiler-generated render-queue callbacks are handled differently, see below). |
+| `reflect-config.json` | The render loops that `GraphicsPrimitiveMgr` registers as `GraphicsPrimitiveProxy` objects and loads lazily with `Class.forName` (see below). |
 
 The tracing agent only records the lookups the native libraries of the machine it
 runs on actually perform, so `native-image/gui/jni-config.json` (collected on Linux)
@@ -169,6 +170,30 @@ Two groups cannot be derived from the native sources and are handled explicitly:
   overrides `run()` (its `JNIAccessibleMember.isDiscoverableIn` rejects it), so the
   interface alone leaves the Windows D3D path crashing with
   `NoSuchMethodError: sun.java2d.d3d.D3DGraphicsDevice$1.run()V`.
+
+A third group is not a JNI lookup but reflection, and unlike the two above it
+*is* derived from sources (the java.desktop ones): `GraphicsPrimitiveMgr`
+registers most of its render loops as `GraphicsPrimitiveProxy` objects that keep
+only the *name* of the real class and load it on first use with
+
+```java
+Class.forName(name).getDeclaredConstructor().newInstance();  // GraphicsPrimitiveProxy.instantiate
+```
+
+A native image cannot load a class by name unless it was registered for
+reflection, so the first line, rectangle or glyph the window paints fails with
+
+```
+java.lang.RuntimeException: java.lang.ClassNotFoundException:
+    sun.java2d.loops.SetDrawLineANY
+```
+
+The proxies (`SetDrawLineANY`, `XorFillRectANY`, `OpaqueCopyAnyToArgb`, ...) are
+package-private secondary classes declared inside `GeneralRenderer.java` and
+`CustomComponent.java`, so they have no source file of their own. The generator
+reads their names out of the `sun/java2d` sources of every platform (they only
+occur under `share`, but the scan covers `windows`/`macosx`/`unix` too) and
+writes `native-image/awt/reflect-config.json` from them.
 
 The GUI additionally bundles the font mapping that a Windows/macOS JDK installs as
 `lib/fontconfig.bfc`, as two resources under
@@ -252,10 +277,12 @@ python3 tools/generate-awt-jni-config.py          # regenerate native-image/awt/
 python3 tools/generate-awt-jni-config.py --check   # fail when it is out of date
 ```
 
-It downloads the `src/java.desktop/**/native` sources of the pinned OpenJDK revision
-(`DEFAULT_REF`, keep it in step with the GraalVM version), collects every class they
-use over JNI and writes the result as "register all declared members". The output
-only changes when the pin changes, so the script and its output are committed
+It downloads the sources of the pinned OpenJDK revision (`DEFAULT_REF`, keep it in
+step with the GraalVM version), collects from the `src/java.desktop/**/native` files
+every class they use over JNI (written as "register all declared members" to
+`jni-config.json`) and from the `src/java.desktop/*/classes/sun/java2d` files every
+class `GraphicsPrimitiveProxy` loads (written to `reflect-config.json`). Both outputs
+only change when the pin changes, so the script and its outputs are committed
 together; re-run it (and rebuild) when the `native` profile is moved to another
 GraalVM/JDK version. It needs network access and is therefore not part of the build.
 
@@ -280,7 +307,10 @@ java -agentlib:native-image-agent=config-output-dir=config -jar furigana-parser-
 
 A `NoSuchMethodError` whose message ends in `$<number>.run()V` is the missing
 `CALLBACK_CLASSES` case above, not a tracing problem: add the named class to the
-generator instead.
+generator instead. A `ClassNotFoundException` naming a `sun.java2d.loops.*` class
+(for example `SetDrawLineANY`) is the reflection case above: check that
+`native-image/awt/reflect-config.json` is present and lists the class, and
+regenerate it if the `sun/java2d` sources grew a proxy.
 
 The bundled font mappings come from OpenJDK and already cover Windows and macOS.
 
