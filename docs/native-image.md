@@ -143,7 +143,7 @@ The second directory is `native-image/awt/`:
 
 | File | What for |
 | --- | --- |
-| `jni-config.json` | The JNI surface of the AWT/Swing native libraries on every platform: every java.desktop class the native code passes to `FindClass()`, implements a native method of, or mentions in a JNI signature, registered with all of its declared constructors, methods and fields. |
+| `jni-config.json` | The JNI surface of the AWT/Swing native libraries on every platform: every java.desktop class the native code passes to `FindClass()`, implements a native method of, or mentions in a JNI signature, registered with all of its declared constructors, methods and fields (java.base classes and the compiler-generated render-queue callbacks are handled differently, see below). |
 
 The tracing agent only records the lookups the native libraries of the machine it
 runs on actually perform, so `native-image/gui/jni-config.json` (collected on Linux)
@@ -153,6 +153,22 @@ fails with `NoSuchMethodError: java.awt.Toolkit.getDefaultToolkit()Ljava/awt/Too
 gap by deriving the metadata from the OpenJDK sources instead of tracing, so it is
 platform-independent. Registering a superset is harmless: Native Image silently skips
 the classes that do not exist on the platform being built.
+
+Two groups cannot be derived from the native sources and are handled explicitly:
+
+- **java.base classes** are registered with their *public* members only
+  (`allDeclaredConstructors`/`allPublicMethods`/`allPublicFields`) instead of "all
+  declared". Registering their private internals aborts every native build:
+  `java.lang.System.initPhase1` reaches `ClassLoader.initSystemClassLoader()`, which
+  Native Image deletes. AWT only uses the public surface of java.base anyway
+  (`Thread.currentThread`, `Runnable.run`, `System.load`, ...).
+- **The compiler-generated `Runnable` classes** the render queues resolve `run()` on
+  are listed by name (`CALLBACK_CLASSES` in the generator). The queue code calls
+  `GetMethodID(GetObjectClass(runnable), "run", "()V")` on the *concrete* class, and
+  Native Image refuses to answer that through `java.lang.Runnable` when the class
+  overrides `run()` (its `JNIAccessibleMember.isDiscoverableIn` rejects it), so the
+  interface alone leaves the Windows D3D path crashing with
+  `NoSuchMethodError: sun.java2d.d3d.D3DGraphicsDevice$1.run()V`.
 
 The GUI additionally bundles the font mapping that a Windows/macOS JDK installs as
 `lib/fontconfig.bfc`, as two resources under
@@ -243,6 +259,15 @@ only changes when the pin changes, so the script and its output are committed
 together; re-run it (and rebuild) when the `native` profile is moved to another
 GraalVM/JDK version. It needs network access and is therefore not part of the build.
 
+`CALLBACK_CLASSES` is the one hand-maintained part of the generator: those classes
+have no source file, so no scan can find them. Refresh the list from the JDK the
+release uses with
+
+```
+jimage list "$JAVA_HOME/lib/modules" \
+  | grep -E 'StrikeCache\$[0-9]+|java2d\.(d3d|opengl|pipe)\.(D3D|WGL|GLX|Buffered|OGL).*\$[0-9]+|TranslucentWindowPainter.*\$[0-9]+'
+```
+
 If a Windows/macOS binary still fails with a `NoSuchMethodError`/`NoClassDefFoundError`
 that the two directories do not cover — the native event loop resolves some classes
 dynamically — collect a trace on that platform and merge it in:
@@ -252,6 +277,10 @@ java -agentlib:native-image-agent=config-output-dir=config -jar furigana-parser-
 # click through the window (move it, type, open the file and colour choosers), then
 # merge config/*.json into native-image/gui/ and rebuild.
 ```
+
+A `NoSuchMethodError` whose message ends in `$<number>.run()V` is the missing
+`CALLBACK_CLASSES` case above, not a tracing problem: add the named class to the
+generator instead.
 
 The bundled font mappings come from OpenJDK and already cover Windows and macOS.
 

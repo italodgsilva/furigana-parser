@@ -61,20 +61,17 @@ CLASS_ROOTS = (
     "src/java.desktop/macosx/classes",
     "src/java.desktop/unix/classes",
 )
-# java.base native code is also reached from AWT (e.g., java.lang.Thread in GDIWindowSurfaceData).
+# java.base classes are looked up too (java.lang.Thread in GDIWindowSurfaceData,
+# java.lang.Runnable for the render queues), so they have to pass the existence
+# check even though only java.desktop's native code is scanned.
 BASE_CLASS_ROOTS = (
     "src/java.base/share/classes",
-    "src/java.base/windows/classes",
 )
 NATIVE_ROOTS = (
     "src/java.desktop/share/native",
     "src/java.desktop/windows/native",
     "src/java.desktop/macosx/native",
     "src/java.desktop/unix/native",
-)
-BASE_NATIVE_ROOTS = (
-    "src/java.base/share/native",
-    "src/java.base/windows/native",
 )
 
 NATIVE_FILE = re.compile(r"\.(c|cpp|m|mm)$")
@@ -101,6 +98,66 @@ FLAGS = {
     "allPublicMethods": True,
     "allPublicFields": True,
 }
+
+# java.base classes only get their constructors and public members.  Their
+# private internals are substituted or deleted by Native Image -- registering
+# java.lang.System.initPhase1/System.props makes the build abort with
+# "Unsupported method java.lang.ClassLoader.initSystemClassLoader() is reachable".
+# AWT only ever touches the public API of java.base (Thread.currentThread,
+# Runnable.run, System.load, ...), so the public surface is enough.
+BASE_FLAGS = {
+    "allDeclaredConstructors": True,
+    "allPublicMethods": True,
+    "allPublicFields": True,
+}
+
+# The AWT render queues do not call back into Java through the Runnable
+# interface: D3DRenderQueue.cpp ends flushBuffer with
+#
+#     JNU_CallMethodByName(env, &hasException, pFlush->runnable, "run", "()V")
+#
+# which resolves `run` on the *concrete* class of the object that was handed to
+# RenderQueue.flushAndInvokeNow.  Native Image refuses to satisfy that through
+# java.lang.Runnable: JNIReflectionDictionary.findMethod does recurse into
+# superinterfaces, but JNIAccessibleMember.isDiscoverableIn then rejects the
+# result because the concrete class overrides run() (it is one of the
+# `hidingSubclasses`, computed over the whole image).  Registering the
+# interface alone therefore still fails at run time with
+#
+#     NoSuchMethodError: sun.java2d.d3d.D3DGraphicsDevice$1.run()V
+#
+# Every compiler-generated class the queues can see therefore has to be listed
+# by name.  Anonymous classes cannot be derived from the OpenJDK sources, so the
+# list below was enumerated from the JDK images the release uses: take the
+# classes that call RenderQueue.flushAndInvokeNow (found by grepping the class
+# files for that name) and keep their `$<number>` nested classes.  The
+# java.desktop sources that create them are unchanged between 21.0.11 and
+# 21.0.12, so the numbering is stable.  StrikeCache$1 is a PrivilegedAction that
+# shares the file with StrikeCache$2; it is registered for safety only.
+CALLBACK_CLASSES = (
+    "sun.awt.windows.TranslucentWindowPainter$VIOptWindowPainter$1",
+    "sun.font.StrikeCache$1",
+    "sun.font.StrikeCache$2",
+    "sun.java2d.d3d.D3DGraphicsDevice$1",
+    "sun.java2d.d3d.D3DGraphicsDevice$2",
+    "sun.java2d.d3d.D3DGraphicsDevice$3",
+    "sun.java2d.d3d.D3DGraphicsDevice$4",
+    "sun.java2d.d3d.D3DGraphicsDevice$5",
+    "sun.java2d.d3d.D3DGraphicsDevice$6",
+    "sun.java2d.d3d.D3DGraphicsDevice$7",
+    "sun.java2d.d3d.D3DGraphicsDevice$8",
+    "sun.java2d.d3d.D3DRenderQueue$1",
+    "sun.java2d.d3d.D3DSurfaceData$1",
+    "sun.java2d.d3d.D3DSurfaceData$2",
+    "sun.java2d.d3d.D3DSurfaceData$D3DDataBufferNative$1",
+    "sun.java2d.d3d.D3DSurfaceData$D3DDataBufferNative$2",
+    "sun.java2d.opengl.GLXGraphicsConfig$1",
+    "sun.java2d.opengl.OGLSurfaceData$1",
+    "sun.java2d.opengl.WGLGraphicsConfig$1",
+    "sun.java2d.pipe.BufferedMaskFill$1",
+    "sun.java2d.pipe.BufferedRenderPipe$1",
+    "sun.java2d.pipe.BufferedTextPipe$1",
+)
 
 OUTPUT = Path(__file__).resolve().parent.parent / "native-image" / "awt" / "jni-config.json"
 
@@ -170,18 +227,21 @@ def classes_in(source: str) -> set[str]:
     return {name.replace("/", ".") for name in found}
 
 
-def awt_classes(ref: str) -> list[str]:
-    """Every java.desktop class whose native code is reached through JNI."""
-    known = set()
-    for root in CLASS_ROOTS:
+def java_classes(ref: str, roots: tuple[str, ...]) -> set[str]:
+    """The fully-qualified names of every top-level class below `roots`."""
+    names: set[str] = set()
+    for root in roots:
         for path in listing(ref, root):
             if path.endswith(".java") and not path.endswith(("module-info.java", "package-info.java")):
-                known.add(path[: -len(".java")].replace("/", "."))
-    # java.base classes that AWT native code looks up (e.g., java.lang.Thread)
-    for root in BASE_CLASS_ROOTS:
-        for path in listing(ref, root):
-            if path.endswith(".java") and not path.endswith(("module-info.java", "package-info.java")):
-                known.add(path[: -len(".java")].replace("/", "."))
+                names.add(path[: -len(".java")].replace("/", "."))
+    return names
+
+
+def declarations(ref: str) -> tuple[list[str], set[str]]:
+    """The JNI classes to register, and which of them come from java.base."""
+    desktop = java_classes(ref, CLASS_ROOTS)
+    base = java_classes(ref, BASE_CLASS_ROOTS)
+    known = desktop | base
 
     def declared(name: str) -> bool:
         # Nested classes have no source file of their own: the native code looks
@@ -196,39 +256,30 @@ def awt_classes(ref: str) -> list[str]:
             if not NATIVE_FILE.search(path) or SKIP_NATIVE.search(path):
                 continue
             wanted.update(classes_in(fetch(f"https://raw.githubusercontent.com/{REPOSITORY}/{ref}/{root}/{path}")))
-    # Also scan java.base native code for classes AWT reaches (e.g., Thread)
-    for root in BASE_NATIVE_ROOTS:
-        for path in listing(ref, root):
-            if not NATIVE_FILE.search(path) or SKIP_NATIVE.search(path):
-                continue
-            wanted.update(classes_in(fetch(f"https://raw.githubusercontent.com/{REPOSITORY}/{ref}/{root}/{path}")))
 
-    # Anonymous inner classes that the Windows native code explicitly looks up
-    # via GetMethodID for run() etc. These are compiler-generated and don't
-    # appear in source files, so we add them manually.
-    EXTRA_ANON_CLASSES = {
-        "sun.java2d.d3d.D3DRenderQueue$1",
-        "sun.java2d.d3d.D3DGraphicsDevice$1",
-        "sun.java2d.d3d.D3DGraphicsDevice$2",
-        "sun.java2d.d3d.D3DGraphicsDevice$3",
-        "sun.java2d.d3d.D3DGraphicsDevice$4",
-        "sun.java2d.d3d.D3DGraphicsDevice$5",
-        "sun.java2d.d3d.D3DGraphicsDevice$6",
-        "sun.java2d.d3d.D3DGraphicsDevice$7",
-        "sun.java2d.windows.GDIWindowSurfaceData$1",
+    # java.base's own native code is deliberately *not* scanned: it would drag in
+    # jdk.internal.* classes (notably jdk.internal.foreign.abi.fallback.LibFallback)
+    # that abort the native build when their static initializer runs at build time.
+    #
+    # Only the java.base classes named by java.desktop's native code are kept, plus
+    # the compiler-generated Runnable classes the queues look `run` up on
+    # (CALLBACK_CLASSES -- they have no source file, so no scan can find them).
+    names = sorted({name for name in wanted if declared(name)} | set(CALLBACK_CLASSES))
+    base_names = {
+        name
+        for name in names
+        if name not in desktop
+        and name.split("$")[0] not in desktop
+        and (name in base or name.split("$")[0] in base)
     }
-    wanted.update(EXTRA_ANON_CLASSES)
-
-    # Only classes that really exist in java.desktop/java.base: the heuristics above
-    # cannot always tell a class name from a method name with escaped
-    # underscores, and bogus entries would only produce build warnings.
-    return sorted(name for name in wanted if declared(name))
+    return names, base_names
 
 
 def build(ref: str) -> str:
+    names, base_names = declarations(ref)
     entries = [
-        {"name": name, **FLAGS}
-        for name in awt_classes(ref)
+        {"name": name, **(BASE_FLAGS if name in base_names else FLAGS)}
+        for name in names
     ]
     body = ",\n".join("  " + json.dumps(entry) for entry in entries)
     return f"[\n{body}\n]\n"
