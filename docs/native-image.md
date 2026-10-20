@@ -144,7 +144,7 @@ The second directory is `native-image/awt/`:
 | File | What for |
 | --- | --- |
 | `jni-config.json` | The JNI surface of the AWT/Swing native libraries on every platform: every java.desktop class the native code passes to `FindClass()`, implements a native method of, or mentions in a JNI signature, registered with all of its declared constructors, methods and fields (java.base classes and the compiler-generated render-queue callbacks are handled differently, see below). |
-| `reflect-config.json` | The render loops that `GraphicsPrimitiveMgr` registers as `GraphicsPrimitiveProxy` objects and loads lazily with `Class.forName` (see below). |
+| `reflect-config.json` | The render loops that `GraphicsPrimitiveMgr` registers as `GraphicsPrimitiveProxy` objects and loads lazily with `Class.forName`, plus the classes Swing resolves by name at run time: the Nimbus painters and the shell folder managers (see below). |
 
 The tracing agent only records the lookups the native libraries of the machine it
 runs on actually perform, so `native-image/gui/jni-config.json` (collected on Linux)
@@ -194,6 +194,40 @@ package-private secondary classes declared inside `GeneralRenderer.java` and
 reads their names out of the `sun/java2d` sources of every platform (they only
 occur under `share`, but the scan covers `windows`/`macosx`/`unix` too) and
 writes `native-image/awt/reflect-config.json` from them.
+
+The same file also covers two families of classes that *Swing* names at run
+time without ever referencing them (registering a class for reflection is what
+makes it exist in the image at all):
+
+- **The Nimbus painters.** `NimbusDefaults$LazyPainter` keeps the painter class
+  as a string in the look-and-feel defaults and builds it on first use with
+  `Class.forName(className, …).getConstructor(PaintContext.class, int.class)`.
+  Only the components a window actually shows get their painter resolved, so the
+  tracing agent captured the eleven the idle GUI paints and none of the file
+  chooser's: opening *Browse* in the native Windows build printed
+  `ClassNotFoundException: javax.swing.plaf.nimbus.FileChooserPainter` for
+  `FileChooser`, `ComboBox`, `Menu`, `MenuItem`, `PopupMenu` and
+  `RadioButtonMenuItem`, and each unresolved painter left its part of the dialog
+  unpainted. There is no painter source to list — the JDK build generates one
+  `*Painter.java` per component of `skin.laf`, the Nimbus look-and-feel
+  definition — so the generator re-derives the names from that file the way
+  `make/jdk/src/classes/build/tools/generatenimbus` does: walk the regions,
+  name each one `<parent><child>Painter`, and keep the ones whose canvas draws.
+  On JDK 21 that reproduces exactly the 63 generated painters; the hand-written
+  classes of the package (`AbstractRegionPainter`, `ToolBarSeparatorPainter`,
+  the Nimbus support classes) are listed from the package itself.
+- **The shell folder managers.** `sun.awt.shell.ShellFolder` reads its manager
+  from the `Shell.shellFolderManager` desktop property (on Windows
+  `sun.awt.windows.WToolkit` sets it to `sun.awt.shell.Win32ShellFolderManager2`),
+  resolves that class with `Class.forName` and instantiates it with
+  `getDeclaredConstructor().newInstance()`. Without the registration the lookup
+  falls back to `sun.awt.shell.ShellFolderManager`, whose constructor is equally
+  unregistered, and the class initializer gives up with
+  `java.lang.Error: Could not instantiate Shell Folder Manager:
+  sun.awt.shell.ShellFolderManager` — killing the event dispatch thread the moment
+  the file chooser opens. Every top-level class of `sun/awt/shell` is registered
+  (that package only exists under `share` and `windows`; the other platforms use
+  the generic manager).
 
 The GUI additionally bundles the font mapping that a Windows/macOS JDK installs as
 `lib/fontconfig.bfc`, as two resources under

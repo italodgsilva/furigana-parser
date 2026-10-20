@@ -32,6 +32,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *     sun.java2d.loops.SetDrawLineANY
  * </pre>
  *
+ * <p>Swing has the same habit: Nimbus keeps its painters as strings in the
+ * look-and-feel defaults ({@code NimbusDefaults$LazyPainter}) and
+ * {@code sun.awt.shell.ShellFolder} resolves its platform manager from a desktop
+ * property, so the file chooser fails without them with
+ * {@code ClassNotFoundException: javax.swing.plaf.nimbus.FileChooserPainter} or
+ * {@code java.lang.Error: Could not instantiate Shell Folder Manager}.
+ *
  * <p>Only the native build consumes the file, so nothing else would notice if
  * it went missing.
  */
@@ -59,6 +66,49 @@ class AwtReflectMetadataTest {
             "sun.java2d.loops.OpaqueCopyArgbToAny",
             "sun.java2d.loops.XorCopyArgbToAny");
 
+    /**
+     * A sample of the Nimbus painters the window and the file chooser paint with.
+     * The generator registers the hand-written classes of the package plus the
+     * painters the JDK build generates from {@code skin.laf}; this list only has to
+     * be representative enough to notice when that derivation is dropped.
+     */
+    private static final Set<String> REQUIRED_PAINTERS = Set.of(
+            "javax.swing.plaf.nimbus.ButtonPainter",
+            "javax.swing.plaf.nimbus.CheckBoxPainter",
+            "javax.swing.plaf.nimbus.ComboBoxPainter",
+            "javax.swing.plaf.nimbus.FileChooserPainter",
+            "javax.swing.plaf.nimbus.InternalFramePainter",
+            "javax.swing.plaf.nimbus.MenuBarMenuPainter",
+            "javax.swing.plaf.nimbus.MenuBarPainter",
+            "javax.swing.plaf.nimbus.MenuItemPainter",
+            "javax.swing.plaf.nimbus.MenuPainter",
+            "javax.swing.plaf.nimbus.OptionPaneMessageAreaOptionPaneLabelPainter",
+            "javax.swing.plaf.nimbus.PopupMenuPainter",
+            "javax.swing.plaf.nimbus.ProgressBarPainter",
+            "javax.swing.plaf.nimbus.RadioButtonMenuItemPainter",
+            "javax.swing.plaf.nimbus.RadioButtonPainter",
+            "javax.swing.plaf.nimbus.ScrollBarPainter",
+            "javax.swing.plaf.nimbus.ScrollBarThumbPainter",
+            "javax.swing.plaf.nimbus.ScrollPanePainter",
+            "javax.swing.plaf.nimbus.SeparatorPainter",
+            "javax.swing.plaf.nimbus.SliderPainter",
+            "javax.swing.plaf.nimbus.SplitPaneDividerPainter",
+            "javax.swing.plaf.nimbus.SplitPanePainter",
+            "javax.swing.plaf.nimbus.TabbedPanePainter",
+            "javax.swing.plaf.nimbus.TableHeaderPainter",
+            "javax.swing.plaf.nimbus.TableHeaderRendererPainter",
+            "javax.swing.plaf.nimbus.TextFieldPainter",
+            "javax.swing.plaf.nimbus.ToggleButtonPainter",
+            "javax.swing.plaf.nimbus.ToolBarPainter",
+            "javax.swing.plaf.nimbus.ToolTipPainter",
+            "javax.swing.plaf.nimbus.TreeCellPainter",
+            "javax.swing.plaf.nimbus.TreePainter");
+
+    /** {@code ShellFolder} instantiates its manager reflectively, per platform. */
+    private static final Set<String> REQUIRED_SHELL_MANAGERS = Set.of(
+            "sun.awt.shell.ShellFolderManager",
+            "sun.awt.shell.Win32ShellFolderManager2");
+
     @Test
     @DisplayName("The generated AWT reflection metadata registers the lazily loaded render loops")
     void awtReflectMetadataCoversPrimitiveProxies() throws IOException {
@@ -73,6 +123,25 @@ class AwtReflectMetadataTest {
             assertTrue(entry.getValue().contains("\"allDeclaredConstructors\": true"),
                     entry.getKey() + " must register its constructors");
         }
+    }
+
+    @Test
+    @DisplayName("The generated AWT reflection metadata registers the painters and shell folder managers")
+    void awtReflectMetadataCoversSwingNameLookups() throws IOException {
+        Map<String, String> entries = entries(Files.readString(metadata(), StandardCharsets.UTF_8));
+
+        for (String painter : REQUIRED_PAINTERS) {
+            assertTrue(entries.containsKey(painter), painter + " is missing from the metadata");
+        }
+        for (String manager : REQUIRED_SHELL_MANAGERS) {
+            assertTrue(entries.containsKey(manager), manager + " is missing from the metadata");
+        }
+        // The package classes plus the painters the JDK build generates from
+        // skin.laf (63 on JDK 21): the names live in the compiled-in Nimbus
+        // defaults, so a missing painter only breaks whichever component
+        // happens to use it.
+        assertTrue(entries.keySet().stream().filter(name -> name.startsWith("javax.swing.plaf.nimbus.")).count() >= 60,
+                "the generated painters must be registered, not just a few hand-written classes");
     }
 
     /** Splits the top-level list into one {@code name -> body} entry per class. */

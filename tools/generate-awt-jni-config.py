@@ -51,6 +51,44 @@ sources (the classes themselves are secondary types declared in those files), so
 the generator reads them out of the ``sun/java2d`` sources of every platform and
 writes ``native-image/awt/reflect-config.json`` next to the JNI metadata.
 
+Swing has a second family of lazily loaded classes: it keeps *names* in its
+defaults and resolves them with ``Class.forName`` long after the image was
+built.  Two of them are reached by the GUI's own controls:
+
+  * Nimbus stores its painters as strings in the look-and-feel defaults and
+    builds them in ``NimbusDefaults$LazyPainter``::
+
+        c = Class.forName(className, true, cl);
+        Constructor<?> constructor = c.getConstructor(
+                AbstractRegionPainter.PaintContext.class, int.class);
+
+    Only the components a window happens to show get their painter resolved, so
+    the tracing agent recorded the eleven painters the idle GUI paints and none
+    of the ones the file chooser needs.  Opening a file dialog in the native
+    Windows build therefore printed
+
+        java.lang.ClassNotFoundException: javax.swing.plaf.nimbus.FileChooserPainter
+
+    for every component of the dialog (and every painter it failed to resolve
+    left that part of the dialog unpainted).
+
+  * ``sun.awt.shell.ShellFolder`` reads its manager off a desktop property
+    (``sun.awt.windows.WToolkit`` sets ``Shell.shellFolderManager`` to
+    ``sun.awt.shell.Win32ShellFolderManager2``), looks the class up by name and
+    instantiates it with ``getDeclaredConstructor().newInstance()``.  When the
+    lookup or the constructor is missing the class initializer gives up with
+
+        java.lang.Error: Could not instantiate Shell Folder Manager:
+            sun.awt.shell.ShellFolderManager
+
+    which kills the event dispatch thread the moment the file chooser opens.
+
+Neither class list can be read off a call site: the painters are named by the
+look-and-feel defaults, and the Windows manager only exists in the sources of
+another platform.  The painters are therefore re-derived from ``skin.laf`` -- the
+Nimbus definition the JDK build turns into ``*Painter.java`` files -- and the
+``sun/awt/shell`` package is registered wholesale.
+
 Usage
 -----
     python3 tools/generate-awt-jni-config.py           # write both files
@@ -65,7 +103,9 @@ import re
 import sys
 import urllib.error
 import urllib.request
+from functools import lru_cache
 from pathlib import Path
+from xml.etree import ElementTree
 
 # The OpenJDK revision the metadata is derived from.  Bump it together with the
 # GraalVM version used by the `native` Maven profile.
@@ -125,6 +165,23 @@ PROXY_CALL = re.compile(
 REFLECT_FLAGS = {
     "allDeclaredConstructors": True,
 }
+
+# Swing keeps class *names* in its defaults instead of referencing the classes,
+# so the reflection metadata needs two extra sources:
+#
+#   * Nimbus painters.  NimbusDefaults$LazyPainter reads the painter class out
+#     of the compiled-in look-and-feel defaults and builds it with
+#     Class.forName(className).getConstructor(PaintContext, int).  The painter
+#     classes do not exist in the sources -- the build generates them from
+#     skin.laf -- so `nimbus_painters` re-derives their names.
+#   * The shell folder managers.  ShellFolder resolves its manager from the
+#     "Shell.shellFolderManager" desktop property (sun.awt.windows.WToolkit
+#     points it at sun.awt.shell.Win32ShellFolderManager2) and instantiates it
+#     with getDeclaredConstructor().newInstance().  Every top-level class of
+#     sun/awt/shell is registered; the package only exists under share/windows.
+NIMBUS_PACKAGE = "javax.swing.plaf.nimbus"
+SKIN_LAF = "src/java.desktop/share/classes/javax/swing/plaf/nimbus/skin.laf"
+REGION_TAGS = ("uiComponent", "region", "uiIconRegion")
 
 FLAGS = {
     "allDeclaredConstructors": True,
@@ -211,12 +268,18 @@ def fetch(url: str) -> str:
     raise SystemExit(f"could not download {url}: {last}")
 
 
-def listing(ref: str, root: str) -> list[str]:
-    """Return the repository-relative path of every file below `root`."""
+@lru_cache(maxsize=None)
+def _listing(ref: str, root: str) -> tuple[str, ...]:
+    """The repository-relative path of every file below `root`, fetched once."""
     import json as _json
 
     payload = _json.loads(fetch(f"https://api.github.com/repos/{REPOSITORY}/git/trees/{ref}:{root}?recursive=1"))
-    return [entry["path"] for entry in payload.get("tree", []) if entry["type"] == "blob"]
+    return tuple(entry["path"] for entry in payload.get("tree", []) if entry["type"] == "blob")
+
+
+def listing(ref: str, root: str) -> list[str]:
+    """Return the repository-relative path of every file below `root`."""
+    return list(_listing(ref, root))
 
 
 def jni_class_of_function(name: str) -> str | None:
@@ -350,8 +413,123 @@ def proxy_classes(ref: str) -> list[str]:
     return sorted(names)
 
 
+def package_classes(ref: str, package: str) -> set[str]:
+    """The top-level classes of `package`, spelled out from the source listing."""
+    names: set[str] = set()
+    for root in CLASS_ROOTS:
+        for path in listing(ref, root):
+            # `listing` returns the paths below the root, e.g.
+            # javax/swing/plaf/nimbus/NimbusLookAndFeel.java.
+            directory, _, simple = path.rpartition("/")
+            if directory != package or not simple.endswith(".java"):
+                continue
+            if simple in ("module-info.java", "package-info.java"):
+                continue
+            names.add(f"{package.replace('/', '.')}.{simple[: -len('.java')]}")
+    return names
+
+
+# `UIRegion.getKey`: an explicit `key` beats `componentName`, which beats `name`.
+def region_key(region) -> str:
+    return region.get("key") or region.get("componentName") or region.get("name") or ""
+
+
+def subregions(region):
+    """The regions ``UIRegion.parse`` attaches to `region`.
+
+    The ``<state>`` subtrees belong to ``UIState`` and never contribute regions.
+    """
+    for child in region:
+        if child.tag == "state":
+            continue
+        if child.tag in REGION_TAGS:
+            yield child
+        else:
+            yield from subregions(child)
+
+
+def has_canvas(region) -> bool:
+    """``UIRegion.hasCanvas``: a canvas of this region or of any subregion draws."""
+    for tag in ("backgroundStates", "foregroundStates", "borderStates"):
+        states = region.find(tag)
+        if states is None:
+            continue
+        for state in states.findall("state"):
+            canvas = state.find("canvas")
+            layers = [] if canvas is None else canvas.findall("layer")
+            if not layers:
+                continue
+            if len(layers) == 1:
+                shapes = layers[0].find("shapes")
+                if shapes is None or len(shapes) == 0:
+                    continue  # a single empty layer is a blank canvas
+            return True
+    return any(has_canvas(subregion) for subregion in subregions(region))
+
+
+def painter_name(prefix: str) -> str:
+    """``Utils.normalize``: ``MenuBar:Menu`` -> ``MenuBarMenu``, ``Table.editor`` -> ``TableEditor``."""
+    parts = [[]]
+    capitalize = False
+    for char in prefix:
+        if char in '\\"':
+            continue
+        if char == ".":
+            capitalize = True
+        elif char == ":":
+            parts.append([])
+            capitalize = True
+        else:
+            parts[-1].append(char.upper() if capitalize else char)
+            capitalize = False
+    name = "".join(parts[0])
+    for part in ("".join(part) for part in parts[1:]):
+        # Drop a repeated prefix, like the JDK: SliderTrack, not SliderSliderTrack.
+        name = part if part.startswith(name) else name + part
+    return name
+
+
+def collect_painters(region, prefix: str, painters: set[str]) -> None:
+    if has_canvas(region):
+        painters.add(f"{NIMBUS_PACKAGE}.{painter_name(prefix)}Painter")
+    for subregion in subregions(region):
+        if subregion.tag == "uiIconRegion":
+            # UIIconRegion.write paints into the owner's painter: no file of its
+            # own, and no extra prefix segment either.
+            continue
+        collect_painters(subregion, f"{prefix}:{region_key(subregion)}", painters)
+
+
+def nimbus_painters(ref: str) -> set[str]:
+    """The painter classes the JDK build generates for Nimbus.
+
+    There are no painter sources to list: ``skin.laf`` is the look-and-feel
+    definition, and ``make/jdk/src/classes/build/tools/generatenimbus`` turns
+    every component/region of it into a ``<Region>Painter.java`` at build time.
+    The four rules mirrored here are ``UIRegion.write`` (walk the subregions,
+    prefixing them with ``parent:key``), ``Utils.normalize`` (the class name),
+    ``UIRegion.hasCanvas``/``UIState.hasCanvas`` (a region without a canvas gets
+    no painter) and ``UIIconRegion.write`` (icons paint into the owner's painter).
+    On JDK 21 this derives exactly the 63 generated painters; the two painters
+    that are hand-written (``AbstractRegionPainter``, ``ToolBarSeparatorPainter``)
+    come from `package_classes`.
+    """
+    root = ElementTree.fromstring(fetch(f"https://raw.githubusercontent.com/{REPOSITORY}/{ref}/{SKIN_LAF}"))
+    painters: set[str] = set()
+    for components in root.findall("components"):
+        for component in components.findall("uiComponent"):
+            collect_painters(component, region_key(component), painters)
+    return painters
+
+
 def build_reflect(ref: str) -> str:
-    entries = [{"name": name, **REFLECT_FLAGS} for name in proxy_classes(ref)]
+    names = set(proxy_classes(ref))
+    names |= package_classes(ref, "javax/swing/plaf/nimbus")
+    names |= nimbus_painters(ref)
+    # Only share/ and windows/ have shell folder classes; the other platforms
+    # instantiate the generic ShellFolderManager.
+    names |= package_classes(ref, "sun/awt/shell")
+    entries = [{"name": name, **REFLECT_FLAGS} for name in sorted(names)]
     body = ",\n".join("  " + json.dumps(entry) for entry in entries)
     return f"[\n{body}\n]\n"
 
