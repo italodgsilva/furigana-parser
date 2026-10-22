@@ -7,8 +7,10 @@ import com.shinji2324.furigana.furigana.FuriganaSegmenter;
 import com.shinji2324.furigana.japanese.JapaneseScript;
 import com.shinji2324.furigana.japanese.JapaneseTokenizer;
 import com.shinji2324.furigana.japanese.Token;
+import com.shinji2324.furigana.reading.HintReadingProvider;
 import com.shinji2324.furigana.reading.Reading;
 import com.shinji2324.furigana.reading.ReadingProvider;
+import com.shinji2324.furigana.reading.SrtReadingHintExtractor;
 import com.shinji2324.furigana.subtitle.ParenthesisStripper;
 import com.shinji2324.furigana.subtitle.SrtParser;
 import com.shinji2324.furigana.subtitle.Subtitle;
@@ -20,8 +22,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -73,6 +77,9 @@ public class FuriganaPipeline {
 
     /** Surfaces with kanji that had no reading, in order of appearance. */
     private final Set<String> missingReadings = new LinkedHashSet<>();
+
+    private final Map<String, String> hintsMap = new LinkedHashMap<>();
+    private final HintReadingProvider hintReadingProvider = new HintReadingProvider(hintsMap);
 
     /**
      * Creates the pipeline with the default {@link SrtParser}.
@@ -174,7 +181,14 @@ public class FuriganaPipeline {
      * @return intermediate document with the processed entries
      */
     public FuriganaDocument process(String srtContent) {
-        return build(subtitleParser.parse(srtContent));
+        if (srtContent == null) {
+            return new FuriganaDocument();
+        }
+        String original = srtContent;
+        hintsMap.clear();
+        hintsMap.putAll(SrtReadingHintExtractor.extractHints(original));
+        String contentWithoutHints = SrtReadingHintExtractor.removeHintParentheses(original);
+        return build(subtitleParser.parse(contentWithoutHints));
     }
 
     /**
@@ -200,12 +214,19 @@ public class FuriganaPipeline {
         FuriganaDocument document = new FuriganaDocument();
         missingReadings.clear();
         for (SubtitleEntry entry : subtitle.getEntries()) {
-            String text = entry.getText();
-            if (stripParentheses) {
+            String originalText = entry.getText();
+            if (originalText != null) {
+                hintsMap.putAll(SrtReadingHintExtractor.extractHints(originalText));
+            }
+            String text = originalText == null ? null : SrtReadingHintExtractor.removeHintParentheses(originalText);
+            if (stripParentheses && text != null) {
                 text = ParenthesisStripper.strip(text);
                 if (text.isBlank()) {
                     continue;
                 }
+            }
+            if (text == null) {
+                continue;
             }
             document.addEntry(toFuriganaEntry(entry, text));
         }
@@ -244,23 +265,31 @@ public class FuriganaPipeline {
     /**
      * Determines the reading of a token.
      *
-     * <p>The reading provided by the tokenizer (Kuromoji) has priority. Without it,
-     * it queries the provider only when the token contains kanji — kana, punctuation
+     * <p>Explicit reading hints from the original SRT have highest priority. The
+     * reading provided by the tokenizer (Kuromoji) comes next. Without it, it
+     * queries the provider only when the token contains kanji — kana, punctuation
      * and Latin do not need furigana and should not generate external queries.
      *
      * @param token token to resolve
      * @return reading in hiragana, or {@code null} when there is none
      */
     private String resolveReading(Token token) {
+        String surface = token.getSurface();
+        if (hintReadingProvider != null) {
+            Optional<Reading> hintReading = hintReadingProvider.findReading(token);
+            if (hintReading.isPresent()) {
+                return hintReading.get().getReading();
+            }
+        }
         if (token.hasReading()) {
             return token.getReading();
         }
-        if (readingProvider == null || !JapaneseScript.containsKanji(token.getSurface())) {
+        if (readingProvider == null || !JapaneseScript.containsKanji(surface)) {
             return null;
         }
         Optional<Reading> reading = readingProvider.findReading(token);
         if (reading.isEmpty()) {
-            missingReadings.add(token.getSurface());
+            missingReadings.add(surface);
         }
         return reading.map(Reading::getReading).orElse(null);
     }

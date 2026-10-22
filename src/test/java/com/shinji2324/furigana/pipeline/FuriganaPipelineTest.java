@@ -150,7 +150,7 @@ class FuriganaPipelineTest {
                         .process("1\n00:00:01,000 --> 00:00:02,000\n（太郎）日本語（にほんご）")
                         .getEntries().get(0).segments();
 
-        assertEquals(List.of(new FuriganaSegment("日本語", null)), segments);
+        assertEquals(List.of(new FuriganaSegment("日本語", "にほんご")), segments);
     }
 
     @Test
