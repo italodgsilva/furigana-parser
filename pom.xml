@@ -155,6 +155,43 @@
     <profiles>
 
         <!--
+            Portable x86_64 baseline so older Intel Macs still run the native image.
+        -->
+        <profile>
+            <id>native-arch-x86</id>
+            <activation>
+                <os>
+                    <arch>x86_64</arch>
+                </os>
+            </activation>
+            <properties>
+                <native.arch.buildArg>-march=x86-64</native.arch.buildArg>
+            </properties>
+        </profile>
+        <profile>
+            <id>native-arch-x86-amd64</id>
+            <activation>
+                <os>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <native.arch.buildArg>-march=x86-64</native.arch.buildArg>
+            </properties>
+        </profile>
+        <profile>
+            <id>native-arch-arm</id>
+            <activation>
+                <os>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <native.arch.buildArg></native.arch.buildArg>
+            </properties>
+        </profile>
+
+        <!--
             Native compilation with GraalVM Native Image (opt-in).
 
             Requires GraalVM on the PATH/JAVA_HOME (with `native-image`) and a
@@ -218,7 +255,7 @@
                                     <mainClass>com.shinji2324.furigana.Application</mainClass>
                                     <imageName>furigana-parser</imageName>
                                     <buildArgs>
-                                        <buildArg>-march=x86-64</buildArg>
+                                        <buildArg>${native.arch.buildArg}</buildArg>
                                     </buildArgs>
                                 </configuration>
                             </execution>
@@ -232,7 +269,7 @@
                                     <mainClass>com.shinji2324.furigana.gui.GuiMain</mainClass>
                                     <imageName>furigana-parser-gui</imageName>
                                     <buildArgs>
-                                        <buildArg>-march=x86-64</buildArg>
+                                        <buildArg>${native.arch.buildArg}</buildArg>
                                         <!-- All the charsets, for non-ASCII file paths. -->
                                         <buildArg>-H:+AddAllCharsets</buildArg>
                                         <!--
