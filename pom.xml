@@ -217,6 +217,9 @@
                                 <configuration>
                                     <mainClass>com.shinji2324.furigana.Application</mainClass>
                                     <imageName>furigana-parser</imageName>
+                                    <buildArgs>
+                                        <buildArg>-march=x86-64</buildArg>
+                                    </buildArgs>
                                 </configuration>
                             </execution>
                             <execution>
@@ -229,6 +232,7 @@
                                     <mainClass>com.shinji2324.furigana.gui.GuiMain</mainClass>
                                     <imageName>furigana-parser-gui</imageName>
                                     <buildArgs>
+                                        <buildArg>-march=x86-64</buildArg>
                                         <!-- All the charsets, for non-ASCII file paths. -->
                                         <buildArg>-H:+AddAllCharsets</buildArg>
                                         <!--
