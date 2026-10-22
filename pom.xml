@@ -156,39 +156,45 @@
 
         <!--
             Portable x86_64 baseline so older Intel Macs still run the native image.
+            Applied only to x86_64/amd64; left at GraalVM default on aarch64.
         -->
         <profile>
-            <id>native-arch-x86</id>
+            <id>native-baseline-x86_64</id>
             <activation>
-                <os>
-                    <arch>x86_64</arch>
-                </os>
+                <os><arch>x86_64</arch></os>
             </activation>
-            <properties>
-                <native.arch.buildArg>-march=x86-64</native.arch.buildArg>
-            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <buildArgs>
+                                <buildArg>-march=x86-64</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
         <profile>
-            <id>native-arch-x86-amd64</id>
+            <id>native-baseline-amd64</id>
             <activation>
-                <os>
-                    <arch>amd64</arch>
-                </os>
+                <os><arch>amd64</arch></os>
             </activation>
-            <properties>
-                <native.arch.buildArg>-march=x86-64</native.arch.buildArg>
-            </properties>
-        </profile>
-        <profile>
-            <id>native-arch-arm</id>
-            <activation>
-                <os>
-                    <arch>aarch64</arch>
-                </os>
-            </activation>
-            <properties>
-                <native.arch.buildArg></native.arch.buildArg>
-            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <buildArgs>
+                                <buildArg>-march=x86-64</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
 
         <!--
@@ -254,9 +260,6 @@
                                 <configuration>
                                     <mainClass>com.shinji2324.furigana.Application</mainClass>
                                     <imageName>furigana-parser</imageName>
-                                    <buildArgs>
-                                        <buildArg>${native.arch.buildArg}</buildArg>
-                                    </buildArgs>
                                 </configuration>
                             </execution>
                             <execution>
@@ -269,7 +272,6 @@
                                     <mainClass>com.shinji2324.furigana.gui.GuiMain</mainClass>
                                     <imageName>furigana-parser-gui</imageName>
                                     <buildArgs>
-                                        <buildArg>${native.arch.buildArg}</buildArg>
                                         <!-- All the charsets, for non-ASCII file paths. -->
                                         <buildArg>-H:+AddAllCharsets</buildArg>
                                         <!--
