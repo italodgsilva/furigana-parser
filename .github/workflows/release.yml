@@ -1,14 +1,6 @@
 # Publishes a version of the program.
 #
-# When a `v*` tag is pushed, it builds the executable JARs (CLI and GUI) and the
-# native binaries (profile `native`, via GraalVM) and attaches everything to a GitHub Release.
-#
-# Usage:
-#   git tag v0.2.0
-#   git push origin v0.2.0
-#
-# It also works when the Release is created through the GitHub interface: the
-# created tag triggers the workflow, which attaches the files to the existing Release.
+# When a `v*` tag is pushed, builds the executable JARs (CLI and GUI) and attaches them to a GitHub Release.
 name: Release
 
 on:
@@ -16,13 +8,10 @@ on:
     tags:
       - 'v*'
 
-# Minimum permissions: only the release job needs to write to the repository.
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-
-  # Executable JAR (uber jar). It is the only job that runs the test suite.
   jar:
     name: JAR
     runs-on: ubuntu-latest
@@ -49,112 +38,6 @@ jobs:
           cp "$(ls target/furigana-parser-[0-9]*-gui.jar | head -n1)" \
              "furigana-parser-gui-${version}.jar"
 
-      - name: Upload intermediate artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: jar
-          path: furigana-parser-*.jar
-          if-no-files-found: error
-
-  # Native binaries, one pair (CLI + GUI) per platform. If a platform is not
-  # wanted, just remove the corresponding entry from the matrix.
-  native:
-    name: Native (${{ matrix.asset }})
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            asset: linux-x86_64
-          - os: ubuntu-24.04-arm
-            asset: linux-aarch64
-          - os: macos-15-intel
-            asset: macos-x86_64
-          - os: macos-14
-            asset: macos-aarch64
-          - os: windows-latest
-            asset: windows-x86_64
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Set up GraalVM (JDK 21)
-        uses: graalvm/setup-graalvm@v1
-        with:
-          distribution: graalvm
-          java-version: '21'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache: maven
-
-      - name: C toolchain dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y zlib1g-dev
-
-      - name: Compile the native binaries
-        run: mvn --batch-mode --no-transfer-progress -Pnative -DskipTests clean package
-
-      # The CLI image is a single, self-contained file. The GUI image pulls in
-      # AWT, and Native Image emits the AWT/font JNI libraries next to the
-      # executable (libawt*, libfontmanager, the java/jvm shims, ...), so the GUI
-      # is distributed as an archive that keeps them together.
-      - name: Package the CLI binary and the GUI bundle
-        shell: bash
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          asset="${{ matrix.asset }}"
-          ext=""
-          if [ -f target/furigana-parser.exe ]; then
-            ext=".exe"
-          fi
-
-          cp "target/furigana-parser${ext}" "furigana-parser-${version}-${asset}${ext}"
-
-          mkdir -p gui-bundle
-          cp "target/furigana-parser-gui${ext}" gui-bundle/
-          find target -maxdepth 1 -type f \
-            \( -name '*.so' -o -name '*.dylib' -o -name '*.dll' \) \
-            -exec cp {} gui-bundle/ \;
-
-          if [ "$ext" = ".exe" ]; then
-            powershell.exe -NoProfile -Command \
-              "Compress-Archive -Path 'gui-bundle/*' -DestinationPath 'furigana-parser-gui-${version}-${asset}.zip' -Force"
-          else
-            tar -czf "furigana-parser-gui-${version}-${asset}.tar.gz" -C gui-bundle .
-          fi
-
-      - name: Upload intermediate artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: native-${{ matrix.asset }}
-          path: furigana-parser-*
-          if-no-files-found: error
-
-  # Aggregates the artifacts and creates/updates the Release with all of them.
-  release:
-    name: Publish Release
-    needs: [ jar, native ]
-    runs-on: ubuntu-latest
-
-    # Required to create the Release and upload the files.
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v7
-        with:
-          path: dist
-          merge-multiple: true
-
-      - name: Generate checksums (SHA-256)
-        working-directory: dist
-        run: |
-          find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -printf '%P\n' \
-            | sort | xargs sha256sum > SHA256SUMS.txt
-
       - name: Create/update the Release and attach the files
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -162,4 +45,4 @@ jobs:
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
             || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
-          gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          gh release upload "$GITHUB_REF_NAME" furigana-parser-*.jar --clobber
