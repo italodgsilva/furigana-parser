@@ -60,8 +60,7 @@ Completed steps:
 8. MPV integration (`--mpv`): generates the ASS next to the SRT and opens the video with `mpv --sub-file=...` (see `docs/mpv.md`).
 9. Font embedding into the ASS itself (`--embed-font`): locates the style's font by family name, extracts the face from `.ttc` collections and writes the `[Fonts]` section, all in Java. With `--subset-font`, it subsets the embedded font to the glyphs used in the subtitle, using HarfBuzz (see `docs/font-embedding.md`).
 10. Text cleanup (`--strip-parentheses`): removes the passages between round parentheses (full-width and half-width) before tokenization, discarding entries that become empty.
-11. Native build with GraalVM (`mvn -Pnative package`): generates the CLI and GUI executables without a JVM, with the reflection/resource/JNI configurations in `src/main/resources/META-INF/native-image/` and the GUI-only AWT/Swing metadata in `native-image/gui/` (traced) plus `native-image/awt/` (generated from OpenJDK, covering Windows and macOS; see `docs/native-image.md`).
-12. Automatic release publishing: a `v*` tag triggers the release workflow, which builds the JARs (CLI and GUI) and the native binaries (CLI and GUI) for each platform and attaches them to a GitHub Release (see the "Publishing a release" section).
+11. Automatic release publishing: a `v*` tag triggers the release workflow, which builds the JARs (CLI and GUI) and attaches them to a GitHub Release (see the "Publishing a release" section).
 13. Color customization (`--color`): changes the primary color of the `Main` and `Furigana` styles, accepting a name, `#RRGGBB` or an ASS `AABBGGRR` value. Furigana that would overlap on the same line is spread apart automatically.
 14. Graphical interface (`gui`): a single window to choose the input/output and the options, with a color picker and a "Play in MPV" button. It is a separate entry point (`furigana-parser-gui` binary and `-gui.jar`, no arguments) that reuses the same pipeline through `core.FuriganaService` (see [`docs/gui.md`](docs/gui.md)).
 
@@ -76,9 +75,7 @@ Next steps (outside the current scope):
 - JUnit 5
 - Jackson
 - Kuromoji (morphological tokenization, IPADIC dictionary)
-- JNA (access to the native HarfBuzz library, for optional font subsetting)
 - Swing (graphical interface, on top of the same pipeline)
-- GraalVM Native Image (optional native build)
 - SRT format
 - ASS/SSA format
 - MPV
@@ -117,13 +114,11 @@ furigana-parser/
 │   │       │   ├── fontconfig-windows.properties
 │   │       │   └── fontconfig-macos.properties
 │   │       └── META-INF/
-│   │           └── native-image/
 │   │               └── com.shinji2324/furigana-parser/
 │   │                   ├── reflect-config.json
 │   │                   ├── resource-config.json
 │   │                   ├── jni-config.json
 │   │                   ├── proxy-config.json
-│   │                   └── native-image.properties
 │   │
 │   └── test/
 │       ├── java/
@@ -135,10 +130,8 @@ furigana-parser/
 │
 ├── docker/
 │   ├── Dockerfile.jar
-│   ├── Dockerfile.native
 │   └── Dockerfile.trace
 │
-├── native-image/
 │   ├── gui/                        # traced with the tracing agent (Linux)
 │   │   ├── reflect-config.json
 │   │   ├── jni-config.json
@@ -155,7 +148,6 @@ furigana-parser/
     ├── font-embedding.md
     ├── gui.md
     ├── mpv.md
-    └── native-image.md
 ```
 
 ## Download and usage
@@ -179,8 +171,7 @@ counterpart — the same name with `gui` after `furigana-parser`, e.g.
 `furigana-parser-gui-<version>.jar`. The GUI binaries and the GUI jar take **no
 arguments**: running them opens the window (see [`docs/gui.md`](docs/gui.md)).
 
-The CLI native binaries need nothing installed besides the file itself; the JAR
-needs Java 21 or higher. The native GUI is an archive because it needs the AWT
+The JAR needs Java 21 or higher.
 libraries shipped next to the executable — extract it before running.
 
 On Linux and macOS, mark the binary as executable before running:
@@ -259,16 +250,8 @@ java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --help
 java -jar target/furigana-parser-0.2.0-SNAPSHOT-gui.jar
 ```
 
-Build the native executable with GraalVM (optional; requires GraalVM and a C
-toolchain — see [`docs/native-image.md`](docs/native-image.md)):
-
-```
-mvn -Pnative package
-```
-
 The output is `target/furigana-parser` (CLI, a single file) and
 `target/furigana-parser-gui` (GUI, no arguments; it needs the AWT libraries that
-Native Image writes to `target/` next to it).
 
 ### Publishing a release
 
@@ -281,7 +264,6 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
-The workflow builds the JARs (CLI and GUI, running the tests) and the native
 binaries (CLI and GUI) for Linux (x86-64 and aarch64), macOS (x86-64 and arm64) and
 Windows, and attaches everything to a GitHub Release named after the tag, along with
 a `SHA256SUMS.txt`. It also works when you create the Release through the GitHub
@@ -301,7 +283,7 @@ intermediate model and `.ass` produces the subtitle with positioned furigana.
 
 In the examples below, replace `java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar`
 with the path to the downloaded JAR (e.g. `java -jar furigana-parser-0.2.0.jar`) or
-to the native binary (e.g. `./furigana-parser-0.2.0-linux-x86_64`).
+to the JAR.
 
 ```
 java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar input.srt output.json
@@ -316,7 +298,6 @@ java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --mpv input.srt video.mkv
 java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar --help
 ```
 
-The same commands work for the native binary: replace
 `java -jar target/furigana-parser-0.2.0-SNAPSHOT.jar` with `./target/furigana-parser`.
 
 With `--embed-font`, the ASS starts carrying the font itself in the `[Fonts]`
@@ -487,4 +468,4 @@ This project is distributed under the [MIT License](LICENSE).
 
 The two font mappings under `src/main/resources/com/shinji2324/furigana/gui/awt/`
 are the ones OpenJDK ships, copied verbatim and kept under their original
-GPLv2-with-Classpath-exception license (see [`docs/native-image.md`](docs/native-image.md)).
+GPLv2-with-Classpath-exception license.
