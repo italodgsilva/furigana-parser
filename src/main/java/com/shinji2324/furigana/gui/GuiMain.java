@@ -1,5 +1,7 @@
 package com.shinji2324.furigana.gui;
 
+import java.awt.GraphicsEnvironment;
+
 import javax.swing.*;
 
 public final class GuiMain {
